@@ -1,0 +1,65 @@
+# vcita Test Agent Configuration
+
+# Application settings
+app:
+  name: "vcita Test Agent"
+  version: "1.0.0"
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+# Browser settings
+browser:
+  type: "chromium"  # chromium, firefox, webkit
+  headless: false   # Set to true for CI/cloud environments
+  slow_mo: 100      # Milliseconds between actions (helps with debugging)
+  timeout: 30000    # Default timeout in milliseconds
+  viewport:
+    width: 1280
+    height: 720
+
+# Test execution settings
+execution:
+  continuous: true           # Run tests in infinite loop
+  parallel_tests: 1          # Number of tests to run in parallel
+  retry_on_failure: 2        # Number of retries before marking as failed
+  delay_between_runs: 60     # Seconds between test cycle runs
+  screenshot_on_failure: true
+  trace_on_failure: true
+
+# AI/Exploration settings
+exploration:
+  max_steps: 50              # Maximum steps before giving up
+  wait_after_action: 1000    # Milliseconds to wait after each action
+  screenshot_each_step: true # Capture screenshot at every step
+
+# Self-healing settings
+healing:
+  enabled: true
+  max_heal_attempts: 3       # Max attempts to self-heal a test
+  re_explore_on_failure: true
+
+# Database settings
+database:
+  path: "db/test_results.db"
+  
+# Logging and output
+logging:
+  path: "logs"
+  keep_days: 30              # Days to keep log files
+  
+# Snapshots (screenshots and DOM)
+snapshots:
+  path: "snapshots"
+  keep_days: 7               # Days to keep snapshot files
+
+# Test organization
+tests:
+  root_path: "tests"         # Root folder for test categories
+  category_file: "_category.yaml"
+
+# Target application (vcita)
+target:
+  base_url: "https://app.vcita.com"
+  # Add authentication details as needed
+  # auth:
+  #   username: ""
+  #   password: ""

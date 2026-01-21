@@ -1,0 +1,196 @@
+# Phase 3: test.py Rules
+
+## Purpose
+
+The `test.py` file contains **executable Playwright Python code** generated from `script.md`. It should never be manually edited - always regenerate from the script.
+
+This applies to:
+- Tests
+- Functions  
+- Setup/Teardown
+
+## Generation Rules
+
+### Source
+- Generate ONLY from `script.md`, never directly from `steps.md`
+- Each step in script.md becomes code with comments
+- Function calls become imports and function invocations
+
+### Code Structure for Tests
+
+```python
+# Auto-generated from script.md
+# Last updated: {timestamp}
+# Source: tests/{category}/{test_name}/script.md
+# DO NOT EDIT MANUALLY - Regenerate from script.md
+
+import re
+import time
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests._functions.login.test import fn_login
+from tests._functions.create_client.test import fn_create_client
+from src.context import TestContext
+
+class Test{TestName}:
+    """
+    {Test description from steps.md objective}
+    """
+    
+    def test_{test_name}(self, page: Page, context: TestContext):
+        timestamp = int(time.time())
+        
+        # Step 1: Login
+        fn_login(page, context)
+        
+        # Step 2: Create client
+        fn_create_client(page, context, name="Test User", email=f"test-{timestamp}@example.com")
+        
+        # Step 3: {step description}
+        # ... code ...
+        
+        # Verification
+        # ... assertions ...
+```
+
+### Code Structure for Functions
+
+```python
+# Auto-generated from script.md
+# Last updated: {timestamp}
+# Source: tests/_functions/{function_name}/script.md
+# DO NOT EDIT MANUALLY - Regenerate from script.md
+
+from playwright.sync_api import Page, expect
+from src.context import TestContext
+
+def fn_{function_name}(page: Page, context: TestContext, **params):
+    """
+    {Function description from steps.md objective}
+    
+    Parameters:
+    - name: Client's full name (required)
+    - email: Client's email (required)
+    - phone: Client's phone (optional)
+    
+    Saves to context:
+    - created_client_id
+    """
+    name = params.get("name")
+    email = params.get("email")
+    phone = params.get("phone")
+    
+    # Step 1: Navigate to CRM
+    page.get_by_role("link", name="CRM").click()
+    page.wait_for_url("**/crm**")
+    
+    # Step 2: Click Add Client
+    page.get_by_role("button", name="Add Client").click()
+    
+    # ... more steps ...
+    
+    # Step 7: Extract and save client ID
+    client_id = page.locator(".client-id").text_content()
+    context.set("created_client_id", client_id)
+```
+
+### Code Structure for Setup/Teardown
+
+```python
+# Auto-generated from script.md
+# Last updated: {timestamp}
+# Source: tests/{category}/_setup/script.md
+# DO NOT EDIT MANUALLY - Regenerate from script.md
+
+from playwright.sync_api import Page, expect
+from tests._functions.login.test import fn_login
+from src.context import TestContext
+
+def setup_{category}(page: Page, context: TestContext):
+    """
+    Setup for {category} tests
+    """
+    # Step 1: Login
+    fn_login(page, context)
+    
+    # Step 2: Navigate to section
+    # ... code ...
+```
+
+### Locator Strategy
+
+Use Playwright locators in this order of preference:
+1. `page.get_by_role()` - Most resilient
+2. `page.get_by_label()` - For form fields
+3. `page.get_by_text()` - For buttons/links with visible text
+4. `page.locator()` - CSS selectors from element hints
+
+### Context Operations
+
+```python
+# Saving to context
+client_id = page.locator(".client-id").text_content()
+context.set("created_client_id", client_id)
+
+# Reading from context
+meeting_id = context.get("created_meeting_id")
+page.goto(f"{base_url}/meetings/{meeting_id}")
+```
+
+### Conditional Steps
+
+```python
+# Step 5: Fill Phone (if provided)
+if phone:
+    page.get_by_label("Phone").fill(phone)
+```
+
+### Error Handling
+
+- Don't add try/except blocks - let failures surface
+- Use Playwright's built-in waiting (auto-wait)
+- Add explicit waits only when script.md specifies them
+
+### Assertions
+
+Use Playwright's `expect()` for assertions:
+```python
+expect(page.locator(".confirmation")).to_be_visible()
+expect(page.get_by_text("Booking confirmed")).to_be_visible()
+```
+
+## When to Regenerate
+
+- `script.md` is updated
+- Self-healing finds a working selector
+- Never manually edit - always regenerate
+
+## Self-Healing Updates
+
+When self-healing fixes a selector:
+1. Update the specific locator in `test.py`
+2. Also update the element hints in `script.md`
+3. Log the change in `changelog.md`
+
+## File Header
+
+Always include this header:
+```python
+# Auto-generated from script.md
+# Last updated: YYYY-MM-DD HH:MM:SS
+# Source: tests/{path}/script.md
+# DO NOT EDIT MANUALLY - This file is regenerated from script.md
+```
+
+## Cascade Effect
+
+`test.py` is the end of the cascade - changes here don't flow upward. However, if self-healing discovers that the UI flow has fundamentally changed, it should trigger updates to `script.md` and potentially `steps.md`.
+
+## Execution Order
+
+When running a category:
+1. Run `_setup/test.py` (if exists)
+2. Run tests in order from `_category.yaml`
+3. On failure: stop, attempt self-heal, retry
+4. Run `_teardown/test.py` (if exists, even on failure)

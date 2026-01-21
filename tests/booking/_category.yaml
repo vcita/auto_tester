@@ -1,0 +1,16 @@
+# Booking Tests Category
+name: Booking Tests
+description: Tests for the appointment booking flow
+
+tests:
+  - id: book_consultation
+    name: Book a Consultation
+    status: pending
+    priority: high
+    tags:
+      - smoke
+      - booking
+      - critical
+    owner: qa-team
+    created_date: 2024-01-20
+    estimated_duration: 45

@@ -1,0 +1,584 @@
+# Build Rules - Exploring and Generating Tests
+
+## When to Use This
+
+Use these rules when asked to "build", "explore", or "generate" a test or function from a `steps.md` file.
+
+## Prerequisites
+
+Before building, verify:
+1. The target has a `steps.md` file with clear objectives and steps
+2. You have access to the Playwright MCP browser tools (navigate, snapshot, click, type, etc.)
+3. You know the target URL (from config.yaml or steps.md)
+
+## CRITICAL: Use Playwright MCP for Exploration
+
+**ALWAYS use the Playwright MCP server for browser exploration**, not the built-in cursor-ide-browser.
+
+### Why Playwright MCP:
+- **Full accessibility tree capture** - sees dropdown menus, modal content, nested elements
+- **Proper iframe handling** - automatically navigates into iframes
+- **Better element identification** - captures text content in custom components
+- **Same API as test code** - locators discovered during exploration work directly in test.py
+
+### What Playwright MCP Solves:
+The built-in cursor-ide-browser has limitations:
+- Cannot see dropdown menu items (shows empty `role: menu`)
+- Misses text content in custom UI components
+- Struggles with nested iframes
+
+### Configuration:
+Playwright MCP is configured in `.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
+```
+
+### Exploration Workflow:
+1. Playwright MCP opens a **separate browser window** (not embedded panel)
+2. You may need to manually solve CAPTCHAs (Cloudflare, reCAPTCHA)
+3. Take snapshots to see the full accessibility tree
+4. Interact with elements using the discovered refs
+5. Record the Playwright locators that work (shown in tool output)
+
+## CRITICAL: Research Phase - Knowledge Center
+
+**BEFORE exploring or writing any test**, consult the vcita Knowledge Center to understand the feature:
+
+### How to Research:
+1. **Search online** for the relevant vcita help article (site:support.vcita.com)
+2. **Identify the standard user flow** documented by vcita
+3. **Note required vs optional fields** in forms
+4. **Understand success criteria** from the documentation
+
+### Why This Matters:
+- Ensures tests follow the expected user journey
+- Identifies correct button labels and menu names
+- Reveals edge cases mentioned in documentation
+- Prevents building tests based on assumptions
+
+### Example Research:
+```
+For "Add New Client" test:
+1. Search: "vcita add client site:support.vcita.com"
+2. Find article: "Add Clients and Contacts in vcita"
+3. Learn: Click Clients → New Contact → Fill details → Save
+4. Note: A "contact" becomes a "client" after first transaction
+```
+
+### Knowledge Center URL:
+https://support.vcita.com/hc/en-us
+
+## CRITICAL: Real User Actions Only
+
+Tests must simulate how a real, average user interacts with the application.
+
+### ALWAYS:
+- Click visible buttons and links to navigate
+- Use menus and navigation elements
+- Fill forms through the UI
+- Wait for pages to load naturally
+
+### NEVER:
+- Navigate directly to internal URLs (e.g., `/users/logout`, `/app/settings`)
+- Use "hidden" or "shortcut" URLs that users wouldn't know
+- Bypass UI flows with direct navigation
+- Assume knowledge of URL patterns
+
+## CRITICAL: No Fallbacks or Alternative Flows
+
+**Tests must have ONE deterministic flow. No fallbacks, no alternatives.**
+
+### Why:
+- Tests are verification tools, not resilient scripts
+- If the primary flow fails, it's either a **bug** (report it) or the **test is wrong** (fix it)
+- Fallbacks hide real issues and make tests unreliable
+- Each test should verify ONE specific user journey
+
+### NEVER include in scripts:
+- "If X doesn't work, try Y"
+- "Alternative flow" sections
+- Try/except blocks that silently continue
+- Multiple ways to achieve the same step
+
+### If exploration reveals the primary flow doesn't work:
+1. **Stop and investigate** - why doesn't it work?
+2. **Is it a bug?** - document it and report
+3. **Is the test wrong?** - update `steps.md` with the correct flow
+4. **Never** add a fallback to work around the issue
+
+### Example - WRONG:
+```markdown
+## Alternative Flow (via Sidebar)
+If Quick Actions modal doesn't work:
+1. Click "Properties" in sidebar
+2. Click "Add property" button
+```
+
+### Example - RIGHT:
+```markdown
+## Steps
+1. Click "Quick Actions" button
+2. Click "Add property" in menu
+   - If this fails: STOP - investigate and fix
+```
+
+## CRITICAL: Investigate Failures In The Same Flow
+
+**If a field doesn't save or an action doesn't work, DO NOT move on. Investigate immediately.**
+
+### When something doesn't work during exploration:
+1. **Try the same action again** in the same flow
+2. **Take a snapshot** to see the current state
+3. **Try different approaches** to the SAME action (different locator, click first, type slowly)
+4. **Understand WHY** it failed before proceeding
+5. **Document the root cause** and the solution
+
+### NEVER do this:
+- Complete the task with missing fields
+- Skip a step that didn't work
+- Move to a "different flow" to work around the issue
+- Assume "it probably saved" without verifying
+
+### Example - WRONG:
+```
+1. Fill email field → value disappears
+2. Fill phone field → value disappears  
+3. Click Save → "Property created successfully"
+4. Move on to next test (email and phone are empty!)
+```
+
+### Example - RIGHT:
+```
+1. Fill email field → value disappears
+2. STOP - why did it disappear?
+3. Try again: click field first, then type
+4. Still doesn't work? Try typing slowly with press_sequentially()
+5. Value retained! Document the solution
+6. Apply same fix to phone field
+7. Verify ALL fields before clicking Save
+8. After save, verify ALL fields were actually saved
+```
+
+### This applies to:
+- Form fields that don't retain values
+- Buttons that don't respond to clicks
+- Dropdowns that don't open
+- Any action that doesn't produce expected results
+
+### Only Exception:
+Direct navigation is ONLY allowed to the application's main entry points that users would bookmark or type:
+- Login page: `https://www.vcita.com/login`
+- Public marketing pages
+
+### Example:
+```
+WRONG (shortcut):     page.goto("https://www.vcita.com/users/logout")
+RIGHT (user action):  Click avatar button -> Click "Logout" menu item
+
+WRONG (shortcut):     page.goto("https://app.vcita.com/app/calendar")  
+RIGHT (user action):  Click "Calendar" in sidebar navigation
+```
+
+## Build Process Overview
+
+```
+steps.md (human intent)
+    ↓ [You explore with browser]
+    ↓ [Record successful actions]
+script.md (detailed actions)
+    ↓ [Generate code]
+test.py (executable)
+    ↓ [Update changelog]
+changelog.md (audit trail)
+```
+
+## Step-by-Step Build Process
+
+### 1. Read and Understand steps.md
+
+- Read the Objective section to understand the goal
+- Read the Steps section to understand the flow
+- Note any Parameters (for functions) or Test Data
+- Identify the starting URL
+
+### 2. Check Existing Functions
+
+BEFORE exploring, check `tests/_functions/_functions.yaml`:
+- Can any existing function handle part of this test?
+- If yes, plan to use `Call: function_name` instead of re-implementing
+
+### 3. Explore with Playwright MCP Browser
+
+For each step in steps.md:
+
+a) **Take a snapshot** to see the current page state
+   ```
+   Use: browser_snapshot
+   ```
+   The snapshot shows the accessibility tree with `ref` attributes for each element.
+
+b) **Identify the target element** from the snapshot
+   - Look for buttons, links, inputs that match the step
+   - Note the `ref` attribute for clicking (e.g., `ref=f47e18`)
+   - Note multiple ways to identify it (role, label, text)
+
+c) **Perform the action**
+   ```
+   Use: browser_click, browser_type, browser_navigate, etc.
+   ```
+   - Pass the `ref` value and a human-readable `element` description
+   - The tool output shows the **Playwright code** that was executed
+
+d) **Verify the result**
+   - Take another snapshot
+   - Confirm the expected change happened
+
+e) **Record the Playwright code**
+   - The tool output includes: `### Ran Playwright code`
+   - Copy the locator that worked (e.g., `page.get_by_role("button", name="Save")`)
+   - This is what you'll use in test.py
+
+### Handling Iframes
+
+vcita uses nested iframes. Playwright MCP handles this automatically, showing refs like `f47e18` (iframe refs start with `f`).
+
+The tool output shows how to access elements in iframes:
+```python
+# Single iframe
+page.locator('iframe[title="angularjs"]').contentFrame().get_by_role(...)
+
+# Nested iframes
+page.locator('iframe[title="angularjs"]').contentFrame()
+    .locator('#vue_iframe_layout').contentFrame().get_by_text(...)
+```
+
+### Handling Dropdowns
+
+Dropdowns that don't work with the built-in browser work perfectly with Playwright MCP:
+1. Click the dropdown to open it: `browser_click` on the listbox
+2. Take a snapshot - you'll see the options with their refs
+3. Click the desired option: `browser_click` on the option ref
+
+## CRITICAL: Always Use press_sequentially() for Text Input
+
+**ALWAYS use `.press_sequentially()` instead of `.fill()` for typing text into fields.**
+
+### Why:
+- **Better simulation of real users** - real users type character by character
+- **Triggers all input events** - some fields rely on keydown/keyup events
+- **Works with autocomplete fields** - comboboxes and autocomplete inputs require this
+- **More reliable** - avoids issues with fields that don't accept bulk input
+
+### Standard pattern for ALL text input:
+```python
+# ALWAYS use this pattern:
+field.click()  # Focus the field first
+page.wait_for_timeout(100)  # Brief wait for any transformations
+field.press_sequentially("value to type")  # Type character by character
+```
+
+### Example:
+```python
+# WRONG - may not work with all fields
+iframe.get_by_role("textbox", name="Email").fill("test@example.com")
+
+# RIGHT - works reliably with all fields
+email_field = iframe.get_by_role("textbox", name="Email")
+email_field.click()
+page.wait_for_timeout(100)
+email_field.press_sequentially("test@example.com")
+```
+
+### Special case - Autocomplete/Combobox fields:
+Some fields transform from `textbox` to `combobox` when clicked:
+```python
+# Click the textbox (transforms to combobox)
+iframe.get_by_role("textbox", name="Email").click()
+page.wait_for_timeout(100)
+# Type into the combobox
+iframe.get_by_role("combobox", name="Email").press_sequentially("test@example.com")
+```
+
+### When to detect autocomplete fields:
+- Field shows as `textbox` initially but value disappears after typing
+- Field changes role from `textbox` to `combobox` when clicked
+- If unsure, always use click + press_sequentially pattern
+
+### 4. Generate script.md
+
+After successful exploration, create `script.md` with:
+
+```markdown
+# [Test Name] - Detailed Script
+
+> **Status**: Generated from exploration
+> **Last Updated**: [current date/time]
+> **Generated By**: Cursor AI exploration
+
+## Initial State
+- URL: [starting URL]
+- Prerequisites: [any setup needed]
+
+## Actions
+
+### Step 1: [Step description]
+- **Action**: [Click/Type/Navigate/etc.]
+- **Target**: [Human description of element]
+- **Element hints**:
+  - `[primary selector that worked]`
+  - `[backup selector]`
+  - `[another backup]`
+- **Value**: [if typing, the value]
+- **Wait for**: [what indicates success]
+
+### Step 2: [Next step]
+...
+
+## Success Verification
+- [How to verify the test passed]
+```
+
+### 5. Generate test.py
+
+Convert script.md to Playwright Python code following the rules in `phase3_code.mdc`.
+
+Key points:
+- Use the element hints from script.md
+- Prefer semantic locators (get_by_role, get_by_label)
+- Add comments mapping to script.md steps
+- Include the standard header
+
+### 6. Update changelog.md
+
+Add an entry:
+```markdown
+## [date/time] - Initial Build
+**Phase**: All files
+**Author**: Cursor AI (exploration)
+**Reason**: Built from steps.md via browser exploration
+**Changes**:
+- Generated script.md from exploration
+- Generated test.py from script.md
+```
+
+## Handling Function Calls
+
+If steps.md contains `Call: function_name`:
+
+1. Find the function in `tests/_functions/[function_name]/`
+2. Read its `steps.md` to understand what it does
+3. In script.md, document it as:
+   ```markdown
+   ### Step N: [Description]
+   - **Action**: Call function
+   - **Function**: [function_name]
+   - **Parameters**:
+     - param1: "value1"
+     - param2: "value2"
+   ```
+4. In test.py, import and call the function
+
+## Handling Failures During Exploration
+
+If an action fails during exploration:
+
+1. **Take a screenshot** to capture the current state
+2. **Re-examine the page** - maybe the element has a different selector
+3. **Try alternative approaches** - different selector, different action
+4. **If stuck**, document what you tried and ask for help
+
+## Example: Building the Login Function
+
+Given `tests/_functions/login/steps.md`:
+```markdown
+# Login to vcita
+
+## Steps
+1. Navigate to the login page
+2. Enter the username: {username}
+3. Enter the password: {password}
+4. Click the login button
+5. Wait for dashboard to load
+```
+
+Exploration process:
+1. Navigate to login URL
+2. Snapshot - find email input (get_by_label("Email"), input[type="email"])
+3. Type username - verify it appears in field
+4. Snapshot - find password input
+5. Type password
+6. Snapshot - find login button (get_by_role("button", name="Sign in"))
+7. Click button
+8. Wait for URL change to dashboard
+9. Snapshot - verify dashboard elements visible
+
+Then generate script.md and test.py from these findings.
+
+## CRITICAL: Complete the Full Action During Exploration
+
+**ALWAYS complete the full action during exploration. NEVER stop before the final step.**
+
+### Why:
+- You cannot know the full experience without completing the action
+- There may be confirmation dialogs, success messages, or unexpected screens
+- Validation requirements can only be discovered by seeing the end result
+- The UI state after completion may differ from expectations
+
+### During exploration, ALWAYS:
+1. **Complete every action to its final state** - if deleting, actually delete
+2. **See the confirmation/result screen** - what does the system show after?
+3. **Verify the action took effect** - check the actual data changed
+4. **Document the complete flow** - including any post-action screens
+
+### NEVER:
+- Stop at a confirmation dialog without clicking through
+- Assume what happens after an action
+- Skip the final step to "preserve data"
+- Write test validation based on assumptions
+
+### Example - WRONG:
+```
+1. Select client checkbox
+2. Click More → Delete
+3. See confirmation dialog
+4. Click Cancel (to preserve the client)
+5. Write test assuming Delete works
+```
+
+### Example - RIGHT:
+```
+1. Select client checkbox
+2. Click More → Delete
+3. See confirmation dialog "Delete properties?"
+4. Click Delete to confirm
+5. See: Client removed from list, count decreased
+6. Search for client name - not found
+7. NOW write the test with accurate validation
+```
+
+### If you need test data:
+- Create temporary test data first (e.g., create a client to delete)
+- Complete the full action on that test data
+- Document exactly what happens at each step
+
+## CRITICAL: Run the Test Before Marking Complete
+
+**You are NEVER done building a test until you run it and see it succeed.**
+
+### Why:
+- Code that looks correct may have subtle bugs
+- Locators that worked during exploration may need adjustment
+- Timing issues only appear during actual execution
+- A test that doesn't run is not a test
+
+### Required steps before marking a test complete:
+1. **Save all test files** (steps.md, script.md, test.py, changelog.md)
+2. **Run the test** using the standalone `if __name__ == "__main__":` block
+3. **Watch the browser** - verify each step executes correctly
+4. **See the test pass** - all assertions must succeed
+5. **Fix any failures** - iterate until the test passes
+6. **Document the successful run** in changelog.md
+
+### How to run a test:
+```bash
+cd C:\Programming\vcita_tester
+python tests/clients/delete_matter/test.py
+```
+
+### If the test fails:
+1. **Read the error message** - what specifically failed?
+2. **ALWAYS read the screenshot** - A screenshot is ALWAYS captured on failure in `snapshots/screenshots/`. This is the most important debugging artifact - it shows exactly what the browser looked like when the failure occurred.
+3. **Analyze screenshot vs expected** - What SHOULD be visible? What IS visible?
+4. **Debug the locator** - maybe the element changed
+5. **Fix the test.py** - update locators, add waits, etc.
+6. **Run again** - repeat until it passes
+
+**CRITICAL: Never skip step 2 (reading the screenshot). It reveals issues that error messages alone cannot.**
+6. **Update script.md** - if you learned something new about the flow
+
+## CRITICAL: Validate Success from User Perspective
+
+**Every test MUST verify the action succeeded by checking the ACTUAL RESULT in the system, not just confirmation messages.**
+
+### Why:
+- Toast messages can appear even when actions fail
+- Confirmation dialogs don't guarantee the action completed
+- The only reliable validation is seeing the actual change in the system
+- Users validate success by seeing the result, tests should too
+
+### ALWAYS validate by:
+1. **Checking the actual data changed** - is the client actually deleted?
+2. **Verifying the UI reflects the change** - is the client gone from the list?
+3. **Searching/navigating to confirm** - can you still find the deleted item?
+4. **Checking counts/totals** - did the number decrease?
+
+### NEVER rely solely on:
+- Toast messages ("Client deleted successfully")
+- Confirmation dialogs closing
+- API response codes (unless also verified in UI)
+- Absence of error messages
+
+### Validation Examples:
+
+#### Delete Test - WRONG:
+```python
+# Click delete, see toast "Deleted successfully"
+expect(page.get_by_text("Deleted successfully")).to_be_visible()  # NOT ENOUGH!
+```
+
+#### Delete Test - RIGHT:
+```python
+# After delete, verify the item is GONE from the list
+expect(page.get_by_role("row", name=matter_name)).to_have_count(0)
+
+# Optionally, search for it to double-confirm
+search_box.fill(matter_name)
+expect(page.get_by_text("No results found")).to_be_visible()
+```
+
+#### Create Test - WRONG:
+```python
+# Click save, see toast "Created successfully"
+expect(page.get_by_text("Created")).to_be_visible()  # NOT ENOUGH!
+```
+
+#### Create Test - RIGHT:
+```python
+# After save, verify the item EXISTS with correct data
+expect(page).to_have_url(re.compile(r"/app/clients/[a-z0-9]+"))
+expect(page.get_by_text(created_name)).to_be_visible()
+expect(page.get_by_text(created_email)).to_be_visible()
+```
+
+#### Update Test - WRONG:
+```python
+# Click save, dialog closes
+expect(dialog).not_to_be_visible()  # NOT ENOUGH!
+```
+
+#### Update Test - RIGHT:
+```python
+# After save, verify the NEW value is shown (not the old one)
+expect(page.get_by_text(new_value)).to_be_visible()
+expect(page.get_by_text(old_value)).not_to_be_visible()
+```
+
+### The validation rule:
+**If a user wouldn't trust the action completed without checking, neither should the test.**
+
+## Quality Checklist
+
+Before marking build complete:
+- [ ] script.md has multiple element hints per step (for self-healing)
+- [ ] test.py follows the code structure from phase3_code.mdc
+- [ ] changelog.md is updated
+- [ ] **EXPLORATION WAS COMPLETED FULLY** - all actions done to final state
+- [ ] **TEST WAS RUN AND PASSED** - not just written, actually executed
+- [ ] **VALIDATION CHECKS ACTUAL RESULTS** - not just toasts/confirmations

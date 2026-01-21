@@ -1,0 +1,344 @@
+# Heal Rules - Fixing Failed Tests
+
+## When to Use This
+
+Use these rules when processing a heal request from `.cursor/heal_requests/` or when asked to "fix", "heal", or "repair" a failing test.
+
+## Heal Request Location
+
+Heal requests are stored in: `.cursor/heal_requests/`
+
+Filename format: `heal_[test_id]_[timestamp].md`
+
+## Heal Request Format
+
+```markdown
+# Heal Request: [test/function name]
+
+## Type
+heal
+
+## Target
+[path to test folder, e.g., tests/_functions/login/]
+
+## Error
+[The error message from the test failure]
+
+## Failed At
+[Which step failed, if known]
+
+## Screenshot (REQUIRED)
+[Path to failure screenshot - ALWAYS captured automatically on failure]
+**YOU MUST READ AND ANALYZE THIS IMAGE before proceeding with any fix!**
+
+## DOM Snapshot
+[Path to DOM snapshot at failure, if available]
+
+## Current script.md
+[Full content of the current script.md]
+
+## Current test.py
+[Full content of the current test.py]
+
+## Instructions
+Please analyze the failure and fix the test.
+```
+
+## MANDATORY FIRST STEP: Screenshot AND Video Analysis
+
+**BEFORE doing anything else, you MUST:**
+
+1. **Locate the screenshot** - Path is in the heal request under "## Screenshot"
+2. **Read/view the screenshot** - Use the Read tool to view the image
+3. **Check for video recording** - Path is in heal request under "## Video Recording"
+   - Video shows the FULL test execution, not just the end state
+   - Watch for repeated actions, timing issues, or unexpected behavior
+4. **Analyze what you see** - Document:
+   - What is visible on screen?
+   - Did the expected UI element appear?
+   - Is there an error dialog?
+   - Is the page in the expected state?
+5. **Compare expected vs actual** - Based on the failing step, what SHOULD be visible vs what IS visible?
+
+**The screenshot shows the END state. The video shows the JOURNEY - it reveals timing issues, repeated actions, and the exact moment of failure.**
+
+If the heal request doesn't have a screenshot, that's a bug - the test runner should always capture one on failure.
+
+## MANDATORY SECOND STEP: Debug with MCP (NO BLIND FIXES!)
+
+**NEVER guess fixes! After analyzing the screenshot, you MUST debug using Playwright MCP:**
+
+1. **Open MCP browser** - Navigate to the starting point of the failing test
+2. **Execute test steps one by one** - Run each action exactly as the test.py code does
+3. **Verify each step visually** - Take snapshot after EVERY action to confirm it worked
+4. **Find the EXACT failure point** - Which specific action fails? What happens?
+5. **Understand WHY it fails** - Is it a selector issue? Timing? Element state?
+6. **Only THEN write the fix** - Based on what you learned from MCP debugging
+
+**CRITICAL: Do NOT write code fixes based on guessing from screenshots alone!**
+
+The screenshot shows the END state. MCP debugging shows you the JOURNEY to that state and reveals:
+- Which step actually failed
+- What the element structure looks like at that moment
+- What selectors would work
+- What timing issues exist
+
+## Heal Process Overview
+
+```
+Heal Request (failure context)
+    ↓ [1. FIRST: Read and analyze the screenshot!]
+    ↓ [2. SECOND: Debug step-by-step with MCP - NO BLIND FIXES!]
+    ↓ [3. Analyze the error message with MCP findings]
+    ↓ [4. Determine: selector issue vs flow change vs product bug]
+    ↓ [5. Write fix based on MCP-verified understanding]
+script.md (updated)
+    ↓ [Regenerate code]
+test.py (fixed)
+    ↓ [Update changelog]
+    ↓ [Delete heal request]
+```
+
+## Step-by-Step Heal Process
+
+### 1. Analyze the Failure
+
+Read the heal request and determine the failure type:
+
+| Error Pattern | Likely Cause | Action |
+|---------------|--------------|--------|
+| "Element not found" | Selector changed | Re-explore to find new selector |
+| "Timeout waiting for" | Page structure changed | Re-explore the flow |
+| "Expected X but got Y" | Logic/data issue | Check if product bug |
+| "Navigation failed" | URL changed | Update URL in script |
+
+### 2. Classify the Issue
+
+**A) Selector Issue (Most Common)**
+- Element exists but selector is outdated
+- Fix: Find new selector, update script.md and test.py
+
+**B) Flow Change**
+- The UI flow has changed (new steps, different order)
+- Fix: Re-explore entire flow, regenerate script.md
+
+**C) Product Bug**
+- The feature itself is broken
+- Action: Report bug, mark test as blocked, skip healing
+
+### 3. Step-by-Step Debugging with MCP (REQUIRED)
+
+When debugging a failing test, you MUST use the Playwright MCP browser to execute the test step-by-step, exactly as the test code does. This is the ONLY reliable way to identify what's broken.
+
+**CRITICAL RULES:**
+
+1. **Execute EXACTLY like the test code** - Use the same selectors, same actions, same order as in test.py
+2. **Validate EVERY step visually** - After each action, take a screenshot or snapshot to verify:
+   - Did the action succeed?
+   - Is the UI in the expected state?
+   - Are the values filled correctly?
+3. **Never assume success** - Just because no error occurred doesn't mean it worked
+4. **Compare actual vs expected** - After filling a field, verify the value is actually there
+5. **Stop immediately on failure** - When a step doesn't produce the expected result, investigate before continuing
+
+**BEFORE STARTING: Create Step Checklist (MANDATORY)**
+
+Before executing any actions in the browser, you MUST:
+
+1. Read the test.py file completely
+2. Extract ALL action steps (clicks, types, selects, waits, verifications)
+3. Create a numbered checklist with ALL steps
+4. Track completion as you go: `[ ]` pending, `[x]` completed, `[!]` failed
+
+Example checklist format:
+```
+Test: create_matter (15 steps total)
+[ ] Step 1: Click Quick Actions button
+[ ] Step 2: Click Add property
+[ ] Step 3: Click Show more
+[ ] Step 4: Fill First Name
+[ ] Step 5: Fill Last Name
+[ ] Step 6: Fill Email
+[ ] Step 7: Fill Mobile phone
+[ ] Step 8: Fill Address
+[ ] Step 9: Fill Referred by
+[ ] Step 10: Fill Property address
+[ ] Step 11: Fill Help request
+[ ] Step 12: Select Property type dropdown
+[ ] Step 13: Fill Special instructions
+[ ] Step 14: Fill Private notes
+[ ] Step 15: Click Save
+```
+
+**Checklist Rules:**
+- **NEVER skip ahead** - Complete steps in sequential order
+- **NEVER mark complete** until visually verified with screenshot
+- **Count progress** - Always know "Step X of Y" as you work
+- **Update checklist** after each step with status and any findings
+
+This ensures no steps are accidentally skipped (like dropdown selections or optional fields).
+
+**Step-by-Step Debugging Process:**
+
+```
+1. Open browser with MCP: browser_navigate to starting URL
+2. Take snapshot to see current state
+3. For EACH step in test.py:
+   a. Execute the action using MCP (click, type, etc.)
+   b. Take snapshot/screenshot IMMEDIATELY after
+   c. VERIFY the action worked:
+      - For clicks: Did the expected UI appear?
+      - For typing: Is the text actually in the field?
+      - For selections: Is the correct option selected?
+   d. If verification fails: STOP and investigate
+   e. If verification passes: Continue to next step
+4. Document all findings - which steps work, which fail
+5. Only AFTER full validation, update the test code
+```
+
+**Example: Debugging a Form Fill**
+
+```
+Step in test.py:
+  email_field = iframe.get_by_role("textbox", name="Email")
+  email_field.fill("test@example.com")
+
+MCP Debugging:
+  1. browser_type to fill the email field
+  2. browser_snapshot immediately after
+  3. CHECK: Does the snapshot show "test@example.com" in the Email field?
+     - YES: Step works, continue
+     - NO: Step failed! The field might be a combobox, have autocomplete,
+           or need click first. Investigate before continuing.
+```
+
+**Common Issues Found During Step-by-Step Debugging:**
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Field appears empty after fill() | Autocomplete/combobox field | Use pressSequentially() or click first |
+| Wrong element clicked | Multiple elements match selector | Make selector more specific |
+| Action works but UI doesn't update | Async loading | Add wait_for after action |
+| Value is truncated | Input validation/mask | Check field constraints |
+
+### 4. Re-Explore (If Needed)
+
+For selector issues:
+1. Navigate to the page where failure occurred
+2. Take a snapshot
+3. Find the element that should be there
+4. Note new selectors that work
+5. Test the action with new selector
+
+For flow changes:
+1. Start from the beginning of the test
+2. Follow the steps.md goals (not the old script.md)
+3. Record the new flow
+4. Generate new script.md
+
+### 4. Update script.md
+
+For selector fixes:
+```markdown
+### Step 3: Click Submit Button
+- **Action**: Click
+- **Target**: Submit button
+- **Element hints**:
+  - `get_by_role("button", name="Submit")` [NEW - was "Save"]
+  - `.submit-btn` [REMOVED - no longer exists]
+  - `button[type="submit"]`
+```
+
+For flow changes:
+- Regenerate the entire Actions section
+- Keep the same structure as build.mdc specifies
+
+### 5. Regenerate test.py
+
+Update the code to use new selectors:
+```python
+# Step 3: Click Submit Button
+# HEALED: Changed from "Save" to "Submit" button
+page.get_by_role("button", name="Submit").click()
+```
+
+### 6. Update changelog.md
+
+```markdown
+## [date/time] - Healed (Selector Update)
+**Phase**: script.md, test.py
+**Author**: Cursor AI (heal)
+**Reason**: Element selector changed
+**Error**: "Element not found: button:has-text('Save')"
+**Fix**: Updated to use "Submit" button instead of "Save"
+**Changes**:
+- Updated Step 3 selector in script.md
+- Regenerated test.py with new selector
+```
+
+### 7. Verify the Fix
+
+After updating:
+1. The test should be re-run by the test runner
+2. If it passes, healing is complete
+3. If it fails again, a new heal request will be created
+
+### 8. Delete the Heal Request
+
+Once fixed, delete the heal request file from `.cursor/heal_requests/`
+
+## Handling Product Bugs
+
+If you determine the failure is a product bug (not a test issue):
+
+1. **Do NOT try to fix the test** - the test is correct, the product is broken
+
+2. **Create a bug report** in `.cursor/bug_reports/`:
+   ```markdown
+   # Bug Report: [brief description]
+   
+   ## Test
+   [path to test]
+   
+   ## Expected Behavior
+   [what should happen]
+   
+   ## Actual Behavior
+   [what actually happens]
+   
+   ## Evidence
+   - Screenshot: [path]
+   - Error: [message]
+   
+   ## Discovered
+   [date/time]
+   ```
+
+3. **Mark test as blocked** - update `_category.yaml`:
+   ```yaml
+   - id: test_name
+     status: blocked
+     blocked_reason: "Bug: [brief description]"
+     blocked_since: [date]
+   ```
+
+4. **Delete the heal request** - it's been processed
+
+## Cascade Updates
+
+If healing reveals the flow changed significantly:
+
+1. Update `script.md` with new flow
+2. Regenerate `test.py`
+3. Consider if `steps.md` needs updating (if goals changed)
+4. Log all changes in `changelog.md`
+
+## Quality Checklist
+
+Before marking heal complete:
+- [ ] Root cause identified and documented
+- [ ] script.md updated with working selectors/flow
+- [ ] test.py regenerated
+- [ ] changelog.md updated with heal entry
+- [ ] Heal request deleted
+- [ ] (If bug) Bug report created and test marked blocked

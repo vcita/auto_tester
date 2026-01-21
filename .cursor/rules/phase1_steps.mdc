@@ -1,0 +1,247 @@
+# Phase 1: steps.md Rules
+
+## Purpose
+
+The `steps.md` file captures **test intent** in human-readable form - like notes a QA engineer would write. It describes WHAT to do, not HOW.
+
+This applies to:
+- Tests
+- Functions
+- Setup/Teardown
+
+## BEFORE Writing Any Test (CRITICAL)
+
+### 1. Check Existing Functions First
+
+Before writing steps, ALWAYS:
+1. Read `tests/_functions/_functions.yaml` to see all available functions
+2. Review what each function does
+3. Use existing functions with `Call: function_name` instead of writing new steps
+
+Ask yourself: "Does a function already exist that does this?"
+
+### 2. Look for Reusable Patterns
+
+If you're about to write steps that:
+- Navigate somewhere
+- Fill a form
+- Create/edit/delete an entity
+- Verify something exists
+
+Check if a function already handles it. If yes, USE IT.
+
+### 3. After Writing: Check for Duplication
+
+After drafting your steps, scan other tests in the same category and related categories.
+If you see similar step sequences (2+ steps), EXTRACT to a new function.
+
+## Writing Guidelines
+
+### Content Focus
+- Write from a user's perspective
+- Describe goals and expected outcomes
+- Keep steps concise (typically 1 line each)
+- Include prerequisites and test data
+- PREFER function calls over inline steps when possible
+
+### What to Include
+- **Objective**: What the test/function verifies or does
+- **Parameters** (functions only): Input values the function accepts
+- **Prerequisites**: What must be true before starting
+- **Steps**: High-level actions (5-10 steps typically)
+- **Returns** (functions only): What data is saved to context
+- **Expected Result**: What success looks like
+- **Test Data**: Any specific values needed
+
+### What NOT to Include
+- CSS selectors or XPath
+- Specific element locations
+- Technical implementation details
+- Wait times or timing conditions
+- Exact button text (unless critical)
+
+## Calling Functions
+
+Use `Call: function_name` to invoke a reusable function:
+
+```markdown
+## Steps
+1. Call: login
+2. Navigate to CRM section
+3. Call: create_client
+   - name: "Test Customer"
+   - email: "test@example.com"
+4. Verify client appears in list
+```
+
+### Function Call Rules
+- Function name must exist in `tests/_functions/`
+- Parameters are simple values (strings, numbers)
+- Use indented list for parameters
+- One function call per step
+
+## Storing Data to Context
+
+Use `save_to_context:` to store data for later tests:
+
+```markdown
+## Steps
+1. Create new meeting
+2. Note the meeting ID
+   - save_to_context: created_meeting_id
+```
+
+## Reading Data from Context
+
+Use `{context.key}` to read previously stored data:
+
+```markdown
+## Steps
+1. Navigate to meeting {context.created_meeting_id}
+2. Delete the meeting
+```
+
+## Examples
+
+### Good Step
+```
+Select the Consultation service
+```
+
+### Bad Step (too detailed)
+```
+Click on the div.service-card element with data-service-id="consultation"
+```
+
+### Good Function Call
+```
+Call: create_client
+  - name: "John Doe"
+  - email: "john@test.com"
+```
+
+### Bad Function Call (too complex)
+```
+Call: create_client
+  - name: {context.previous_client.name}   # Don't use complex references
+```
+
+## Function Definition Example
+
+**`tests/_functions/create_client/steps.md`:**
+```markdown
+# Create Client
+
+## Objective
+Create a new client in the CRM
+
+## Parameters
+- name: Client's full name (required)
+- email: Client's email (required)  
+- phone: Client's phone (optional)
+
+## Steps
+1. Navigate to CRM clients section
+2. Click "Add New Client"
+3. Fill in client name: {name}
+4. Fill in client email: {email}
+5. Fill in client phone: {phone} (if provided)
+6. Click "Save"
+7. Note the client ID
+   - save_to_context: created_client_id
+
+## Returns
+- created_client_id: The ID of the created client
+
+## Expected Result
+- Client appears in the client list
+- Success message is shown
+```
+
+## Setup/Teardown Example
+
+**`tests/booking/_setup/steps.md`:**
+```markdown
+# Booking Category Setup
+
+## Objective
+Prepare the system for booking tests
+
+## Steps
+1. Call: login
+2. Navigate to booking settings
+3. Verify booking is enabled
+
+## Expected Result
+- User is logged in
+- Booking system is accessible
+```
+
+## When to Update steps.md
+
+- Test goal or scope changes
+- New prerequisites are discovered
+- Expected results need clarification
+- Steps need to be added, removed, or reordered
+- Function parameters change
+
+## When to Extract a New Function
+
+Extract steps into a new function when you see:
+
+1. **Same steps in multiple tests** - Even 2 tests sharing 2+ steps = extract
+2. **Same steps in setup AND tests** - Common setup logic should be a function
+3. **Generic actions** - "Navigate to X", "Create Y", "Verify Z exists"
+
+### Extraction Checklist
+
+When extracting:
+1. Create `tests/_functions/new_function_name/steps.md`
+2. Move the common steps there
+3. Add Parameters section if values vary between uses
+4. Add Returns section if it saves data to context
+5. Replace original steps with `Call: new_function_name`
+6. Update ALL tests that had this logic
+7. Log in each affected `changelog.md`
+
+### Example Extraction
+
+Before (in 3 different tests):
+```markdown
+## Steps
+1. Click CRM in menu
+2. Click Clients
+3. Find client by email
+4. Click on client row
+```
+
+After:
+```markdown
+## Steps
+1. Call: open_client_by_email
+   - email: "test@example.com"
+```
+
+New function `tests/_functions/open_client_by_email/steps.md`:
+```markdown
+# Open Client by Email
+
+## Parameters
+- email: The client's email to search for
+
+## Steps
+1. Navigate to CRM Clients section
+2. Search for client by email: {email}
+3. Click on the matching client row
+
+## Expected Result
+- Client detail page is displayed
+```
+
+## Cascade Effect
+
+When `steps.md` is updated:
+1. Re-explore the application based on new steps
+2. Update `script.md` with discovered details
+3. Regenerate `test.py` from updated script
+4. Log all changes in `changelog.md`

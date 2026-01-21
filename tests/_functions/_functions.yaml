@@ -1,0 +1,27 @@
+# vcita Test Agent - Functions Registry
+# 
+# This file lists all reusable functions available for tests.
+# Each function must have a corresponding folder with steps.md, script.md, test.py, and changelog.md
+
+functions:
+  - id: login
+    name: Login to vcita
+    description: Authenticate a user into the vcita system
+    parameters:
+      - name: username
+        type: string
+        required: true
+        description: The username/email to login with
+      - name: password
+        type: string
+        required: true
+        description: The password for the account
+    returns:
+      - name: logged_in_user
+        description: The username that was successfully logged in
+
+  - id: logout
+    name: Logout from vcita
+    description: Log out the current user from the system
+    parameters: []
+    returns: []

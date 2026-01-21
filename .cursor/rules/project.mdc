@@ -1,0 +1,232 @@
+# vcita Test Agent - Project Rules
+
+## Overview
+
+This is an AI-driven browser test agent for vcita. It operates as a **black-box tester** - no access to vcita's source code. The agent explores the application like a real user, learns correct behavior, and generates self-healing tests.
+
+## Architecture
+
+### Folder Structure
+
+```
+tests/
+├── _functions/                  # Global reusable functions
+│   ├── _functions.yaml          # Function registry
+│   ├── login/
+│   │   ├── steps.md
+│   │   ├── script.md
+│   │   ├── test.py
+│   │   └── changelog.md
+│   ├── logout/
+│   ├── create_client/
+│   └── ...
+├── booking/                     # Test category
+│   ├── _category.yaml           # Category config, test order
+│   ├── _setup/                  # Runs before tests (optional)
+│   │   ├── steps.md             # Can call functions: "Call: login"
+│   │   ├── script.md
+│   │   ├── test.py
+│   │   └── changelog.md
+│   ├── _teardown/               # Runs after tests (optional)
+│   │   └── ...
+│   ├── create_meeting/          # Test folder
+│   │   ├── steps.md
+│   │   ├── script.md
+│   │   ├── test.py
+│   │   └── changelog.md
+│   └── recurring/               # Subcategory (independent setup/teardown)
+│       ├── _category.yaml
+│       ├── _setup/
+│       └── setup_weekly/
+└── clients/                     # Another category
+    └── ...
+
+.context/                        # Runtime context (fresh each run)
+└── current_run.json             # Shared data between tests
+```
+
+### Three-Phase Document Hierarchy
+
+Every test, function, setup, and teardown consists of three files:
+
+| Phase | File | Description |
+|-------|------|-------------|
+| 1 | `steps.md` | Human-readable steps (WHAT to do) |
+| 2 | `script.md` | Detailed action script (HOW to do it) |
+| 3 | `test.py` | Executable Playwright code (IMPLEMENTATION) |
+
+Plus `changelog.md` that logs all changes.
+
+### Change Flow
+- Changes cascade: `steps.md` -> `script.md` -> `test.py`
+- When self-healing detects significant flow changes, update all three files
+- Every change must be logged in `changelog.md`
+
+## Key Concepts
+
+### 1. Functions (`_functions/`)
+- Global reusable actions (login, logout, create_client, etc.)
+- Have 3 files + changelog (self-healable like tests)
+- Accept simple parameters only
+- Called from steps.md with `Call: function_name`
+
+### 2. Setup/Teardown (`_setup/`, `_teardown/`)
+- Optional per category/subcategory
+- Treated like tests (3 files, self-healable)
+- Setup runs before all tests in category
+- Teardown runs after all tests (even on failure)
+- Subcategories are independent (don't inherit parent's setup)
+
+### 3. Sequential Execution
+- Tests within a category run in order (defined in `_category.yaml`)
+- If a test fails: stop -> attempt self-heal -> retry
+- Earlier tests can create data for later tests
+
+### 4. Shared Context (`.context/current_run.json`)
+- Fresh file created for each test run
+- Tests can store/retrieve data (client IDs, meeting IDs, etc.)
+- Not persistent between runs
+
+## Key Principles
+
+1. **Black-box testing** - Never assume knowledge of vcita's codebase
+2. **Exploration-driven** - Discover UI elements by actually browsing
+3. **Self-healing** - When tests fail due to UI changes, re-explore and adapt
+4. **Audit trail** - All changes logged with timestamps and reasons
+5. **Cascade updates** - Keep all three phase files in sync
+6. **Reusability** - Common actions go in `_functions/`
+7. **DRY (Don't Repeat Yourself)** - Never duplicate logic, always reuse or extract
+8. **Real user actions only** - NEVER use direct URLs, API calls, or shortcuts that a normal user wouldn't know
+
+## Real User Actions Rule (CRITICAL)
+
+Tests must simulate how a real, average user interacts with the application:
+
+### DO:
+- Click visible buttons and links
+- Fill in form fields
+- Navigate using menus and navigation elements
+- Use search boxes to find items
+- Scroll to find elements
+- Wait for pages to load naturally
+
+### DO NOT:
+- Navigate directly to URLs (except the initial entry point)
+- Use "hidden" URLs like `/users/logout` or `/api/...`
+- Assume the user knows URL patterns
+- Use browser developer tools actions
+- Bypass UI flows with direct navigation
+
+### Why This Matters:
+- Tests should catch UI/UX issues a user would encounter
+- Direct URL navigation skips important UI paths that might break
+- If a button is missing or broken, the test should fail
+- Real users don't type URLs - they click buttons
+
+### Example - Logout:
+```
+WRONG: Navigate to https://www.vcita.com/users/logout
+RIGHT: Click user avatar -> Click "Logout" in dropdown menu
+```
+
+### Exception - Entry Points:
+The ONLY acceptable direct navigation is to the application's main entry point:
+- Login page: `https://www.vcita.com/login`
+- Public pages that users would bookmark or type directly
+
+## Function Reuse Rules (CRITICAL)
+
+### Before Creating or Modifying Any Test
+
+1. **ALWAYS scan existing functions first**
+   - Read `tests/_functions/_functions.yaml` to see available functions
+   - Check if any existing function can achieve the step you need
+   - If a function exists, use `Call: function_name` instead of writing new steps
+
+2. **Match by intent, not exact name**
+   - "Navigate to CRM" might be covered by `navigate_to_section` with parameter
+   - "Fill client form" might be covered by `create_client`
+   - Think about what the function DOES, not just its name
+
+### When to Extract a New Function
+
+1. **Duplicate detection** - If you see the same sequence of 2+ steps appearing in:
+   - Multiple tests
+   - Multiple categories
+   - Setup/teardown AND tests
+   
+   Then EXTRACT it into a new function immediately.
+
+2. **Common patterns to extract**:
+   - Navigation sequences (go to specific section)
+   - Form filling (create/edit entities)
+   - Verification sequences (check something exists)
+   - Cleanup actions (delete, reset)
+
+3. **Extraction process**:
+   - Create new folder in `tests/_functions/`
+   - Move the repeated steps into the function's `steps.md`
+   - Update all tests that had this logic to use `Call: new_function`
+   - Log the extraction in each affected test's `changelog.md`
+
+### Function Naming Convention
+
+- Use verb_noun format: `create_client`, `navigate_to_calendar`, `verify_booking`
+- Be specific: `login` not `authenticate`, `create_meeting` not `add_item`
+- Parameters make functions flexible: `navigate_to_section(section_name)` covers many cases
+
+### Example: Detecting Duplication
+
+If you see this in test A:
+```
+1. Click on CRM menu
+2. Click on Clients
+3. Click Add New Client
+```
+
+And this in test B:
+```
+1. Go to CRM
+2. Open Clients section  
+3. Click the Add Client button
+```
+
+These are the SAME action - extract to `navigate_to_add_client` function.
+
+## File Locations
+
+- `tests/` - Test categories, tests, and functions
+- `tests/_functions/` - Global reusable functions
+- `.context/` - Runtime shared context (gitignored)
+- `src/` - Agent source code
+- `config.yaml` - Configuration settings
+- `db/` - SQLite database for results
+- `logs/` - Execution logs
+- `snapshots/` - Screenshots and DOM captures
+
+## Cursor Rules Files
+
+| Rule File | When to Use |
+|-----------|-------------|
+| `project.mdc` | Overall architecture and principles (this file) |
+| `phase1_steps.mdc` | Writing or editing `steps.md` files |
+| `phase2_script.mdc` | Writing or editing `script.md` files |
+| `phase3_code.mdc` | Generating or editing `test.py` files |
+| `build.mdc` | Building new tests/functions from `steps.md` |
+| `heal.mdc` | Fixing failed tests from heal requests |
+
+## When Working on This Project
+
+- **Building new tests**: Follow `build.mdc` - explore with browser, generate script.md and test.py
+- **Fixing failures**: Follow `heal.mdc` - analyze heal request, re-explore, update files
+- **Editing steps.md**: Follow `phase1_steps.mdc`
+- **Editing script.md**: Follow `phase2_script.mdc`
+- **Editing test.py**: Follow `phase3_code.mdc`
+- Always log changes to `changelog.md`
+- Use exploration to discover elements, don't hardcode selectors
+- Put reusable actions in `_functions/`, not duplicated in tests
+
+## Request Locations
+
+- `.cursor/heal_requests/` - Heal requests from test runner (failures)
+- `.cursor/bug_reports/` - Bug reports (product issues, not test issues)

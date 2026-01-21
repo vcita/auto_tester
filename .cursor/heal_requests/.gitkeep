@@ -1,0 +1,2 @@
+# Heal requests will be created here by the test runner when tests fail.
+# Each request contains failure context for Cursor to analyze and fix.

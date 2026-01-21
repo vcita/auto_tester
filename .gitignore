@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Project specific
+db/*.db
+logs/*.log
+snapshots/screenshots/*.png
+snapshots/dom/*.html
+snapshots/videos/*.webm
+snapshots/videos/*.mp4
+snapshots/videos/*.avi
+.context/
+.playwright-mcp/*.png
+.playwright-mcp/*.jpg
+.playwright-mcp/*.jpeg
+
+# Cursor requests (keep structure, ignore content)
+.cursor/heal_requests/*.md
+.cursor/bug_reports/*.md
+
+# Keep the directory structure
+!db/.gitkeep
+!logs/.gitkeep
+!snapshots/screenshots/.gitkeep
+!snapshots/dom/.gitkeep
+!tests/.gitkeep
+!generated_tests/.gitkeep
+!.cursor/heal_requests/.gitkeep
+!.cursor/bug_reports/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (if any)
+.env
+*.env.local
+secrets.yaml
