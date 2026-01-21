@@ -11,6 +11,14 @@ tests:
     name: Create Matter
     status: active
     priority: high
+  - id: edit_matter
+    name: Edit Matter
+    status: active
+    priority: high
+  - id: edit_contact
+    name: Edit Contact
+    status: active
+    priority: high
   - id: delete_matter
     name: Delete Matter
     status: active

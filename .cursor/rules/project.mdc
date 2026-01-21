@@ -134,6 +134,30 @@ The ONLY acceptable direct navigation is to the application's main entry point:
 - Login page: `https://www.vcita.com/login`
 - Public pages that users would bookmark or type directly
 
+### Example - Navigating to a specific record:
+```
+WRONG: page.goto(f"https://app.vcita.com/app/clients/{id}")
+RIGHT: 
+  - If running after a test that left browser on that page: verify URL contains the ID
+  - If need to navigate there: search for the record name, click it in results
+```
+
+### IMPORTANT: Sequential Test Context
+Tests in a sequence share browser state. The previous test's end state is the current test's start state. Tests should:
+- **Verify** they're starting from the expected state (not navigate to it)
+- **FAIL** if the start state is wrong - don't silently "fix" it with navigation
+- **Trust** that previous tests leave the browser in the documented end state
+
+Example pattern for sequential tests:
+```python
+# WRONG - unconditionally navigates
+page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+
+# RIGHT - verifies expected state from previous test
+if matter_id not in page.url:
+    raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
+```
+
 ## Function Reuse Rules (CRITICAL)
 
 ### Before Creating or Modifying Any Test

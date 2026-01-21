@@ -51,6 +51,7 @@ class TestRunner:
         headless: bool = False,
         snapshots_dir: Optional[Path] = None,
         record_video: bool = True,
+        keep_open: bool = False,
     ):
         """
         Initialize the test runner.
@@ -60,11 +61,13 @@ class TestRunner:
             headless: Whether to run browser in headless mode
             snapshots_dir: Directory for screenshots (default: snapshots/)
             record_video: Whether to record video of test execution (default: True)
+            keep_open: Whether to keep browser open on failure for debugging (default: False)
         """
         self.tests_root = Path(tests_root)
         self.headless = headless
         self.snapshots_dir = snapshots_dir or Path("snapshots")
         self.record_video = record_video
+        self.keep_open = keep_open
         
         # Components
         self.events = EventEmitter()
@@ -229,10 +232,16 @@ class TestRunner:
                 video_dir = Path.cwd() / self.snapshots_dir / "videos"
                 video_dir.mkdir(parents=True, exist_ok=True)
             
+            # Custom user agent with bypass string to avoid captcha
+            # The bypass string is specific to vcita's captcha allowlist
+            bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
+            custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
+            
             browser_context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 locale='en-US',
                 timezone_id='America/New_York',
+                user_agent=custom_user_agent,
                 record_video_dir=str(video_dir) if video_dir else None,
                 record_video_size={'width': 1920, 'height': 1080},
             )
@@ -290,38 +299,56 @@ class TestRunner:
                         )
                         return result
                 
-                # Run tests in order
-                for index, test in enumerate(category.tests):
-                    test_start_offset = time_module.time() - video_start_time
-                    test_result = self._run_single_test(
-                        test_path=self.tests_root / test.path,
-                        test_name=test.name,
-                        test_type="test",
-                        page=page,
-                        context=context,
-                        index=index + 1,
-                        total=len(category.tests),
-                        category_name=category.name,
-                    )
-                    test_end_offset = time_module.time() - video_start_time
-                    video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
-                    result.test_results.append(test_result)
-                    
-                    # If test fails, stop category and skip remaining tests
-                    if test_result.status == "failed":
-                        result.stopped_early = True
+                # Build execution plan: interleave tests and subcategories based on run_after
+                execution_plan = self._build_execution_plan(category)
+                total_items = len(execution_plan)
+                
+                # Run tests and subcategories in order
+                for index, item in enumerate(execution_plan):
+                    if isinstance(item, Test):
+                        # Run a test
+                        test = item
+                        test_start_offset = time_module.time() - video_start_time
+                        test_result = self._run_single_test(
+                            test_path=self.tests_root / test.path,
+                            test_name=test.name,
+                            test_type="test",
+                            page=page,
+                            context=context,
+                            index=index + 1,
+                            total=total_items,
+                            category_name=category.name,
+                        )
+                        test_end_offset = time_module.time() - video_start_time
+                        video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
+                        result.test_results.append(test_result)
                         
-                        # Skip remaining tests
-                        for remaining_test in category.tests[index + 1:]:
-                            result.test_results.append(TestResult(
-                                test_name=remaining_test.name,
-                                test_path=self.tests_root / remaining_test.path,
-                                test_type="test",
-                                status="skipped",
-                                duration_ms=0,
-                                error=f"Skipped due to {test.name} failure",
-                            ))
-                        break
+                        # If test fails, stop category and skip remaining items
+                        if test_result.status == "failed":
+                            result.stopped_early = True
+                            self._skip_remaining_items(execution_plan[index + 1:], result, test.name)
+                            break
+                    
+                    elif isinstance(item, Category):
+                        # Run a subcategory inline
+                        subcategory = item
+                        subcat_start_offset = time_module.time() - video_start_time
+                        
+                        subcat_failed, failed_test_name = self._run_subcategory_inline(
+                            subcategory=subcategory,
+                            page=page,
+                            context=context,
+                            result=result,
+                            video_timestamps=video_timestamps,
+                            video_start_time=video_start_time,
+                            time_module=time_module,
+                        )
+                        
+                        # If subcategory failed, stop and skip remaining items
+                        if subcat_failed:
+                            result.stopped_early = True
+                            self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
+                            break
                 
                 # Run teardown if exists (always, even on failure)
                 self._run_teardown_if_exists(category, page, context, result)
@@ -331,6 +358,13 @@ class TestRunner:
                 video_path = None
                 if self.record_video and page.video:
                     video_path = page.video.path()
+                
+                # If keep_open is enabled and there was a failure, wait for user
+                if self.keep_open and result.stopped_early:
+                    print("\n  [!] Browser kept open for debugging (--keep-open flag)")
+                    print(f"  [>] Current URL: {page.url}")
+                    print(f"  [>] Current Title: {page.title()}")
+                    input("  [>] Press Enter to close browser and continue...")
                 
                 # Close browser
                 self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
@@ -458,3 +492,207 @@ class TestRunner:
             })
         
         return result
+    
+    def _build_execution_plan(self, category: Category) -> List:
+        """
+        Build an execution plan that interleaves tests and subcategories.
+        
+        Subcategories with run_after specified will be inserted after the named test.
+        Subcategories without run_after will be added at the end.
+        
+        Args:
+            category: The category to build plan for
+            
+        Returns:
+            List of Test and Category objects in execution order
+        """
+        from typing import Union
+        
+        plan: List[Union[Test, Category]] = []
+        
+        # Create a map of test_id -> list of subcategories to run after it
+        subcats_after: dict[str, List[Category]] = {}
+        subcats_at_end: List[Category] = []
+        
+        for subcat in category.subcategories:
+            if subcat.run_after:
+                if subcat.run_after not in subcats_after:
+                    subcats_after[subcat.run_after] = []
+                subcats_after[subcat.run_after].append(subcat)
+            else:
+                subcats_at_end.append(subcat)
+        
+        # Build plan: tests with subcategories inserted at appropriate points
+        for test in category.tests:
+            plan.append(test)
+            
+            # Insert any subcategories that should run after this test
+            if test.id in subcats_after:
+                for subcat in subcats_after[test.id]:
+                    plan.append(subcat)
+        
+        # Add subcategories without run_after at the end
+        plan.extend(subcats_at_end)
+        
+        return plan
+    
+    def _skip_remaining_items(
+        self,
+        remaining_items: List,
+        result: CategoryResult,
+        failed_test_name: str,
+    ) -> None:
+        """
+        Skip all remaining items (tests and subcategories) after a failure.
+        
+        Args:
+            remaining_items: List of remaining Test and Category objects
+            result: CategoryResult to update
+            failed_test_name: Name of the test that failed
+        """
+        for item in remaining_items:
+            if isinstance(item, Test):
+                result.test_results.append(TestResult(
+                    test_name=item.name,
+                    test_path=self.tests_root / item.path,
+                    test_type="test",
+                    status="skipped",
+                    duration_ms=0,
+                    error=f"Skipped due to {failed_test_name} failure",
+                ))
+            elif isinstance(item, Category):
+                # Skip all tests in the subcategory
+                for test in item.tests:
+                    result.test_results.append(TestResult(
+                        test_name=f"{item.name}/{test.name}",
+                        test_path=self.tests_root / test.path,
+                        test_type="test",
+                        status="skipped",
+                        duration_ms=0,
+                        error=f"Skipped due to {failed_test_name} failure",
+                    ))
+    
+    def _run_subcategory_inline(
+        self,
+        subcategory: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+    ) -> tuple[bool, str]:
+        """
+        Run a subcategory inline within the parent category's browser session.
+        
+        Args:
+            subcategory: The subcategory to run
+            page: Playwright page (shared with parent)
+            context: Shared context dict
+            result: Parent's CategoryResult to append to
+            video_timestamps: List to append timestamps to
+            video_start_time: When video recording started
+            time_module: time module reference
+            
+        Returns:
+            Tuple of (failed: bool, failed_test_name: str or None)
+        """
+        print(f"\n    >>> Subcategory: {subcategory.name}")
+        
+        # Run subcategory setup if exists
+        if subcategory.setup and subcategory.setup.is_valid:
+            test_start_offset = time_module.time() - video_start_time
+            setup_result = self._run_single_test(
+                test_path=self.tests_root / subcategory.path / "_setup",
+                test_name=f"{subcategory.name}/_setup",
+                test_type="setup",
+                page=page,
+                context=context,
+                index=0,
+                total=len(subcategory.tests),
+                category_name=subcategory.name,
+            )
+            test_end_offset = time_module.time() - video_start_time
+            video_timestamps.append((f"{subcategory.name}/_setup", test_start_offset, test_end_offset, setup_result.status))
+            
+            # Store as a test result in parent
+            result.test_results.append(setup_result)
+            
+            if setup_result.status == "failed":
+                # Skip all tests in subcategory
+                for test in subcategory.tests:
+                    result.test_results.append(TestResult(
+                        test_name=f"{subcategory.name}/{test.name}",
+                        test_path=self.tests_root / test.path,
+                        test_type="test",
+                        status="skipped",
+                        duration_ms=0,
+                        error=f"Skipped due to {subcategory.name}/_setup failure",
+                    ))
+                return True, f"{subcategory.name}/_setup"
+        
+        # Run subcategory tests
+        for index, test in enumerate(subcategory.tests):
+            test_start_offset = time_module.time() - video_start_time
+            test_result = self._run_single_test(
+                test_path=self.tests_root / test.path,
+                test_name=f"{subcategory.name}/{test.name}",
+                test_type="test",
+                page=page,
+                context=context,
+                index=index + 1,
+                total=len(subcategory.tests),
+                category_name=subcategory.name,
+            )
+            test_end_offset = time_module.time() - video_start_time
+            video_timestamps.append((f"{subcategory.name}/{test.name}", test_start_offset, test_end_offset, test_result.status))
+            result.test_results.append(test_result)
+            
+            if test_result.status == "failed":
+                # Skip remaining tests in subcategory
+                for remaining_test in subcategory.tests[index + 1:]:
+                    result.test_results.append(TestResult(
+                        test_name=f"{subcategory.name}/{remaining_test.name}",
+                        test_path=self.tests_root / remaining_test.path,
+                        test_type="test",
+                        status="skipped",
+                        duration_ms=0,
+                        error=f"Skipped due to {subcategory.name}/{test.name} failure",
+                    ))
+                
+                # Run teardown even on failure
+                self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module)
+                return True, f"{subcategory.name}/{test.name}"
+        
+        # Run subcategory teardown if exists
+        self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module)
+        
+        print(f"    <<< Subcategory: {subcategory.name} completed")
+        return False, None
+    
+    def _run_subcategory_teardown(
+        self,
+        subcategory: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+    ) -> None:
+        """Run subcategory teardown if it exists."""
+        if subcategory.teardown and subcategory.teardown.is_valid:
+            test_start_offset = time_module.time() - video_start_time
+            teardown_result = self._run_single_test(
+                test_path=self.tests_root / subcategory.path / "_teardown",
+                test_name=f"{subcategory.name}/_teardown",
+                test_type="teardown",
+                page=page,
+                context=context,
+                index=0,
+                total=0,
+                category_name=subcategory.name,
+            )
+            test_end_offset = time_module.time() - video_start_time
+            video_timestamps.append((f"{subcategory.name}/_teardown", test_start_offset, test_end_offset, teardown_result.status))
+            result.test_results.append(teardown_result)

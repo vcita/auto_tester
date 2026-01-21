@@ -141,12 +141,13 @@ def cmd_run(args):
     config = load_config()
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     
-    # Check for headless mode
+    # Check for headless mode and keep-open flag
     headless = args.headless if hasattr(args, 'headless') else False
+    keep_open = getattr(args, 'keep_open', False)
     
     try:
         # Create runner
-        runner = TestRunner(tests_root, headless=headless)
+        runner = TestRunner(tests_root, headless=headless, keep_open=keep_open)
         
         # Attach CLI reporter for real-time output
         reporter = CLIReporter(runner.events)
@@ -299,6 +300,11 @@ def main():
         "--headless",
         action="store_true",
         help="Run browser in headless mode"
+    )
+    run_parser.add_argument(
+        "--keep-open",
+        action="store_true",
+        help="Keep browser open on failure for debugging"
     )
     
     # Explore command - explore and generate tests

@@ -44,9 +44,37 @@ heal
 Please analyze the failure and fix the test.
 ```
 
-## MANDATORY FIRST STEP: Screenshot AND Video Analysis
+## MANDATORY FIRST STEP: Read the Changelog
 
-**BEFORE doing anything else, you MUST:**
+**BEFORE attempting any fix, you MUST read the test's changelog.md:**
+
+1. **Locate the changelog** - `tests/{category}/{test_name}/changelog.md`
+2. **Read the FULL history** - Understand what has been tried before
+3. **Note previous failures and fixes** - What locators/approaches were already attempted?
+4. **Identify patterns** - Has this same issue occurred before? What fixed it?
+
+**WHY THIS IS CRITICAL:**
+- Prevents repeating failed approaches
+- Shows what locators were tried and didn't work
+- Reveals if the issue is recurring (might be a deeper problem)
+- Saves time by learning from past attempts
+
+**Example changelog insight:**
+```markdown
+## 2026-01-20 - Healed (Selector Update)
+**Error**: "Element not found: .edit-button"
+**Fix**: Changed to get_by_role("button").nth(2) - CSS class doesn't exist
+
+## 2026-01-19 - Healed (Selector Update)  
+**Error**: "Element not found: button[aria-label='Edit']"
+**Fix**: Tried .edit-button - that didn't work either
+```
+
+From this you learn: Don't try `.edit-button` or `button[aria-label='Edit']` - they were already tried and failed!
+
+## MANDATORY SECOND STEP: Screenshot AND Video Analysis
+
+**AFTER reading the changelog, analyze the visual evidence:**
 
 1. **Locate the screenshot** - Path is in the heal request under "## Screenshot"
 2. **Read/view the screenshot** - Use the Read tool to view the image
@@ -64,9 +92,9 @@ Please analyze the failure and fix the test.
 
 If the heal request doesn't have a screenshot, that's a bug - the test runner should always capture one on failure.
 
-## MANDATORY SECOND STEP: Debug with MCP (NO BLIND FIXES!)
+## MANDATORY THIRD STEP: Debug with MCP (NO BLIND FIXES!)
 
-**NEVER guess fixes! After analyzing the screenshot, you MUST debug using Playwright MCP:**
+**NEVER guess fixes! After reading changelog and analyzing screenshots, you MUST debug using Playwright MCP:**
 
 1. **Open MCP browser** - Navigate to the starting point of the failing test
 2. **Execute test steps one by one** - Run each action exactly as the test.py code does
@@ -87,11 +115,12 @@ The screenshot shows the END state. MCP debugging shows you the JOURNEY to that 
 
 ```
 Heal Request (failure context)
-    ↓ [1. FIRST: Read and analyze the screenshot!]
-    ↓ [2. SECOND: Debug step-by-step with MCP - NO BLIND FIXES!]
-    ↓ [3. Analyze the error message with MCP findings]
-    ↓ [4. Determine: selector issue vs flow change vs product bug]
-    ↓ [5. Write fix based on MCP-verified understanding]
+    ↓ [1. FIRST: Read changelog.md - learn from past attempts!]
+    ↓ [2. SECOND: Read and analyze the screenshot!]
+    ↓ [3. THIRD: Debug step-by-step with MCP - NO BLIND FIXES!]
+    ↓ [4. Analyze the error message with MCP findings]
+    ↓ [5. Determine: selector issue vs flow change vs product bug]
+    ↓ [6. Write fix based on MCP-verified understanding (avoid past failures)]
 script.md (updated)
     ↓ [Regenerate code]
 test.py (fixed)
@@ -100,6 +129,20 @@ test.py (fixed)
 ```
 
 ## Step-by-Step Heal Process
+
+### 0. Read the Changelog (MANDATORY FIRST)
+
+**Before anything else**, read `tests/{category}/{test_name}/changelog.md`:
+
+1. Look for previous heal attempts on this test
+2. Note what locators/approaches were tried and failed
+3. Note what fixes worked in the past (might need similar approach)
+4. Check if this is a recurring issue
+
+**If the changelog shows this exact issue was fixed before and is now failing again:**
+- The previous fix might have been fragile
+- Consider a more robust approach this time
+- Don't just repeat the same fix
 
 ### 1. Analyze the Failure
 
@@ -336,9 +379,11 @@ If healing reveals the flow changed significantly:
 ## Quality Checklist
 
 Before marking heal complete:
+- [ ] **Changelog was read first** - learned from past attempts
+- [ ] **Fix doesn't repeat past failures** - not using approaches that already failed
 - [ ] Root cause identified and documented
-- [ ] script.md updated with working selectors/flow
-- [ ] test.py regenerated
-- [ ] changelog.md updated with heal entry
+- [ ] script.md updated with VERIFIED PLAYWRIGHT CODE (tested in MCP)
+- [ ] test.py regenerated (copied verified code exactly)
+- [ ] changelog.md updated with heal entry (including what was tried)
 - [ ] Heal request deleted
 - [ ] (If bug) Bug report created and test marked blocked

@@ -2,58 +2,156 @@
 
 ## Purpose
 
-The `script.md` file is a **detailed action script** that bridges human intent (steps.md) and executable code (test.py). It contains precise, actionable instructions discovered through browser exploration.
+The `script.md` file is a **detailed action script** that bridges human intent (steps.md) and executable code (test.py). It contains precise, actionable instructions discovered through browser exploration, including **verified Playwright code** that was tested in MCP.
 
 This applies to:
 - Tests
 - Functions
 - Setup/Teardown
 
+## CRITICAL: Verified Code Requirement
+
+Every action step MUST include **VERIFIED PLAYWRIGHT CODE** - the exact code that was tested and confirmed working in MCP. This is not optional. The code in test.py will be copied directly from this verified code.
+
 ## Writing Guidelines
 
 ### Content Focus
 - Specific actions with exact targets
-- Multiple element identification strategies
+- **Locator decision process** (evaluate options before choosing)
+- **Verified Playwright code** (tested in MCP)
 - Wait conditions after actions
 - Verification checkpoints
+- Fallback locators for self-healing
 
 ### Structure for Each Step
 
-Each action should include:
+Each action MUST include:
 - **Action**: What to do (Click, Type, Wait, Scroll, Call, etc.)
 - **Target**: What element to interact with
-- **Element hints**: Multiple ways to find the element
+- **LOCATOR DECISION**: Table of options evaluated with pros/cons
+- **CHOSEN LOCATOR**: Which option was selected and why
+- **VERIFIED PLAYWRIGHT CODE**: The exact code tested in MCP (REQUIRED)
+- **How verified**: What behavior confirmed it worked
 - **Value** (if applicable): Data to enter
 - **Wait for**: What to expect after the action
+- **Fallback locators**: Alternative selectors for self-healing
 
-### Element Hints
+### Locator Decision Process
 
-Provide multiple selectors in order of preference:
-1. Semantic/accessible selectors (role, label, text)
-2. Data attributes (`data-testid`, `data-action`)
-3. CSS class selectors
-4. Structural selectors (nth-child, etc.)
+Before documenting a step, you MUST evaluate locator options:
 
-This redundancy helps self-healing find elements when one selector breaks.
+1. **Identify all possible locators** for the element
+2. **Evaluate pros/cons** of each option:
+   - Uniqueness: Does it match exactly one element?
+   - Resilience: Will it survive UI changes?
+   - Readability: Is it clear what element this targets?
+3. **Choose the best option** based on priority:
+   - Unique role + name (most resilient)
+   - Unique label/text (readable, fairly resilient)
+   - Unique test-id/data attribute (if available)
+   - CSS class (if semantic and unlikely to change)
+   - Position-based (last resort, document why)
+4. **Validate in MCP** before documenting
+5. **Document the decision** including rationale
 
-## Example Step
+## CRITICAL: Text Input Method
+
+**ALWAYS use `press_sequentially()` instead of `fill()` for typing text.**
+
+Standard pattern for ALL text input:
+```python
+field.click()  # Focus the field first
+page.wait_for_timeout(100)  # Brief wait for any transformations
+field.press_sequentially("value to type")  # Type character by character
+```
+
+Why:
+- Better simulation of real users
+- Triggers all input events (keydown/keyup)
+- Works with autocomplete/combobox fields
+- More reliable across different field types
+
+### Exception: Rich Text Editors (contenteditable)
+
+For rich text editors using `contenteditable="true"` (like TinyMCE, Quill, etc.), use `page.keyboard.type()`:
+
+```python
+# Rich text editor pattern
+editable_area = iframe.locator('div[contenteditable="true"]')
+editable_area.click()  # Focus the editor
+page.wait_for_timeout(500)
+page.keyboard.type("text to type")  # Use keyboard.type for contenteditable
+```
+
+This is because `press_sequentially()` doesn't work with contenteditable elements.
+
+## Example Step (NEW FORMAT)
 
 ```markdown
-### Step 3: Fill Client Email
-- **Action**: Type
-- **Target**: Email input field
-- **Element hints**:
-  - `get_by_label("Email")`
-  - `input[type="email"]`
-  - `input[name="email"]`
-  - `.client-form input.email-field`
-- **Value**: "test-{timestamp}@example.com"
-- **Wait for**: Input contains the typed value
+### Step 3: Click Edit Button
+
+- **Action**: Click
+- **Target**: Edit button (pencil icon) next to property name
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_role("button", name="Edit")` | Semantic, accessible | Button has no accessible name |
+| `locator(".edit-button")` | Clear intent | Class might not exist or change |
+| `get_by_role("button").nth(2)` | Works reliably | Fragile if button order changes |
+| `locator("[data-action='edit']")` | Unique identifier | No data attribute exists |
+
+**CHOSEN**: `get_by_role("button").nth(2)` - No unique identifier available; this is the third button in the header container.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+outer_iframe = page.frame_locator('iframe[title="angularjs"]')
+inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+edit_button = inner_iframe.get_by_role("button").nth(2)
+edit_button.click()
+```
+
+- **How verified**: Clicked in MCP, "Edit property info" dialog opened successfully
+- **Wait for**: Dialog with "Edit property info" title appears
+- **Fallback locators** (for self-healing):
+  - `locator(".matter-card-title").locator("button").nth(1)`
+  - `locator("button").filter(has=locator("svg"))`
+```
+
+## Simple Step Example
+
+For straightforward elements with clear identifiers:
+
+```markdown
+### Step 5: Click Save Button
+
+- **Action**: Click
+- **Target**: Save button in dialog
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_role("button", name="Save")` | Unique, semantic | None |
+| `locator(".btn-save")` | Clear class | Less resilient |
+
+**CHOSEN**: `get_by_role("button", name="Save")` - Unique and semantic.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+save_button = outer_iframe.get_by_role("button", name="Save")
+save_button.click()
+```
+
+- **How verified**: Clicked in MCP, dialog closed, changes saved
+- **Wait for**: Dialog closes, returns to detail page
+- **Fallback locators**: `locator(".dialog-actions button:has-text('Save')")`
 ```
 
 ## Function Calls in Script
 
-When a step calls a function, the script includes:
+When a step calls a function, no locator decision is needed:
 
 ```markdown
 ### Step 2: Create test client
@@ -72,11 +170,27 @@ When a step calls a function, the script includes:
 ### Step 5: Save meeting ID
 - **Action**: Extract and save
 - **Target**: Meeting ID element
-- **Element hints**:
-  - `.meeting-id`
-  - `[data-testid="meeting-id"]`
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `locator(".meeting-id")` | Semantic class | Might not be unique |
+| `locator("[data-testid='meeting-id']")` | Test ID, very stable | Might not exist |
+
+**CHOSEN**: `locator("[data-testid='meeting-id']")` - Test IDs are most stable.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+meeting_id_element = page.locator("[data-testid='meeting-id']")
+meeting_id = meeting_id_element.text_content()
+context["created_meeting_id"] = meeting_id
+```
+
+- **How verified**: Extracted text in MCP, confirmed format matches MTG-[0-9]+
 - **Save to context**: created_meeting_id
 - **Pattern**: Extract text matching `MTG-[0-9]+`
+- **Fallback locators**: `.meeting-id`, `[data-meeting-id]`
 ```
 
 ### Reading from Context
@@ -84,6 +198,7 @@ When a step calls a function, the script includes:
 ### Step 1: Open the meeting
 - **Action**: Navigate
 - **URL**: "{base_url}/meetings/{context.created_meeting_id}"
+- **No locator decision needed** (navigation uses URL, not element)
 ```
 
 ## Placeholders
@@ -95,7 +210,7 @@ Use these placeholders for dynamic values:
 - `{context.key}` - Value from shared context
 - `{param_name}` - Function parameter value
 
-## Function Script Example
+## Function Script Example (NEW FORMAT)
 
 **`tests/_functions/create_client/script.md`:**
 ```markdown
@@ -115,60 +230,75 @@ Use these placeholders for dynamic values:
 ### Step 1: Navigate to CRM
 - **Action**: Click
 - **Target**: CRM menu item
-- **Element hints**:
-  - `get_by_role("link", name="CRM")`
-  - `[data-nav="crm"]`
-  - `.nav-item:has-text("CRM")`
-- **Wait for**: CRM page loads
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_role("link", name="CRM")` | Semantic, accessible | None |
+| `locator("[data-nav='crm']")` | Data attribute | Might not exist |
+
+**CHOSEN**: `get_by_role("link", name="CRM")` - Unique and semantic.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+page.get_by_role("link", name="CRM").click()
+page.wait_for_url("**/crm**")
+```
+
+- **How verified**: Clicked in MCP, navigated to CRM page
+- **Wait for**: URL contains "/crm"
+- **Fallback locators**: `[data-nav="crm"]`, `.nav-item:has-text("CRM")`
 
 ### Step 2: Click Add Client
 - **Action**: Click
 - **Target**: Add client button
-- **Element hints**:
-  - `get_by_role("button", name="Add Client")`
-  - `.btn-add-client`
-- **Wait for**: Client form appears
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_role("button", name="Add Client")` | Semantic | None |
+| `locator(".btn-add-client")` | Class-based | Less resilient |
+
+**CHOSEN**: `get_by_role("button", name="Add Client")` - Unique button with clear name.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+page.get_by_role("button", name="Add Client").click()
+```
+
+- **How verified**: Clicked in MCP, client form appeared
+- **Wait for**: Client form dialog/page appears
+- **Fallback locators**: `.btn-add-client`
 
 ### Step 3: Fill Name
 - **Action**: Type
 - **Target**: Name field
-- **Element hints**:
-  - `get_by_label("Name")`
-  - `input[name="client_name"]`
 - **Value**: "{name}"
 
-### Step 4: Fill Email
-- **Action**: Type
-- **Target**: Email field
-- **Element hints**:
-  - `get_by_label("Email")`
-  - `input[type="email"]`
-- **Value**: "{email}"
+**LOCATOR DECISION:**
 
-### Step 5: Fill Phone (if provided)
-- **Action**: Type (conditional)
-- **Condition**: phone parameter is provided
-- **Target**: Phone field
-- **Element hints**:
-  - `get_by_label("Phone")`
-  - `input[type="tel"]`
-- **Value**: "{phone}"
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_label("Name")` | Accessible | Might match multiple |
+| `get_by_role("textbox", name="Name")` | More specific | None |
 
-### Step 6: Save Client
-- **Action**: Click
-- **Target**: Save button
-- **Element hints**:
-  - `get_by_role("button", name="Save")`
-  - `.btn-save`
-- **Wait for**: Success message or client detail page
+**CHOSEN**: `get_by_role("textbox", name="Name")` - Specific role + name.
 
-### Step 7: Extract Client ID
-- **Action**: Extract and save
-- **Target**: Client ID element
-- **Element hints**:
-  - `.client-id`
-  - `[data-client-id]`
-- **Save to context**: created_client_id
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+name_field = page.get_by_role("textbox", name="Name")
+name_field.click()
+page.wait_for_timeout(100)
+name_field.press_sequentially(name)
+```
+
+- **How verified**: Typed in MCP, value appeared in field character by character
+- **Fallback locators**: `get_by_label("Name")`, `input[name="client_name"]`
+
+### Step 4-7: (similar format with LOCATOR DECISION and VERIFIED PLAYWRIGHT CODE)
+...
 
 ## Success Verification
 - Success message is visible
@@ -181,19 +311,52 @@ Use these placeholders for dynamic values:
 - New intermediate steps are needed
 - Wait conditions need adjustment
 - After successful re-exploration
+- **When self-healing finds a better locator** (update VERIFIED PLAYWRIGHT CODE)
+
+## MCP Exploration Completeness Checklist
+
+Before documenting any step in script.md, verify:
+
+- [ ] **Full flow executed**: Ran the COMPLETE action sequence in MCP (not just individual steps)
+- [ ] **End state verified**: Confirmed the final UI state matches expectations
+- [ ] **State transitions checked**: If action changes UI (e.g., view to edit mode), verified ALL buttons/elements in new state
+- [ ] **Exact code captured**: Copied the EXACT code from MCP's "Ran Playwright code" output
+- [ ] **Text input uses press_sequentially()**: All fill() calls converted to click() + press_sequentially()
+- [ ] **No assumptions made**: Did not assume element names/positions - verified each one
+
+### Common Mistakes to Avoid
+
+1. **Assuming button names**: Always verify button text in MCP (e.g., "Close" vs "Save")
+2. **Skipping state transitions**: A dialog may have different buttons when viewing vs editing
+3. **Using fill() for text**: Always use the click() + press_sequentially() pattern
+4. **Partial verification**: Testing only the happy path, not edge cases
 
 ## Generation Process
 
 `script.md` is generated by:
 1. Reading the goal from `steps.md`
-2. AI explores the browser to achieve each step
-3. Recording successful element selectors and actions
+2. AI explores the browser using MCP to achieve each step
+3. **For each action: Run the Locator Decision Process**
+   - Identify all locator options
+   - Evaluate pros/cons of each
+   - Choose the best option
+   - **Validate it works in MCP**
+   - Document the decision and verified code
 4. Documenting wait conditions that worked
 5. For function calls, referencing the function's script.md
+
+## CRITICAL: No Unverified Code
+
+**NEVER document code that wasn't tested in MCP.** Every `VERIFIED PLAYWRIGHT CODE` block must have been:
+1. Actually executed in MCP
+2. Confirmed to produce the expected result
+3. The exact code from MCP's "Ran Playwright code" output (converted to Python syntax)
+
+If you find yourself writing locator code without having tested it, STOP. Go to MCP and validate first.
 
 ## Cascade Effect
 
 When `script.md` is updated:
-1. Regenerate `test.py` from the updated script
+1. Regenerate `test.py` from the updated script (copy VERIFIED PLAYWRIGHT CODE)
 2. Log changes in `changelog.md`
 3. If the flow changed significantly, consider updating `steps.md` too

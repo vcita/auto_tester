@@ -1,0 +1,34 @@
+# Notes Subcategory
+# Tests for adding, editing, and deleting notes on matters
+# This subcategory runs inline within the clients category
+
+name: Notes
+description: Tests for managing notes on matters (add, edit, delete)
+
+# Run this subcategory after edit_contact in the parent category
+# This ensures a matter exists (from create_matter) before we add notes
+run_after: edit_contact
+
+# Execution order - tests run sequentially in this order
+tests:
+  - id: add_note
+    name: Add Note
+    status: active
+    priority: high
+  - id: edit_note
+    name: Edit Note
+    status: active
+    priority: high
+  - id: delete_note
+    name: Delete Note
+    status: active
+    priority: high
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - notes
+  - matters
+owner: QA Team
+created_at: 2026-01-21

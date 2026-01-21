@@ -88,12 +88,18 @@ class TestDiscovery:
             parent=parent,
             setup=setup,
             teardown=teardown,
+            run_after=yaml_data.get("run_after"),  # For subcategory execution ordering
         )
         
         # Build test metadata lookup from YAML
         yaml_tests = {t["id"]: t for t in yaml_data.get("tests", [])}
+        # Keep track of test order from YAML
+        yaml_test_order = [t["id"] for t in yaml_data.get("tests", [])]
         
-        # Scan subdirectories
+        # First, scan subdirectories to find all tests and subcategories
+        discovered_tests = []
+        discovered_subcategories = []
+        
         for item in sorted(path.iterdir()):
             if not item.is_dir() or item.name.startswith("."):
                 continue
@@ -105,13 +111,30 @@ class TestDiscovery:
             # Check if it's a test folder (has steps.md)
             if (item / self.STEPS_FILE).exists():
                 test = self._create_test(item, yaml_tests.get(item.name, {}), category)
-                category.tests.append(test)
+                discovered_tests.append(test)
             
             # Check if it's a subcategory (has _category.yaml or contains test folders)
             elif self._is_category(item):
                 subcategory = self._scan_category(item, parent=category)
                 if subcategory:
-                    category.subcategories.append(subcategory)
+                    discovered_subcategories.append(subcategory)
+        
+        # Order tests based on YAML order, then append any tests not in YAML
+        ordered_tests = []
+        test_by_id = {t.id: t for t in discovered_tests}
+        
+        # First add tests in YAML-specified order
+        for test_id in yaml_test_order:
+            if test_id in test_by_id:
+                ordered_tests.append(test_by_id[test_id])
+        
+        # Then add any discovered tests not in YAML (alphabetical order)
+        for test in discovered_tests:
+            if test not in ordered_tests:
+                ordered_tests.append(test)
+        
+        category.tests = ordered_tests
+        category.subcategories = discovered_subcategories
         
         # Only return category if it has tests or subcategories
         if category.tests or category.subcategories:

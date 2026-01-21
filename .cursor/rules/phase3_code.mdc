@@ -9,10 +9,23 @@ This applies to:
 - Functions  
 - Setup/Teardown
 
+## CRITICAL: Use Verified Code Only
+
+**The code in test.py MUST be copied directly from the VERIFIED PLAYWRIGHT CODE blocks in script.md.**
+
+Do NOT:
+- "Improve" the verified code with different selectors
+- Substitute CSS selectors for role-based locators
+- Add semantic selectors that weren't tested
+- Guess what locators might work better
+
+The locator decision was already made in Phase 2. Your job in Phase 3 is to copy that verified code, not to re-decide.
+
 ## Generation Rules
 
 ### Source
 - Generate ONLY from `script.md`, never directly from `steps.md`
+- **Copy VERIFIED PLAYWRIGHT CODE blocks exactly** - do not modify
 - Each step in script.md becomes code with comments
 - Function calls become imports and function invocations
 
@@ -120,11 +133,54 @@ def setup_{category}(page: Page, context: TestContext):
 
 ### Locator Strategy
 
-Use Playwright locators in this order of preference:
-1. `page.get_by_role()` - Most resilient
-2. `page.get_by_label()` - For form fields
-3. `page.get_by_text()` - For buttons/links with visible text
-4. `page.locator()` - CSS selectors from element hints
+**PRIMARY RULE: Use the VERIFIED PLAYWRIGHT CODE from script.md**
+
+1. **ALWAYS copy the exact code from the VERIFIED PLAYWRIGHT CODE block**
+   - This code was tested and confirmed working in MCP
+   - The locator decision process already evaluated alternatives
+   - Do not second-guess or "improve" it
+
+2. **NEVER substitute locators**
+   - If script.md has `get_by_role("button").nth(2)`, use EXACTLY that
+   - Do not replace it with `.edit-button` because it "looks cleaner"
+   - Do not add `data-testid` selectors that weren't tested
+
+3. **If you think a better locator exists:**
+   - STOP writing test.py
+   - Go to MCP and validate the new locator
+   - Update script.md with new VERIFIED PLAYWRIGHT CODE
+   - THEN update test.py
+
+4. **Only if script.md lacks verified code** (legacy tests), use this fallback order:
+   - `page.get_by_role()` - Most resilient
+   - `page.get_by_label()` - For form fields
+   - `page.get_by_text()` - For buttons/links with visible text
+   - `page.locator()` - CSS selectors from fallback locators
+
+### Text Input Pattern
+
+**ALWAYS use `press_sequentially()` instead of `fill()` for ALL text input:**
+
+```python
+# CORRECT - use this pattern
+field = page.get_by_label("Phone")
+field.click()
+page.wait_for_timeout(100)
+field.press_sequentially(phone)
+
+# WRONG - never use fill()
+page.get_by_label("Phone").fill(phone)
+```
+
+**Exception for Rich Text Editors (contenteditable):**
+
+```python
+# For contenteditable elements, use keyboard.type()
+editable_area = iframe.locator('div[contenteditable="true"]')
+editable_area.click()
+page.wait_for_timeout(500)
+page.keyboard.type("text to type")
+```
 
 ### Context Operations
 
@@ -143,7 +199,10 @@ page.goto(f"{base_url}/meetings/{meeting_id}")
 ```python
 # Step 5: Fill Phone (if provided)
 if phone:
-    page.get_by_label("Phone").fill(phone)
+    phone_field = page.get_by_label("Phone")
+    phone_field.click()
+    page.wait_for_timeout(100)
+    phone_field.press_sequentially(phone)
 ```
 
 ### Error Handling
@@ -162,16 +221,18 @@ expect(page.get_by_text("Booking confirmed")).to_be_visible()
 
 ## When to Regenerate
 
-- `script.md` is updated
-- Self-healing finds a working selector
+- `script.md` is updated (new VERIFIED PLAYWRIGHT CODE)
+- Self-healing finds a working selector (must update script.md first!)
 - Never manually edit - always regenerate
 
 ## Self-Healing Updates
 
 When self-healing fixes a selector:
-1. Update the specific locator in `test.py`
-2. Also update the element hints in `script.md`
+1. **First**: Update `script.md` with new VERIFIED PLAYWRIGHT CODE
+2. **Then**: Regenerate `test.py` from the updated script
 3. Log the change in `changelog.md`
+
+**IMPORTANT**: Never update test.py without also updating script.md. The script.md is the source of truth.
 
 ## File Header
 

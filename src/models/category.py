@@ -150,6 +150,10 @@ class Category:
     # Parent reference for nested categories
     parent: Optional["Category"] = None
     
+    # Subcategory execution ordering
+    # If set, this subcategory runs after the specified test ID in the parent category
+    run_after: Optional[str] = None
+    
     @property
     def full_path(self) -> str:
         """Return full category path as string."""

@@ -184,7 +184,30 @@ RIGHT (user action):  Click avatar button -> Click "Logout" menu item
 
 WRONG (shortcut):     page.goto("https://app.vcita.com/app/calendar")  
 RIGHT (user action):  Click "Calendar" in sidebar navigation
+
+WRONG (shortcut):     page.goto(f"https://app.vcita.com/app/clients/{id}")
+RIGHT (sequential):   Verify URL already contains the ID (from previous test)
+RIGHT (user action):  Search for record name, click it in results
 ```
+
+### Sequential Tests - Browser State Continuity
+Tests in a sequence share browser state. Each test's end state becomes the next test's start state.
+
+**Pattern for sequential tests:**
+```python
+# WRONG - unconditionally navigates via URL
+page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+
+# RIGHT - verifies expected state from previous test
+if matter_id not in page.url:
+    raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
+page.wait_for_load_state("domcontentloaded")
+```
+
+**Why this matters:**
+- If the previous test failed to leave browser in correct state, we want to KNOW about it
+- Silent navigation hides issues in the test chain
+- Ensures tests actually verify the full user journey
 
 ## Build Process Overview
 
@@ -216,34 +239,88 @@ BEFORE exploring, check `tests/_functions/_functions.yaml`:
 
 ### 3. Explore with Playwright MCP Browser
 
-For each step in steps.md:
+For each step in steps.md, follow the **Locator Decision Process**:
 
-a) **Take a snapshot** to see the current page state
-   ```
-   Use: browser_snapshot
-   ```
-   The snapshot shows the accessibility tree with `ref` attributes for each element.
+#### a) Take a snapshot to see the current page state
+```
+Use: browser_snapshot
+```
+The snapshot shows the accessibility tree with `ref` attributes for each element.
 
-b) **Identify the target element** from the snapshot
-   - Look for buttons, links, inputs that match the step
-   - Note the `ref` attribute for clicking (e.g., `ref=f47e18`)
-   - Note multiple ways to identify it (role, label, text)
+#### b) Identify the target element and ALL possible locators
 
-c) **Perform the action**
-   ```
-   Use: browser_click, browser_type, browser_navigate, etc.
-   ```
-   - Pass the `ref` value and a human-readable `element` description
-   - The tool output shows the **Playwright code** that was executed
+From the snapshot, identify:
+- The element you need to interact with
+- **ALL possible ways to locate it** (this is critical!)
 
-d) **Verify the result**
-   - Take another snapshot
-   - Confirm the expected change happened
+Document the options:
+| Option | Description |
+|--------|-------------|
+| `get_by_role("button", name="Save")` | Role-based, most resilient |
+| `get_by_text("Save")` | Text-based |
+| `locator(".btn-save")` | CSS class |
+| `get_by_role("button").nth(2)` | Position-based |
 
-e) **Record the Playwright code**
-   - The tool output includes: `### Ran Playwright code`
-   - Copy the locator that worked (e.g., `page.get_by_role("button", name="Save")`)
-   - This is what you'll use in test.py
+#### c) Evaluate each locator option (REQUIRED)
+
+For EACH option, consider:
+
+| Criteria | Question |
+|----------|----------|
+| **Uniqueness** | Does it match exactly ONE element? Check the snapshot! |
+| **Resilience** | Will it survive if classes/text/order changes? |
+| **Readability** | Is it clear what element this targets? |
+| **Iframe context** | Does it need frame_locator() nesting? |
+
+Create a decision table:
+| Option | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| `get_by_role("button", name="Save")` | Unique, semantic | None | **BEST** |
+| `locator(".btn-save")` | Clear intent | Class might change | Fallback |
+| `get_by_role("button").nth(2)` | Works | Fragile if order changes | Avoid |
+
+#### d) Choose the best locator
+
+Pick based on this priority:
+1. **Unique role + accessible name** (most resilient)
+2. **Unique label** (for form fields)
+3. **Unique text content** (readable)
+4. **Test-id/data attribute** (if available and stable)
+5. **CSS class** (if semantic and unlikely to change)
+6. **Position-based (.nth())** (LAST RESORT - document why)
+
+#### e) Validate your choice in MCP
+
+**Before documenting**, test the chosen locator:
+```
+Use: browser_click, browser_type, etc.
+```
+- Pass the `ref` value and a human-readable `element` description
+- The tool output shows the **Playwright code** that was executed
+- **Confirm the expected behavior occurred**
+
+If it fails, try your next option from the decision table.
+
+#### f) Record the VERIFIED Playwright code
+
+**CRITICAL**: The tool output includes `### Ran Playwright code`
+```
+### Ran Playwright code
+await page.locator('iframe[title="angularjs"]').contentFrame()
+    .locator('#vue_iframe_layout').contentFrame()
+    .getByRole('button', { name: 'Save' }).click();
+```
+
+This verified code goes directly into script.md - **do not modify it**.
+
+#### g) Document in script.md
+
+For each step, record:
+- **LOCATOR DECISION**: The options you evaluated (table)
+- **CHOSEN**: Which option and why
+- **VERIFIED PLAYWRIGHT CODE**: The exact code from MCP (converted to Python)
+- **How verified**: What behavior confirmed it worked
+- **Fallback locators**: Alternatives for self-healing
 
 ### Handling Iframes
 
@@ -313,14 +390,14 @@ iframe.get_by_role("combobox", name="Email").press_sequentially("test@example.co
 
 ### 4. Generate script.md
 
-After successful exploration, create `script.md` with:
+After successful exploration, create `script.md` with the **new verified code format**:
 
 ```markdown
 # [Test Name] - Detailed Script
 
 > **Status**: Generated from exploration
 > **Last Updated**: [current date/time]
-> **Generated By**: Cursor AI exploration
+> **Generated By**: Cursor AI exploration with Playwright MCP
 
 ## Initial State
 - URL: [starting URL]
@@ -331,12 +408,26 @@ After successful exploration, create `script.md` with:
 ### Step 1: [Step description]
 - **Action**: [Click/Type/Navigate/etc.]
 - **Target**: [Human description of element]
-- **Element hints**:
-  - `[primary selector that worked]`
-  - `[backup selector]`
-  - `[another backup]`
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `get_by_role("button", name="Save")` | Unique, semantic | None |
+| `locator(".btn-save")` | Clear class | Less resilient |
+
+**CHOSEN**: `get_by_role("button", name="Save")` - Unique and semantic.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+save_button = page.get_by_role("button", name="Save")
+save_button.click()
+```
+
+- **How verified**: Clicked in MCP, form submitted successfully
 - **Value**: [if typing, the value]
 - **Wait for**: [what indicates success]
+- **Fallback locators**: `.btn-save`, `button:has-text("Save")`
 
 ### Step 2: [Next step]
 ...
@@ -345,15 +436,36 @@ After successful exploration, create `script.md` with:
 - [How to verify the test passed]
 ```
 
+**CRITICAL**: Every step MUST have:
+- **LOCATOR DECISION** table showing options evaluated
+- **CHOSEN** with rationale
+- **VERIFIED PLAYWRIGHT CODE** that was tested in MCP
+- **How verified** describing what confirmed it worked
+
 ### 5. Generate test.py
 
 Convert script.md to Playwright Python code following the rules in `phase3_code.mdc`.
 
+**CRITICAL**: Copy the VERIFIED PLAYWRIGHT CODE directly from script.md.
+
 Key points:
-- Use the element hints from script.md
-- Prefer semantic locators (get_by_role, get_by_label)
+- **Copy VERIFIED PLAYWRIGHT CODE exactly** - do not modify or "improve" it
+- The locator decision was already made - don't re-decide
 - Add comments mapping to script.md steps
 - Include the standard header
+
+**NEVER do this:**
+```python
+# script.md has: inner_iframe.get_by_role("button").nth(2)
+# DO NOT "improve" it to:
+inner_iframe.locator(".edit-button")  # WRONG - this wasn't tested!
+```
+
+**ALWAYS do this:**
+```python
+# Copy exactly from script.md VERIFIED PLAYWRIGHT CODE:
+inner_iframe.get_by_role("button").nth(2)  # RIGHT - this was tested!
+```
 
 ### 6. Update changelog.md
 
@@ -576,7 +688,10 @@ expect(page.get_by_text(old_value)).not_to_be_visible()
 ## Quality Checklist
 
 Before marking build complete:
-- [ ] script.md has multiple element hints per step (for self-healing)
+- [ ] **LOCATOR DECISION documented** for every interactive step
+- [ ] **VERIFIED PLAYWRIGHT CODE** included for every step (tested in MCP)
+- [ ] script.md has fallback locators per step (for self-healing)
+- [ ] test.py **copies VERIFIED PLAYWRIGHT CODE exactly** - no modifications
 - [ ] test.py follows the code structure from phase3_code.mdc
 - [ ] changelog.md is updated
 - [ ] **EXPLORATION WAS COMPLETED FULLY** - all actions done to final state
