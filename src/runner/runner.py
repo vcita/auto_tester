@@ -19,6 +19,7 @@ from .events import EventEmitter, RunnerEvent
 from .context import ContextManager
 from .executor import TestExecutor
 from .heal import HealRequestGenerator
+from .storage import RunStorage
 
 
 class TestRunner:
@@ -75,6 +76,7 @@ class TestRunner:
         self.executor = TestExecutor(self.snapshots_dir / "screenshots")
         self.context_manager = ContextManager()
         self.heal_generator = HealRequestGenerator()
+        self.storage = RunStorage(self.tests_root)
     
     def get_categories(self) -> List[Category]:
         """
@@ -108,6 +110,9 @@ class TestRunner:
         
         result = RunResult(started_at=datetime.now())
         
+        # Start a new run in storage
+        run_id = self.storage.start_run()
+        
         # Count total tests
         total_tests = sum(len(c.tests) for c in categories)
         
@@ -116,6 +121,7 @@ class TestRunner:
             "categories": [c.name for c in categories],
             "total_categories": len(categories),
             "total_tests": total_tests,
+            "run_id": run_id,
         })
         
         # Run each category
@@ -129,9 +135,13 @@ class TestRunner:
         
         result.completed_at = datetime.now()
         
+        # Finalize run in storage
+        self.storage.finalize_run(result)
+        
         # Emit run completed
         self.events.emit(RunnerEvent.RUN_COMPLETED, {
             "result": result.to_dict(),
+            "run_id": run_id,
         })
         
         return result
@@ -155,23 +165,31 @@ class TestRunner:
                 stopped_early=True,
             )
         
+        # Start a new run in storage
+        run_id = self.storage.start_run()
+        
         # Emit run started (single category)
         self.events.emit(RunnerEvent.RUN_STARTED, {
             "categories": [category.name],
             "total_categories": 1,
             "total_tests": len(category.tests),
+            "run_id": run_id,
         })
         
         result = self._run_category_internal(category, 1, 1)
         
-        # Emit run completed
+        # Finalize run in storage
         run_result = RunResult(
             started_at=datetime.now(),
             completed_at=datetime.now(),
             category_results=[result],
         )
+        self.storage.finalize_run(run_result)
+        
+        # Emit run completed
         self.events.emit(RunnerEvent.RUN_COMPLETED, {
             "result": run_result.to_dict(),
+            "run_id": run_id,
         })
         
         return result
@@ -227,9 +245,10 @@ class TestRunner:
             
             # Create context with realistic settings
             # Video recording is enabled by default for debugging
+            # Videos are recorded to a temp location and moved to run storage after completion
             video_dir = None
             if self.record_video:
-                video_dir = Path.cwd() / self.snapshots_dir / "videos"
+                video_dir = Path.cwd() / ".temp_videos"
                 video_dir.mkdir(parents=True, exist_ok=True)
             
             # Custom user agent with bypass string to avoid captcha
@@ -371,13 +390,13 @@ class TestRunner:
                 browser_context.close()  # Close context first to finalize video
                 browser.close()
                 
-                # Rename video file to include category name and timestamp
+                # Process video and save to storage
+                final_video_path = None
                 if video_path and Path(video_path).exists():
-                    from datetime import datetime
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    new_video_path = Path(video_path).parent / f"{category.name}_{timestamp}.webm"
-                    Path(video_path).rename(new_video_path)
-                    print(f"  [Video] Saved: {new_video_path}")
+                    # Temporarily rename video with category name for identification
+                    temp_video_path = Path(video_path).parent / f"{category.name}_{self.storage.current_run_id}.webm"
+                    Path(video_path).rename(temp_video_path)
+                    final_video_path = temp_video_path
                     
                     # Print video timestamps for easy navigation
                     if video_timestamps:
@@ -387,6 +406,13 @@ class TestRunner:
                             end_str = f"{int(end//60):02d}:{int(end%60):02d}"
                             status_icon = ">" if status == "passed" else "X" if status == "failed" else "-"
                             print(f"    [{status_icon}] {start_str} - {end_str} : {test_name}")
+        
+        # Save category result to storage (will move video to _runs folder)
+        self.storage.save_category_result(
+            category=category.name,
+            result=result,
+            video_path=final_video_path,
+        )
         
         # Save context for debugging
         self.context_manager.save_to_file(f"{category.name}_context.json")
@@ -471,6 +497,16 @@ class TestRunner:
             "result": result.to_dict(),
         })
         
+        # Save test result to storage
+        # Extract simple test name (handle subcategory paths like "services/create_service")
+        simple_test_name = test_name.split("/")[-1] if "/" in test_name else test_name
+        self.storage.save_test_result(
+            category=category_name,
+            test_name=simple_test_name,
+            result=result,
+            screenshot_path=result.screenshot,
+        )
+        
         # If failed, generate heal request and emit event
         if result.status == "failed":
             self.events.emit(RunnerEvent.TEST_FAILED, {
@@ -485,6 +521,14 @@ class TestRunner:
                 category_name=category_name,
                 context=context,
             )
+            
+            # Copy heal request to storage
+            if heal_path:
+                self.storage.save_heal_request(
+                    category=category_name,
+                    test_name=simple_test_name,
+                    heal_request_path=heal_path,
+                )
             
             self.events.emit(RunnerEvent.HEAL_REQUEST_CREATED, {
                 "test": test_name,

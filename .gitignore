@@ -45,15 +45,15 @@ playwright-report/
 # Project specific
 db/*.db
 logs/*.log
-snapshots/screenshots/*.png
-snapshots/dom/*.html
-snapshots/videos/*.webm
-snapshots/videos/*.mp4
-snapshots/videos/*.avi
+.temp_videos/
 .context/
 .playwright-mcp/*.png
 .playwright-mcp/*.jpg
 .playwright-mcp/*.jpeg
+
+# Run history (stored per-category in tests/{category}/_runs/)
+tests/*/_runs/
+runs_index/
 
 # Cursor requests (keep structure, ignore content)
 .cursor/heal_requests/*.md
@@ -62,8 +62,6 @@ snapshots/videos/*.avi
 # Keep the directory structure
 !db/.gitkeep
 !logs/.gitkeep
-!snapshots/screenshots/.gitkeep
-!snapshots/dom/.gitkeep
 !tests/.gitkeep
 !generated_tests/.gitkeep
 !.cursor/heal_requests/.gitkeep
