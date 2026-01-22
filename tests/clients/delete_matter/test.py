@@ -43,25 +43,21 @@ def test_delete_matter(page: Page, context: dict) -> None:
     # NOTE: Don't use networkidle - vcita has continuous background requests
     page.wait_for_url(re.compile(r"/app/clients"), timeout=10000)
     page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(2000)  # Wait for table to render
     
     # ========== PART 2: Find and Select the Matter ==========
     
     # Step 2: Locate the matter row in the table
     matter_row = page.get_by_role("row", name=matter_name)
-    expect(matter_row).to_be_visible(timeout=10000)
+    matter_row.wait_for(state="visible", timeout=10000)
     
     # Step 3: Click the checkbox button in the matter's row
     # Note: The checkbox is wrapped in a button element due to UI framework
     checkbox_btn = matter_row.get_by_role("button").first
     checkbox_btn.click()
     
-    # Wait for selection to register
-    page.wait_for_timeout(500)
-    
     # Verify selection indicator appears
     selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+ PROPERTIES"))
-    expect(selection_indicator).to_be_visible(timeout=5000)
+    selection_indicator.wait_for(state="visible", timeout=5000)
     
     # ========== PART 3: Delete the Matter ==========
     
@@ -69,39 +65,32 @@ def test_delete_matter(page: Page, context: dict) -> None:
     more_btn = page.get_by_role("button", name="More", exact=True)
     more_btn.click()
     
-    # Wait for dropdown menu
-    page.wait_for_timeout(300)
+    # Wait for dropdown menu to appear
+    delete_option = page.locator('div').filter(has_text=re.compile(r"^Delete$")).nth(1)
+    delete_option.wait_for(state="visible", timeout=5000)
     
     # Step 5: Click Delete option in the dropdown
-    # The Delete option is under the MANAGE section
-    delete_option = page.locator('div').filter(has_text=re.compile(r"^Delete$")).nth(1)
     delete_option.click()
     
-    # Wait for confirmation dialog
-    page.wait_for_timeout(500)
-    
-    # Verify confirmation dialog appeared
+    # Wait for confirmation dialog to appear
     dialog_title = page.get_by_text("Delete properties?")
-    expect(dialog_title).to_be_visible(timeout=5000)
+    dialog_title.wait_for(state="visible", timeout=5000)
     
     # Step 6: Confirm deletion by clicking Delete in the dialog
     confirm_delete_btn = page.get_by_role("button", name="Delete")
     confirm_delete_btn.click()
     
     # Wait for success dialog to appear
-    page.wait_for_timeout(500)
+    success_dialog_title = page.get_by_text("Properties deleted")
+    success_dialog_title.wait_for(state="visible", timeout=10000)
     
     # Step 7: Acknowledge success dialog
-    # Dialog shows: "Properties deleted" with message about waiting for list update
-    success_dialog_title = page.get_by_text("Properties deleted")
-    expect(success_dialog_title).to_be_visible(timeout=5000)
-    
     # Click OK to dismiss the success dialog
     ok_btn = page.get_by_role("button", name="OK")
     ok_btn.click()
     
-    # Wait for dialog to close and table to refresh
-    page.wait_for_timeout(2000)  # As the dialog suggests, wait for list to update
+    # Wait for dialog to close
+    success_dialog_title.wait_for(state="hidden", timeout=10000)
     
     # ========== PART 4: Verify Deletion (USER PERSPECTIVE) ==========
     # CRITICAL: We verify the ACTUAL RESULT, not just the success message

@@ -34,8 +34,8 @@ def fn_login(page: Page, context: dict, **params) -> None:
         try:
             page.goto("https://www.vcita.com/login", wait_until="commit")
             
-            # Wait a moment for any immediate redirects
-            page.wait_for_timeout(2000)
+            # Wait for page to load - either login form appears or we get redirected
+            page.wait_for_load_state("domcontentloaded")
             
             # Debug: Print current page info
             print(f"  Page URL: {page.url}")
@@ -103,13 +103,13 @@ def fn_login(page: Page, context: dict, **params) -> None:
     # The textbox has an associated label "Email" - use get_by_label
     email_input = page.get_by_label("Email", exact=True)
     email_input.click()
-    page.wait_for_timeout(200)
-    email_input.fill(username)  # Use fill instead of press_sequentially for reliability
+    page.wait_for_timeout(100)  # Brief delay for field focus
+    email_input.fill(username)  # Use fill for login - more reliable with autofill
     
     # Step 3: Enter Password
     password_input = page.get_by_label("Password", exact=True)
     password_input.click()
-    page.wait_for_timeout(200)
+    page.wait_for_timeout(100)  # Brief delay for field focus
     password_input.fill(password)
     
     # Step 4: Click Login Button

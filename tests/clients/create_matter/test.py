@@ -77,22 +77,21 @@ def test_create_matter(page: Page, context: dict) -> None:
     quick_actions_btn.wait_for(state="visible", timeout=10000)
     quick_actions_btn.click()
     
-    # Wait for the dropdown menu to appear
-    page.wait_for_selector("text=PROPERTIES", timeout=5000)
-    page.wait_for_timeout(500)  # Wait for animation
+    # Wait for the dropdown menu to appear - wait for the Add property button
+    # which is more specific than "PROPERTIES" text
+    add_property = page.locator("#client")
+    add_property.wait_for(state="visible", timeout=5000)
+    page.wait_for_timeout(200)  # Brief animation settle
     
     print("  Step 3: Clicking Add property in menu...")
     # Click "Add property" in the dropdown menu (under PROPERTIES section)
-    # The element has id="client" in the Quick Actions dropdown
-    add_property = page.locator("#client")
-    add_property.wait_for(state="visible", timeout=5000)
     add_property.click()
     
     print("  Step 4: Waiting for property form iframe...")
     # Wait for form/dialog to appear in iframe
     # The form appears in an iframe with title="angularjs"
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
-    page.wait_for_timeout(2000)  # Extra wait for iframe content to load
+    angular_iframe = page.locator('iframe[title="angularjs"]')
+    angular_iframe.wait_for(state="visible", timeout=15000)
     
     # Get the iframe containing the form
     iframe = page.frame_locator('iframe[title="angularjs"]')
@@ -105,7 +104,9 @@ def test_create_matter(page: Page, context: dict) -> None:
     # This button must be visible and clicked to access Referred By field
     show_more_btn = iframe.get_by_role("button", name="Show more")
     show_more_btn.click()
-    page.wait_for_timeout(300)
+    # Wait for the Referred by field to become visible (indicates expansion complete)
+    referred_field_check = iframe.get_by_role("textbox", name="Referred by")
+    referred_field_check.wait_for(state="visible", timeout=5000)
     
     # ========== PART 2: Fill Contact Information ==========
     # Note: Email and Mobile phone fields become comboboxes (autocomplete) when focused
@@ -166,12 +167,12 @@ def test_create_matter(page: Page, context: dict) -> None:
     print(f"  Step 12: Selecting Property type: {test_data['matter_type']}...")
     matter_type_dropdown = iframe.get_by_role("listbox", name="Property type")
     matter_type_dropdown.click()
-    page.wait_for_timeout(500)  # Wait for dropdown animation
-    # Use get_by_role("option") to select from the dropdown
+    # Wait for dropdown options to appear
     option = iframe.get_by_role("option", name=test_data["matter_type"])
     option.wait_for(state="visible", timeout=5000)
     option.click()
-    page.wait_for_timeout(300)  # Wait for selection to register
+    # Wait for dropdown to close (listbox becomes hidden or option is no longer visible)
+    page.wait_for_timeout(200)  # Brief settle for dropdown close animation
     
     # Step 13: Fill Special Instructions
     instructions_field = iframe.get_by_role("textbox", name="Special instructions/requests")
@@ -186,12 +187,11 @@ def test_create_matter(page: Page, context: dict) -> None:
     # ========== PART 4: Save and Verify ==========
     
     # Step 15: Click Save Button
-    iframe.get_by_role("button", name="Save").click()
+    save_btn = iframe.get_by_role("button", name="Save")
+    save_btn.click()
     
-    # Wait for save to complete - the dialog should close and redirect to client page
-    page.wait_for_timeout(2000)  # Wait for save to process
+    # Wait for save to complete - the page will redirect to client page
     page.wait_for_url(re.compile(r"/app/clients/"), timeout=15000)
-    page.wait_for_timeout(1000)  # Additional wait for UI to settle
     
     # ========== VERIFICATION ==========
     
@@ -205,7 +205,6 @@ def test_create_matter(page: Page, context: dict) -> None:
     
     # Wait for page content to load
     page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(2000)
     
     print(f"  Step 15: Verifying created matter: {test_data['full_name']}...")
     

@@ -53,11 +53,9 @@ def test_edit_matter(page: Page, context: dict) -> None:
     
     print("  Step 1: Navigating to matter detail page...")
     # We should already be on the matter detail page after create_matter
-    # But if not, navigate there explicitly
+    # If not on the correct page, this is an error - previous test should leave us here
     if matter_id not in page.url:
-        page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(2000)  # Wait for page to fully load
+        raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}. Sequential test context violation.")
     
     # Verify we're on the correct matter page
     expect(page).to_have_url(re.compile(rf"/app/clients/{re.escape(matter_id)}"))
@@ -71,8 +69,8 @@ def test_edit_matter(page: Page, context: dict) -> None:
     print("  Step 3: Opening edit property dialog...")
     # The edit button is in the inner iframe (vue_iframe_layout inside angularjs iframe)
     # Wait for the outer iframe
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
-    page.wait_for_timeout(2000)  # Extra wait for iframe content
+    angular_iframe = page.locator('iframe[title="angularjs"]')
+    angular_iframe.wait_for(state="visible", timeout=15000)
     
     # Get the nested iframe structure
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
@@ -91,8 +89,9 @@ def test_edit_matter(page: Page, context: dict) -> None:
     # Wait for the edit dialog to appear
     # The dialog appears in the outer iframe (angularjs)
     print("  Step 4: Waiting for edit dialog...")
-    outer_iframe.locator("text=Edit property info").wait_for(timeout=10000)
-    page.wait_for_timeout(500)  # Wait for dialog animation
+    dialog_title = outer_iframe.locator("text=Edit property info")
+    dialog_title.wait_for(state="visible", timeout=10000)
+    page.wait_for_timeout(200)  # Brief settle for dialog animation
     
     # ========== PART 3: Modify Fields ==========
     
@@ -119,8 +118,8 @@ def test_edit_matter(page: Page, context: dict) -> None:
     save_button = outer_iframe.get_by_role("button", name="Save")
     save_button.click()
     
-    # Wait for dialog to close
-    page.wait_for_timeout(2000)  # Wait for save to process
+    # Wait for dialog to close by checking the dialog title disappears
+    dialog_title.wait_for(state="hidden", timeout=10000)
     
     # Verify dialog is closed by checking the edit button is visible again
     edit_button.wait_for(state="visible", timeout=10000)
@@ -130,8 +129,8 @@ def test_edit_matter(page: Page, context: dict) -> None:
     print("  Step 8: Verifying changes were saved...")
     # Open the edit dialog again to verify values
     edit_button.click()
-    outer_iframe.locator("text=Edit property info").wait_for(timeout=10000)
-    page.wait_for_timeout(500)
+    dialog_title_verify = outer_iframe.locator("text=Edit property info")
+    dialog_title_verify.wait_for(state="visible", timeout=10000)
     
     # Verify the help request field has the new value
     help_field_verify = outer_iframe.get_by_role("textbox", name="How can we help you?")
@@ -144,7 +143,8 @@ def test_edit_matter(page: Page, context: dict) -> None:
     # Close the dialog
     cancel_button = outer_iframe.get_by_role("button", name="Cancel")
     cancel_button.click()
-    page.wait_for_timeout(500)
+    # Wait for dialog to close
+    dialog_title_verify.wait_for(state="hidden", timeout=10000)
     
     # Save edited values to context for reference
     context["edited_help_request"] = edit_data["help_request"]

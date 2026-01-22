@@ -1,0 +1,252 @@
+# Module Test Suite Planning Rules
+
+## Purpose
+
+This document defines the process for planning a comprehensive test suite for a vcita module (e.g., Scheduling, Payments, Marketing, CRM). Follow these steps before creating any test files.
+
+## When to Use This Process
+
+Use this planning process when:
+- Adding test coverage for a new vcita module
+- Expanding coverage for an existing module with new features
+- Restructuring tests after major product changes
+
+## Phase 1: Research
+
+### 1.1 Discover Module Features
+
+Before planning tests, thoroughly research all functionality in the module:
+
+**Online Search:**
+- Search for `vcita [module name] features [current year]`
+- Search for `vcita [module name] settings configuration`
+- Search for `site:support.vcita.com [module name]`
+
+**vcita Knowledge Base:**
+- Check `support.vcita.com` for module documentation
+- Look for setup guides and feature explanations
+- Note all configurable options and settings
+
+**vcita Marketing Pages:**
+- Review `vcita.com/software/[module]` pages
+- Check feature comparison tables
+- Note integrations and advanced features
+
+**YouTube:**
+- Search for official vcita tutorial videos
+- Note UI workflows demonstrated
+
+### 1.2 Document Discovered Features
+
+Create a feature inventory organized by functional area:
+
+```
+Module: [Name]
+
+Core Features:
+- Feature 1: [description]
+- Feature 2: [description]
+
+Configuration/Settings:
+- Setting 1: [options]
+- Setting 2: [options]
+
+Integrations:
+- Integration 1: [what it does]
+
+User Flows:
+- Admin flow 1: [steps]
+- Client flow 1: [steps]
+```
+
+### 1.3 Identify Testable Scenarios
+
+For each feature, identify:
+- **Happy path**: The main successful flow
+- **Variations**: Different options or modes
+- **Edge cases**: Boundary conditions, empty states
+- **Error cases**: Invalid inputs, permission issues
+
+## Phase 2: Structure Planning
+
+### 2.1 Define Categories and Subcategories
+
+**Main Category:**
+- One main category per module (e.g., `scheduling`, `payments`)
+- Contains `_setup` and `_teardown` folders
+- May contain direct tests or only subcategories
+
+**Subcategories:**
+- Group related functionality together
+- Each subcategory is a folder with its own `_category.yaml`
+- Use `run_after` to control execution order relative to parent tests
+
+**Naming Conventions:**
+- Category/subcategory folders: `snake_case` (e.g., `booking_settings`)
+- Test folders: `verb_noun` format (e.g., `create_service`, `set_working_hours`)
+
+### 2.2 Determine Execution Order
+
+Tests must run in an order that satisfies dependencies:
+
+**Principles:**
+1. **Create before use**: Create entities before tests that need them
+2. **Configure before test**: Set up settings before testing features that use them
+3. **CRUD order**: Create → Read/Edit → Delete (delete last to clean up)
+4. **Parent before child**: Parent entities before dependent entities
+
+**Subcategory Ordering:**
+- Use `run_after: [test_id]` in subcategory `_category.yaml`
+- Subcategory runs inline after the specified parent test
+- If no `run_after`, subcategory runs after all parent tests
+
+### 2.3 Plan Context Flow
+
+Identify data that must pass between tests:
+
+```
+Test A (create_service)
+  → saves: created_service_id, created_service_name
+
+Test B (edit_service)
+  ← reads: created_service_id
+  → saves: (updates same context vars)
+
+Test C (delete_service)
+  ← reads: created_service_id
+  → clears: created_service_id, created_service_name
+```
+
+**Context Variable Naming:**
+- `created_[entity]_id` - ID of created entity
+- `created_[entity]_name` - Name for verification
+- `edited_[field]` - Modified values for verification
+
+## Phase 3: Test Planning
+
+### 3.1 Define Test List
+
+For each subcategory, list tests in execution order:
+
+| Order | Test ID | Test Name | Priority | Description |
+|-------|---------|-----------|----------|-------------|
+| 1 | `create_service` | Create Service | high | Create a new service |
+| 2 | `edit_service` | Edit Service | high | Modify service details |
+| ... | ... | ... | ... | ... |
+
+### 3.2 Assign Priorities
+
+**High Priority:**
+- Core happy paths that users do daily
+- Critical business flows (booking, payment)
+- Features that would block users if broken
+
+**Medium Priority:**
+- Common variations and options
+- Settings and configuration
+- Secondary workflows
+
+**Low Priority:**
+- Rarely used features
+- Cleanup/reset operations
+- Edge cases and error handling
+
+### 3.3 Estimate Scope
+
+Document the planned scope:
+- Total number of tests
+- Number of subcategories
+- Expected test duration (rough estimate)
+- Any features intentionally excluded and why
+
+## Phase 4: Dependency Analysis
+
+### 4.1 Identify External Dependencies
+
+Note any dependencies that may complicate testing:
+
+**External Services:**
+- Calendar sync (Google, Outlook)
+- Video conferencing (Zoom)
+- Payment processors (Stripe, PayPal)
+
+**Multiple Contexts:**
+- Tests requiring both admin and client perspectives
+- Tests requiring multiple browser sessions
+
+**Timing Dependencies:**
+- Features that depend on scheduled events
+- Notification delivery verification
+
+### 4.2 Plan for Dependencies
+
+For each dependency, decide:
+- **Include**: Test the integration directly
+- **Mock**: Verify configuration only, not actual integration
+- **Exclude**: Document as out of scope with reason
+
+## Phase 5: Documentation
+
+### 5.1 Create the Plan Document
+
+The plan should include:
+
+1. **Research Summary**: Key features discovered
+2. **Category Structure**: Visual hierarchy of categories/subcategories
+3. **Test Lists**: Ordered list per subcategory with priorities
+4. **Execution Flow**: Diagram showing test dependencies
+5. **Context Flow**: Variables passed between tests
+6. **Implementation Notes**: Special considerations, excluded features
+
+### 5.2 Review Checklist
+
+Before starting implementation, verify:
+
+- [ ] All major module features are covered
+- [ ] Test execution order satisfies all dependencies
+- [ ] Context variables are clearly defined for data sharing
+- [ ] Subcategory `run_after` ordering is logical
+- [ ] High-priority tests cover critical user journeys
+- [ ] External dependencies are identified and addressed
+- [ ] Setup creates necessary preconditions
+- [ ] Teardown cleans up all test data
+
+## Examples
+
+Reference existing implementations:
+- `tests/clients/_category.yaml` - Main category with subcategories
+- `tests/clients/notes/_category.yaml` - Subcategory with `run_after`
+- `tests/clients/create_matter/` - Complete test with all phase files
+
+## Implementation Approach
+
+**CRITICAL: Implement and test one test at a time.**
+
+When building out a new test suite:
+1. Create the category `_setup` first and verify it works
+2. Implement the FIRST test in the sequence
+3. Run the category to verify the test passes
+4. Only then move to the NEXT test
+5. Repeat until the subcategory is complete
+6. Then move to the next subcategory
+
+**Why this matters:**
+- Each test depends on the previous test's end state
+- Catching issues early prevents cascading failures
+- Easier to debug when you know exactly which test introduced a problem
+- Ensures context variables flow correctly between tests
+
+**Do NOT:**
+- Create all test files at once and then try to run them
+- Move to the next subcategory before the current one works end-to-end
+- Skip testing intermediate steps
+
+## Anti-Patterns to Avoid
+
+1. **Testing in isolation**: Don't create tests that can't run in sequence
+2. **Hardcoded test data**: Use timestamps/random values for uniqueness
+3. **Skipping cleanup**: Always plan teardown to remove test data
+4. **Over-scoping**: Don't try to test every edge case initially
+5. **Ignoring dependencies**: Map out what each test needs before it runs
+6. **Duplicate coverage**: Check if functionality is already tested elsewhere
+7. **Batch implementation**: Don't create all tests at once - implement one at a time

@@ -30,7 +30,8 @@ def fn_logout(page: Page, context: dict, **params) -> None:
     user_avatar.click()
     
     # Step 2: Wait for Menu to Appear
-    page.wait_for_selector("[role='menu']", timeout=5000)
+    menu = page.get_by_role("menu")
+    menu.wait_for(state="visible", timeout=5000)
     
     # Step 3: Click Logout Menu Item
     # Verified locator from Playwright MCP exploration:
@@ -55,13 +56,15 @@ def fn_logout(page: Page, context: dict, **params) -> None:
     # Step 6: Verify Logout Success
     # After Cloudflare, the login page should show
     # The login form is inside an iframe
-    page.wait_for_selector('#vue_iframe', timeout=15000)
+    vue_iframe = page.locator('#vue_iframe')
+    vue_iframe.wait_for(state="visible", timeout=15000)
     
     # Get the iframe content frame
-    iframe = page.locator('#vue_iframe').content_frame()
+    iframe = vue_iframe.content_frame()
     
     # Verify login form is visible
-    expect(iframe.get_by_text("Log In to Your Account")).to_be_visible(timeout=10000)
+    login_text = iframe.get_by_text("Log In to Your Account")
+    login_text.wait_for(state="visible", timeout=10000)
     
     # Clear logged_in_user from context
     if "logged_in_user" in context:

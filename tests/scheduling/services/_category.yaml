@@ -1,0 +1,45 @@
+# Services Subcategory
+# Tests for managing services/appointment types in vcita
+# This subcategory runs first in the scheduling category (after _setup)
+
+name: Services
+description: Tests for creating, editing, and deleting services (appointment types)
+
+# No run_after - this subcategory runs first after the parent category's _setup
+
+# Execution order - tests run sequentially in this order
+tests:
+  - id: create_service
+    name: Create Service
+    status: active
+    priority: high
+    description: Create a new 1-on-1 service with name, duration, and price
+  - id: edit_service
+    name: Edit Service
+    status: active
+    priority: high
+    description: Modify service duration and price
+  - id: create_online_service
+    name: Create Online Service
+    status: skipped
+    priority: medium
+    description: Create a service with Zoom/online location (skipped for now)
+  - id: deactivate_service
+    name: Deactivate Service
+    status: skipped
+    priority: medium
+    description: Toggle service to inactive (skipped for now)
+  - id: delete_service
+    name: Delete Service
+    status: active
+    priority: high
+    description: Delete the test service to clean up
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - services
+  - scheduling
+owner: QA Team
+created_at: 2026-01-21

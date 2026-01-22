@@ -58,12 +58,11 @@ def test_edit_contact(page: Page, context: dict) -> None:
     
     # ========== STEP 1: Navigate to Matter Detail Page ==========
     
-    print("  Step 1: Navigating to matter detail page...")
-    # Navigate to matter detail page if not already there
+    print("  Step 1: Verifying on matter detail page...")
+    # We should already be on the matter detail page after edit_matter
+    # If not on the correct page, this is an error - previous test should leave us here
     if matter_id not in page.url:
-        page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(2000)
+        raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}. Sequential test context violation.")
     
     # Verify on correct page
     expect(page).to_have_url(re.compile(rf"/app/clients/{re.escape(matter_id)}"))
@@ -72,8 +71,8 @@ def test_edit_contact(page: Page, context: dict) -> None:
     
     print("  Step 2: Waiting for iframes to load...")
     # Wait for outer iframe
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
-    page.wait_for_timeout(2000)  # Extra wait for iframe content
+    angular_iframe = page.locator('iframe[title="angularjs"]')
+    angular_iframe.wait_for(state="visible", timeout=15000)
     
     # Get nested iframe structure
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
@@ -89,8 +88,9 @@ def test_edit_contact(page: Page, context: dict) -> None:
     edit_contact_button.click()
     
     # Wait for edit dialog to appear
-    outer_iframe.locator("text=Edit contact info").wait_for(timeout=10000)
-    page.wait_for_timeout(500)  # Wait for dialog animation
+    dialog_title = outer_iframe.locator("text=Edit contact info")
+    dialog_title.wait_for(state="visible", timeout=10000)
+    page.wait_for_timeout(200)  # Brief settle for dialog animation
     
     # ========== STEP 4: Edit Last Name Field ==========
     
@@ -128,8 +128,8 @@ def test_edit_contact(page: Page, context: dict) -> None:
     save_button = outer_iframe.get_by_role("button", name="Save")
     save_button.click()
     
-    # Wait for dialog to close and page to update
-    page.wait_for_timeout(2000)
+    # Wait for dialog to close
+    dialog_title.wait_for(state="hidden", timeout=10000)
     
     # ========== STEP 8: Verify Changes - Check Page Title ==========
     
@@ -145,8 +145,8 @@ def test_edit_contact(page: Page, context: dict) -> None:
     # VERIFIED PLAYWRIGHT CODE from MCP:
     # Re-open edit dialog to verify values
     edit_contact_button.click()
-    outer_iframe.locator("text=Edit contact info").wait_for(timeout=10000)
-    page.wait_for_timeout(500)
+    dialog_title_verify = outer_iframe.locator("text=Edit contact info")
+    dialog_title_verify.wait_for(state="visible", timeout=10000)
     
     # Verify Last Name
     expect(outer_iframe.get_by_role("textbox", name="Last Name")).to_have_value(edit_data["last_name"], timeout=5000)
@@ -159,7 +159,8 @@ def test_edit_contact(page: Page, context: dict) -> None:
     
     # Close dialog
     outer_iframe.get_by_role("button", name="Cancel").click()
-    page.wait_for_timeout(500)
+    # Wait for dialog to close
+    dialog_title_verify.wait_for(state="hidden", timeout=10000)
     
     # ========== Update Context ==========
     

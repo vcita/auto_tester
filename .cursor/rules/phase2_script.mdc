@@ -313,6 +313,61 @@ name_field.press_sequentially(name)
 - After successful re-exploration
 - **When self-healing finds a better locator** (update VERIFIED PLAYWRIGHT CODE)
 
+## CRITICAL: Wait Strategy
+
+**NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element or condition.
+
+### During MCP Exploration
+
+For every action step, you MUST identify:
+1. **What element indicates the action completed?** (dialog appeared, item in list, button enabled, etc.)
+2. **Document the wait condition** in the script alongside the action
+
+### Wait Patterns by Action Type
+
+| Action Type | Wait Pattern | Example |
+|-------------|--------------|---------|
+| Dialog opens | `dialog.wait_for(state="visible")` | `iframe.get_by_role("dialog").wait_for(state="visible", timeout=10000)` |
+| Dialog closes | `dialog.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=10000)` |
+| Item created | `new_item.wait_for(state="visible")` | `service_row.wait_for(state="visible", timeout=10000)` |
+| Item deleted | `item.wait_for(state="hidden")` | `deleted_row.wait_for(state="hidden", timeout=10000)` |
+| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/settings/services/**")` |
+| Loading complete | `spinner.wait_for(state="hidden")` | `loader.wait_for(state="hidden", timeout=15000)` |
+| Form ready | `field.wait_for(state="visible")` | `name_field.wait_for(state="visible", timeout=5000)` |
+
+### Acceptable Small Delays
+
+Only use `wait_for_timeout()` with small values (100-300ms) for:
+- UI micro-animations where no element state changes
+- Brief delay before typing (field transformation)
+
+**Always pair with an element wait:**
+```python
+# CORRECT: Element wait + small delay for animation
+dialog.wait_for(state="visible", timeout=10000)
+page.wait_for_timeout(200)  # Brief animation settle
+
+# WRONG: Fixed delay alone
+page.wait_for_timeout(2000)  # Bad - no element verification
+```
+
+### Document in Script
+
+Each step should include the wait condition:
+
+```markdown
+### Step 5: Click Save
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+save_btn.click()
+# Wait for dialog to close
+dialog.wait_for(state="hidden", timeout=10000)
+```
+
+- **Wait for**: Dialog closes (wait_for state="hidden")
+```
+
 ## MCP Exploration Completeness Checklist
 
 Before documenting any step in script.md, verify:
@@ -323,6 +378,7 @@ Before documenting any step in script.md, verify:
 - [ ] **Exact code captured**: Copied the EXACT code from MCP's "Ran Playwright code" output
 - [ ] **Text input uses press_sequentially()**: All fill() calls converted to click() + press_sequentially()
 - [ ] **No assumptions made**: Did not assume element names/positions - verified each one
+- [ ] **Wait condition identified**: For every action, identified what element indicates completion
 
 ### Common Mistakes to Avoid
 

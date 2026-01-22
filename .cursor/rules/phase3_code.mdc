@@ -182,6 +182,58 @@ page.wait_for_timeout(500)
 page.keyboard.type("text to type")
 ```
 
+### CRITICAL: Wait Strategy
+
+**NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element.
+
+#### Wait Patterns
+
+| Action Type | Wait Pattern | Example |
+|-------------|--------------|---------|
+| Dialog opens | `locator.wait_for(state="visible")` | `dialog.wait_for(state="visible", timeout=10000)` |
+| Dialog closes | `locator.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=10000)` |
+| Item created | `locator.wait_for(state="visible")` | `new_row.wait_for(state="visible", timeout=10000)` |
+| Item deleted | `locator.wait_for(state="hidden")` | `row.wait_for(state="hidden", timeout=10000)` |
+| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/dashboard**")` |
+| Loading done | `locator.wait_for(state="hidden")` | `spinner.wait_for(state="hidden", timeout=15000)` |
+
+#### Correct Patterns
+
+```python
+# CORRECT: Wait for element state after action
+save_btn.click()
+dialog.wait_for(state="hidden", timeout=10000)  # Wait for dialog to close
+
+# CORRECT: Wait for created item to appear
+create_btn.click()
+new_item = iframe.get_by_role("button").filter(has_text=item_name)
+new_item.wait_for(state="visible", timeout=10000)
+
+# CORRECT: Small delay for UI animation AFTER element wait
+dialog.wait_for(state="visible", timeout=10000)
+page.wait_for_timeout(200)  # Brief settle time for animation
+```
+
+#### Wrong Patterns
+
+```python
+# WRONG: Fixed delay without element verification
+save_btn.click()
+page.wait_for_timeout(2000)  # Bad - how do we know it's done?
+
+# WRONG: Only using expect() without proper wait
+create_btn.click()
+expect(new_item).to_be_visible()  # May be flaky - use wait_for() first
+```
+
+#### Acceptable Small Delays
+
+Only use `wait_for_timeout()` for:
+- **100-300ms**: Before typing (field transformation/focus)
+- **200-500ms**: After element wait, for micro-animation settle
+
+Always pair with an element wait - never use alone for action completion.
+
 ### Context Operations
 
 ```python
