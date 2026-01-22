@@ -73,7 +73,7 @@ class TestRunner:
         # Components
         self.events = EventEmitter()
         self.discovery = TestDiscovery(tests_root)
-        self.executor = TestExecutor(self.snapshots_dir / "screenshots")
+        self.executor = TestExecutor(Path(".temp_screenshots"))  # Temp location, moved to run storage
         self.context_manager = ContextManager()
         self.heal_generator = HealRequestGenerator()
         self.storage = RunStorage(self.tests_root)

@@ -46,6 +46,7 @@ playwright-report/
 db/*.db
 logs/*.log
 .temp_videos/
+.temp_screenshots/
 .context/
 .playwright-mcp/*.png
 .playwright-mcp/*.jpg

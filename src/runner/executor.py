@@ -32,9 +32,9 @@ class TestExecutor:
         
         Args:
             snapshots_dir: Directory to save screenshots on failure.
-                          Defaults to snapshots/screenshots/
+                          Defaults to .temp_screenshots/ (moved to run storage after)
         """
-        self.snapshots_dir = snapshots_dir or Path("snapshots/screenshots")
+        self.snapshots_dir = snapshots_dir or Path(".temp_screenshots")
     
     def execute(
         self,
