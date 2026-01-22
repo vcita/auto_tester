@@ -392,12 +392,17 @@ body {
 }
 
 .detail-content {
+    display: none;
     background-color: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
     padding: 16px;
     height: calc(100% - 50px);
     overflow: auto;
+}
+
+.detail-content.active {
+    display: block;
 }
 
 .detail-content pre {

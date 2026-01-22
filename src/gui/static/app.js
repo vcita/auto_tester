@@ -47,7 +47,6 @@ async function fetchTestDetails(category, testPath) {
     try {
         // Don't encode testPath as it may contain path separators that the server expects
         const url = `/api/test/${encodeURIComponent(category)}/${testPath}`;
-        console.log('Fetching test details from:', url);
         const response = await fetch(url);
         if (!response.ok) {
             console.error('Failed to fetch test details:', response.status, response.statusText);
@@ -354,8 +353,10 @@ function renderTestDetails(details) {
     html += '</div>';
 
     for (let i = 0; i < tabs.length; i++) {
+        // Use inline style for first tab to ensure visibility
+        const style = i === 0 ? 'style="display: block;"' : 'style="display: none;"';
         const active = i === 0 ? 'active' : '';
-        html += `<div class="detail-content tab-content ${active}" id="detail-${tabs[i].id}"><pre>${escapeHtml(tabs[i].content)}</pre></div>`;
+        html += `<div class="detail-content ${active}" ${style} id="detail-${tabs[i].id}"><pre>${escapeHtml(tabs[i].content)}</pre></div>`;
     }
 
     elements.testDetails.innerHTML = html;
@@ -494,7 +495,10 @@ function switchDetailTab(tabId) {
     });
     
     contents.forEach(content => {
-        content.classList.toggle('active', content.id === `detail-${tabId}`);
+        const isActive = content.id === `detail-${tabId}`;
+        content.classList.toggle('active', isActive);
+        // Use inline style to ensure visibility
+        content.style.display = isActive ? 'block' : 'none';
     });
 }
 
