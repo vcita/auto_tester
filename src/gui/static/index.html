@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vcita Test Runner</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="logo">
+                <h1>vcita Test Runner</h1>
+            </div>
+            <div class="controls">
+                <button id="btn-run-selected" class="btn btn-primary" disabled>
+                    <span class="icon">&#9654;</span> Run Selected
+                </button>
+                <button id="btn-run-all" class="btn btn-secondary">
+                    <span class="icon">&#9654;&#9654;</span> Run All
+                </button>
+                <span id="status-indicator" class="status-indicator status-idle">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Idle</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel - Test Suite Browser -->
+            <aside class="panel panel-left">
+                <div class="panel-header">
+                    <h2>Test Suite</h2>
+                    <button id="btn-refresh" class="btn btn-icon" title="Refresh">&#8635;</button>
+                </div>
+                <div class="panel-content">
+                    <div id="test-tree" class="test-tree">
+                        <div class="loading">Loading tests...</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Panel - Test Details & Results -->
+            <section class="panel panel-center">
+                <div class="panel-header">
+                    <div class="tabs">
+                        <button class="tab active" data-tab="details">Details</button>
+                        <button class="tab" data-tab="results">Results</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <!-- Details Tab -->
+                    <div id="tab-details" class="tab-content active">
+                        <div id="test-details" class="test-details">
+                            <div class="placeholder">
+                                <p>Select a test from the left panel to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Tab -->
+                    <div id="tab-results" class="tab-content">
+                        <div id="test-results" class="test-results">
+                            <div class="results-log" id="results-log">
+                                <div class="placeholder">
+                                    <p>Run tests to see results here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel - Artifacts -->
+            <aside class="panel panel-right">
+                <div class="panel-header">
+                    <div class="tabs">
+                        <button class="tab active" data-tab="screenshots">Screenshots</button>
+                        <button class="tab" data-tab="videos">Videos</button>
+                        <button class="tab" data-tab="heal">Heal</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <!-- Screenshots Tab -->
+                    <div id="tab-screenshots" class="tab-content active">
+                        <div id="screenshots-list" class="artifact-list">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Videos Tab -->
+                    <div id="tab-videos" class="tab-content">
+                        <div id="videos-list" class="artifact-list">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Heal Requests Tab -->
+                    <div id="tab-heal" class="tab-content">
+                        <div id="heal-list" class="artifact-list">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modal for viewing artifacts -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -24,6 +24,7 @@ from src.discovery.test_discovery import print_discovery_tree
 from src.discovery.function_discovery import print_functions_list
 from src.models import TestStatus
 from src.runner import TestRunner, CLIReporter
+from src.gui import run_server
 
 console = Console()
 
@@ -279,6 +280,27 @@ All changes to steps.md, script.md, and test.py are logged here.
     console.print(f"  [dim]Edit {test_path / 'steps.md'} to define your test[/dim]")
 
 
+def cmd_gui(args):
+    """Start the web GUI."""
+    config = load_config()
+    project_root = Path(__file__).parent
+    tests_root = project_root / config.get("tests", {}).get("root_path", "tests")
+    snapshots_dir = project_root / "snapshots"
+    heal_requests_dir = project_root / ".cursor" / "heal_requests"
+    
+    # Get host and port from args
+    host = args.host if hasattr(args, 'host') else "127.0.0.1"
+    port = args.port if hasattr(args, 'port') else 8080
+    
+    run_server(
+        tests_root=tests_root,
+        snapshots_dir=snapshots_dir,
+        heal_requests_dir=heal_requests_dir,
+        host=host,
+        port=port
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="vcita Test Agent - AI-driven browser testing"
@@ -340,6 +362,20 @@ def main():
         help="Test name (e.g., book_consultation)"
     )
     
+    # GUI command - start web interface
+    gui_parser = subparsers.add_parser("gui", help="Start the web GUI")
+    gui_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1)"
+    )
+    gui_parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=8080,
+        help="Port to listen on (default: 8080)"
+    )
+    
     args = parser.parse_args()
     
     if args.command is None:
@@ -352,6 +388,7 @@ def main():
         "list": cmd_list,
         "status": cmd_status,
         "init": cmd_init,
+        "gui": cmd_gui,
     }
     
     if args.command in commands:
