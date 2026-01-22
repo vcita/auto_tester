@@ -21,6 +21,20 @@ Do NOT:
 
 The locator decision was already made in Phase 2. Your job in Phase 3 is to copy that verified code, not to re-decide.
 
+## CRITICAL: Prerequisites
+
+**NEVER create test.py without a complete script.md file.**
+
+Before generating test.py, verify:
+1. `steps.md` exists and defines the test objectives
+2. `script.md` exists with VERIFIED PLAYWRIGHT CODE for every step
+3. The verified code was actually tested in MCP
+
+If script.md is missing or incomplete:
+- STOP - do not generate test.py
+- First create/complete script.md using MCP exploration
+- Then generate test.py from the verified code
+
 ## Generation Rules
 
 ### Source
