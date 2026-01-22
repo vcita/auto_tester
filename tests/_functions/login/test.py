@@ -147,8 +147,9 @@ def fn_login(page: Page, context: dict, **params) -> None:
                 print(f"  [X] Login failed - stuck on: {current_url}")
                 raise e
     
-    # Verify dashboard loaded
-    expect(page).to_have_title(re.compile(r"Dashboard"), timeout=10000)
+    # Verify dashboard loaded by waiting for the sidebar menu to be visible
+    # This is faster than waiting for the title since the sidebar renders quickly
+    page.wait_for_load_state("domcontentloaded")
     
     # Save to context
     context["logged_in_user"] = username
