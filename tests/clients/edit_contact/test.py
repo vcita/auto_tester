@@ -105,19 +105,24 @@ def test_edit_contact(page: Page, context: dict) -> None:
     
     print(f"  Step 5: Editing Address to '{edit_data['address']}'...")
     # VERIFIED PLAYWRIGHT CODE from MCP:
-    # Note: has Google Places autocomplete, clicking another field dismisses it
+    # Note: has Google Places autocomplete, need to dismiss it after typing
     address_field = outer_iframe.get_by_role("textbox", name="Address")
     address_field.click()
     page.keyboard.press("Control+a")  # Select all
     address_field.press_sequentially(edit_data["address"], delay=30)
     
+    # HEALED 2026-01-22: Dismiss Google Places autocomplete dropdown
+    # The autocomplete dropdown intercepts clicks on other fields
+    # Press Tab to move to next field and dismiss autocomplete
+    address_field.press("Tab")
+    page.wait_for_timeout(500)  # Wait for dropdown to close
+    
     # ========== STEP 6: Edit Referred By Field ==========
     
     print(f"  Step 6: Editing Referred by to '{edit_data['referred_by']}'...")
     # VERIFIED PLAYWRIGHT CODE from MCP:
-    # Clicking this also dismisses address autocomplete dropdown
     referred_field = outer_iframe.get_by_role("textbox", name="Referred by")
-    referred_field.click()  # This also dismisses address autocomplete dropdown
+    referred_field.click()
     page.keyboard.press("Control+a")  # Select all
     referred_field.press_sequentially(edit_data["referred_by"], delay=30)
     

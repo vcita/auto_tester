@@ -287,7 +287,7 @@ class TestRunner:
                         for test in category.tests:
                             result.test_results.append(TestResult(
                                 test_name=test.name,
-                                test_path=self.tests_root / test.path,
+                                test_path=test.path,
                                 test_type="test",
                                 status="skipped",
                                 duration_ms=0,
@@ -310,7 +310,7 @@ class TestRunner:
                         test = item
                         test_start_offset = time_module.time() - video_start_time
                         test_result = self._run_single_test(
-                            test_path=self.tests_root / test.path,
+                            test_path=test.path,
                             test_name=test.name,
                             test_type="test",
                             page=page,
@@ -554,7 +554,7 @@ class TestRunner:
             if isinstance(item, Test):
                 result.test_results.append(TestResult(
                     test_name=item.name,
-                    test_path=self.tests_root / item.path,
+                    test_path=item.path,
                     test_type="test",
                     status="skipped",
                     duration_ms=0,
@@ -565,7 +565,7 @@ class TestRunner:
                 for test in item.tests:
                     result.test_results.append(TestResult(
                         test_name=f"{item.name}/{test.name}",
-                        test_path=self.tests_root / test.path,
+                        test_path=test.path,
                         test_type="test",
                         status="skipped",
                         duration_ms=0,
@@ -623,7 +623,7 @@ class TestRunner:
                 for test in subcategory.tests:
                     result.test_results.append(TestResult(
                         test_name=f"{subcategory.name}/{test.name}",
-                        test_path=self.tests_root / test.path,
+                        test_path=test.path,
                         test_type="test",
                         status="skipped",
                         duration_ms=0,
@@ -635,7 +635,7 @@ class TestRunner:
         for index, test in enumerate(subcategory.tests):
             test_start_offset = time_module.time() - video_start_time
             test_result = self._run_single_test(
-                test_path=self.tests_root / test.path,
+                test_path=test.path,
                 test_name=f"{subcategory.name}/{test.name}",
                 test_type="test",
                 page=page,
@@ -653,7 +653,7 @@ class TestRunner:
                 for remaining_test in subcategory.tests[index + 1:]:
                     result.test_results.append(TestResult(
                         test_name=f"{subcategory.name}/{remaining_test.name}",
-                        test_path=self.tests_root / remaining_test.path,
+                        test_path=remaining_test.path,
                         test_type="test",
                         status="skipped",
                         duration_ms=0,

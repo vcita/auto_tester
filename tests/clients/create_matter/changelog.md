@@ -1,5 +1,27 @@
 # Changelog - Create Matter
 
+## [2.3.0] - 2026-01-22
+
+### Fixed (Healed)
+- **UI Change: Quick Actions menu no longer exists**
+  - **Error**: `TimeoutError: Locator.wait_for: Timeout 5000ms exceeded. - waiting for locator("#client") to be visible`
+  - **Root cause**: vcita UI changed - the Quick Actions button in the sidebar no longer opens a dropdown menu with `#client` selector
+  - **Discovery**: "Add property" is now directly visible in a static "Quick actions" panel on the right side of the dashboard
+  - **Fix applied**:
+    1. Navigate explicitly to dashboard (`page.goto`) instead of checking if already there
+    2. Wait for "Quick actions" heading to be visible, then wait 3 seconds for async panel content
+    3. Click "Add property" text directly using `get_by_text("Add property", exact=True)` with `scroll_into_view_if_needed()`
+    4. Find form frame dynamically by iterating through `page.frames` looking for "First Name" field
+    5. Use `form_frame` (Frame object) instead of `iframe` (FrameLocator) for all form interactions
+  - **Debugging process**:
+    - Created multiple debug scripts with CAPTCHA bypass user-agent
+    - Discovered click on text element wasn't opening form consistently
+    - Found that explicit navigation + longer wait + scroll into view was needed
+    - Form opens in frame named 'angular-iframe', not `title="angularjs"`
+  - Updated script.md with new flow
+  - Completely rewrote test.py form opening logic
+  - All 7 tests in clients category now pass
+
 ## [2.2.0] - 2026-01-21
 
 ### Changed

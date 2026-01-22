@@ -61,133 +61,146 @@ def test_create_matter(page: Page, context: dict) -> None:
     
     # ========== PART 1: Open the New Matter Form ==========
     
-    print("  Step 1: Ensuring we're on the dashboard...")
-    # Make sure we're on the dashboard - after login we should be here
-    # but explicitly navigate if needed
-    if "/app/dashboard" not in page.url:
-        page.goto("https://app.vcita.com/app/dashboard")
-    
-    # Wait for dashboard to fully load
+    print("  Step 1: Navigating to dashboard...")
+    # Always navigate to dashboard to ensure clean state
+    page.goto("https://app.vcita.com/app/dashboard")
     page.wait_for_load_state("domcontentloaded")
     
-    print("  Step 2: Opening Quick Actions menu...")
-    # Click the Quick Actions BUTTON in the sidebar to open the dropdown menu
-    # The Quick Actions panel in the right sidebar doesn't respond to clicks properly
-    quick_actions_btn = page.get_by_role("button", name="Quick Actions")
-    quick_actions_btn.wait_for(state="visible", timeout=10000)
-    quick_actions_btn.click()
+    print("  Step 2: Waiting for Quick actions panel...")
+    # HEALED 2026-01-22: UI changed - Quick Actions button no longer opens dropdown
+    # "Add property" is now directly visible in the Quick actions panel on the right side
+    # Must wait for the panel to fully load (async)
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
+    # Wait for panel content to fully render (async loading)
+    page.wait_for_timeout(3000)
     
-    # Wait for the dropdown menu to appear - wait for the Add property button
-    # which is more specific than "PROPERTIES" text
-    add_property = page.locator("#client")
-    add_property.wait_for(state="visible", timeout=5000)
-    page.wait_for_timeout(200)  # Brief animation settle
+    print("  Step 3: Clicking Add property...")
+    # Try clicking the text element directly first
+    add_property_text = page.get_by_text("Add property", exact=True)
+    add_property_text.wait_for(state="visible", timeout=10000)
     
-    print("  Step 3: Clicking Add property in menu...")
-    # Click "Add property" in the dropdown menu (under PROPERTIES section)
-    add_property.click()
+    # Scroll into view and click
+    add_property_text.scroll_into_view_if_needed()
+    page.wait_for_timeout(500)
+    add_property_text.click()
     
-    print("  Step 4: Waiting for property form iframe...")
-    # Wait for form/dialog to appear in iframe
-    # The form appears in an iframe with title="angularjs"
-    angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=15000)
+    print("  Step 4: Waiting for property form...")
+    # The form opens in a frame - wait for it to appear
+    # Try multiple times to find the form frame (it may take time to load)
+    form_frame = None
+    max_attempts = 10
+    for attempt in range(max_attempts):
+        page.wait_for_timeout(500)
+        for frame in page.frames:
+            try:
+                if frame.locator('text=First Name').count() > 0:
+                    form_frame = frame
+                    break
+            except:
+                pass
+        if form_frame:
+            break
+        print(f"    Attempt {attempt + 1}/{max_attempts}: Form not found yet...")
     
-    # Get the iframe containing the form
-    iframe = page.frame_locator('iframe[title="angularjs"]')
+    if not form_frame:
+        # Debug: print all frames
+        print("  DEBUG: Available frames:")
+        for i, frame in enumerate(page.frames):
+            print(f"    [{i}] name='{frame.name}', url='{frame.url[:50]}...'")
+        raise Exception("Could not find form frame with 'First Name' field")
     
-    # Wait for form content to be ready (the dialog with First Name field)
     print("  Step 5: Waiting for form content (First Name field)...")
-    iframe.locator('text=First Name').wait_for(timeout=15000)
+    form_frame.locator('text=First Name').wait_for(timeout=15000)
     
-    # Step 3: Click "Show more" to expand all contact fields
+    # Step 6: Click "Show more" to expand all contact fields
     # This button must be visible and clicked to access Referred By field
-    show_more_btn = iframe.get_by_role("button", name="Show more")
+    show_more_btn = form_frame.get_by_role("button", name="Show more")
     show_more_btn.click()
     # Wait for the Referred by field to become visible (indicates expansion complete)
-    referred_field_check = iframe.get_by_role("textbox", name="Referred by")
+    referred_field_check = form_frame.get_by_role("textbox", name="Referred by")
     referred_field_check.wait_for(state="visible", timeout=5000)
     
     # ========== PART 2: Fill Contact Information ==========
     # Note: Email and Mobile phone fields become comboboxes (autocomplete) when focused
     # Using press_sequentially for realistic user simulation
     
-    print("  Step 6: Filling contact information...")
-    # Step 4: Fill First Name (required)
-    first_name_field = iframe.get_by_role("textbox", name="First Name *")
+    print("  Step 7: Filling contact information...")
+    # Fill First Name (required)
+    first_name_field = form_frame.get_by_role("textbox", name="First Name *")
     first_name_field.click()
     first_name_field.press_sequentially(test_data["first_name"], delay=50)
     
-    # Step 5: Fill Last Name
-    last_name_field = iframe.get_by_role("textbox", name="Last Name")
+    # Fill Last Name
+    last_name_field = form_frame.get_by_role("textbox", name="Last Name")
     last_name_field.click()
     last_name_field.press_sequentially(test_data["last_name"], delay=50)
     
-    # Step 6: Fill Email (becomes combobox when focused)
+    # Fill Email (becomes combobox when focused)
     # Click first, then type - the field transforms to combobox on focus
-    email_field = iframe.get_by_role("textbox", name="Email")
+    email_field = form_frame.get_by_role("textbox", name="Email")
     email_field.click()
     page.wait_for_timeout(100)  # Wait for field transformation
     # Now it's a combobox, type into it
-    iframe.get_by_role("combobox", name="Email").press_sequentially(test_data["email"], delay=30)
+    form_frame.get_by_role("combobox", name="Email").press_sequentially(test_data["email"], delay=30)
     
-    # Step 7: Fill Mobile Phone (becomes combobox when focused)
-    phone_field = iframe.get_by_role("textbox", name="Mobile phone")
+    # Fill Mobile Phone (becomes combobox when focused)
+    phone_field = form_frame.get_by_role("textbox", name="Mobile phone")
     phone_field.click()
     page.wait_for_timeout(100)  # Wait for field transformation
     # Now it's a combobox, type into it
-    iframe.get_by_role("combobox", name="Mobile phone").press_sequentially(test_data["phone"], delay=30)
+    form_frame.get_by_role("combobox", name="Mobile phone").press_sequentially(test_data["phone"], delay=30)
     
-    # Step 8: Fill Address (contact address) - has Google Places autocomplete
+    # Fill Address (contact address) - has Google Places autocomplete
     # Use first one to avoid conflict with Property address
-    address_field = iframe.get_by_label("Address").first
+    address_field = form_frame.get_by_label("Address").first
     address_field.click()
     address_field.press_sequentially(test_data["contact_address"], delay=30)
     # Dismiss autocomplete by clicking another field (not Escape - that closes the form!)
     
-    # Step 9: Fill Referred By (only visible after "Show more" click)
-    referred_field = iframe.get_by_role("textbox", name="Referred by")
+    # Fill Referred By (only visible after "Show more" click)
+    referred_field = form_frame.get_by_role("textbox", name="Referred by")
     referred_field.click()  # This also dismisses the address autocomplete
     referred_field.press_sequentially(test_data["referred_by"], delay=50)
     
     # ========== PART 3: Fill Matter Details ==========
-    print("  Step 10: Filling property details...")
-    # Step 10: Fill Matter Address (Property address in this vertical)
+    print("  Step 8: Filling property details...")
+    # Fill Matter Address (Property address in this vertical)
     # Has Google Places autocomplete
-    matter_address_field = iframe.get_by_role("textbox", name="Property address")
+    matter_address_field = form_frame.get_by_role("textbox", name="Property address")
     matter_address_field.click()
     matter_address_field.press_sequentially(test_data["matter_address"], delay=30)
     
-    # Step 11: Fill Help Request (also dismisses Property address autocomplete)
-    help_field = iframe.get_by_role("textbox", name="How can we help you?")
+    # Fill Help Request (also dismisses Property address autocomplete)
+    help_field = form_frame.get_by_role("textbox", name="How can we help you?")
     help_field.click()  # Dismisses any autocomplete dropdown
     help_field.press_sequentially(test_data["help_request"], delay=20)
     
-    # Step 12: Select Matter Type from dropdown
-    print(f"  Step 12: Selecting Property type: {test_data['matter_type']}...")
-    matter_type_dropdown = iframe.get_by_role("listbox", name="Property type")
+    # Select Matter Type from dropdown
+    print(f"  Step 9: Selecting Property type: {test_data['matter_type']}...")
+    matter_type_dropdown = form_frame.get_by_role("listbox", name="Property type")
     matter_type_dropdown.click()
     # Wait for dropdown options to appear
-    option = iframe.get_by_role("option", name=test_data["matter_type"])
+    option = form_frame.get_by_role("option", name=test_data["matter_type"])
     option.wait_for(state="visible", timeout=5000)
     option.click()
     # Wait for dropdown to close (listbox becomes hidden or option is no longer visible)
     page.wait_for_timeout(200)  # Brief settle for dropdown close animation
     
-    # Step 13: Fill Special Instructions
-    instructions_field = iframe.get_by_role("textbox", name="Special instructions/requests")
+    # Fill Special Instructions
+    instructions_field = form_frame.get_by_role("textbox", name="Special instructions/requests")
     instructions_field.click()
     instructions_field.press_sequentially(test_data["special_instructions"], delay=20)
     
-    # Step 14: Fill Private Notes
-    notes_field = iframe.get_by_role("textbox", name="Private notes")
+    # Fill Private Notes
+    notes_field = form_frame.get_by_role("textbox", name="Private notes")
     notes_field.click()
     notes_field.press_sequentially(test_data["private_notes"], delay=20)
     
     # ========== PART 4: Save and Verify ==========
     
-    # Step 15: Click Save Button
-    save_btn = iframe.get_by_role("button", name="Save")
+    # Step 10: Click Save Button
+    print("  Step 10: Clicking Save...")
+    save_btn = form_frame.get_by_role("button", name="Save")
     save_btn.click()
     
     # Wait for save to complete - the page will redirect to client page

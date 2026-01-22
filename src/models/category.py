@@ -32,7 +32,7 @@ class TestPhaseFiles:
         """Check if test.py exists and has content."""
         if not self.test_py.exists():
             return False
-        content = self.test_py.read_text().strip()
+        content = self.test_py.read_text(encoding='utf-8').strip()
         # Check if it's more than just a placeholder
         return len(content) > 100 and "def test_" in content
 
