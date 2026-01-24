@@ -84,101 +84,64 @@ class HealRequestGenerator:
             f"> **Generated**: {datetime.now().isoformat()}",
             f"> **Test Type**: {result.test_type}",
             f"> **Duration**: {result.duration_ms}ms",
+            f"**Status**: `open`",
             "",
             "---",
             "",
-            "## Error",
-            "",
-            "```",
-            result.error or "Unknown error",
-            "```",
-            "",
-            f"**Error Type**: `{result.error_type}`",
+            "## What Failed",
             "",
         ]
         
-        # Screenshot section
-        if result.screenshot:
+        # Error explanation
+        if result.error:
             lines.extend([
-                "## Screenshot (REQUIRED - Analyze this first!)",
-                "",
-                f"![Error Screenshot]({result.screenshot})",
+                "```",
+                result.error or "Unknown error",
+                "```",
                 "",
             ])
         
-        # Video section - check for recent video in snapshots/videos
-        videos_dir = Path("snapshots/videos")
-        if videos_dir.exists():
-            video_files = sorted(videos_dir.glob("*.webm"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if video_files:
-                latest_video = video_files[0]
-                lines.extend([
-                    "## Video Recording",
-                    "",
-                    f"Full test run video: `{latest_video}`",
-                    "",
-                    "**Watch this video to see the EXACT sequence of actions and identify where things went wrong.**",
-                    "",
-                ])
+        lines.append(f"**Error Type**: `{result.error_type}`")
+        lines.append("")
         
-        # Context section
+        # Test location (so they know where to find the files)
+        test_path = result.test_path
+        lines.extend([
+            "## Test Location",
+            "",
+            f"Test files are located at: `{test_path}`",
+            "",
+            "- `steps.md` - Test steps and requirements",
+            "- `script.md` - Test script and flow",
+            "- `test.py` - Test implementation code",
+            "- `changelog.md` - History of previous fixes",
+            "",
+        ])
+        
+        # Screenshot reference
+        if result.screenshot:
+            lines.extend([
+                "## Screenshot",
+                "",
+                f"Screenshot saved at: `{result.screenshot}`",
+                "",
+                "**Analyze the screenshot to understand the UI state at failure.**",
+                "",
+            ])
+        
+        # Brief context summary (just keys, not full values)
         if context:
             # Filter out internal metadata
             user_context = {k: v for k, v in context.items() if not k.startswith("_")}
             if user_context:
                 lines.extend([
-                    "## Context at Failure",
+                    "## Context Summary",
                     "",
-                    "```json",
-                    json.dumps(user_context, indent=2, default=str),
-                    "```",
+                    f"Context had {len(user_context)} keys: {', '.join(sorted(user_context.keys()))}",
+                    "",
+                    "Full context is available in the test run artifacts.",
                     "",
                 ])
-        
-        # Test files section
-        test_path = result.test_path
-        lines.extend([
-            "## Test Files",
-            "",
-            f"- **Location**: `{test_path}`",
-            "",
-        ])
-        
-        # Include steps.md content
-        steps_file = test_path / "steps.md"
-        if steps_file.exists():
-            lines.extend([
-                "### steps.md",
-                "",
-                "```markdown",
-                steps_file.read_text(encoding="utf-8"),
-                "```",
-                "",
-            ])
-        
-        # Include script.md content
-        script_file = test_path / "script.md"
-        if script_file.exists():
-            lines.extend([
-                "### script.md",
-                "",
-                "```markdown",
-                script_file.read_text(encoding="utf-8"),
-                "```",
-                "",
-            ])
-        
-        # Include test.py content
-        test_file = test_path / "test.py"
-        if test_file.exists():
-            lines.extend([
-                "### test.py",
-                "",
-                "```python",
-                test_file.read_text(encoding="utf-8"),
-                "```",
-                "",
-            ])
         
         # Additional info
         if additional_info:
@@ -189,18 +152,17 @@ class HealRequestGenerator:
                 "",
             ])
         
-        # Instructions
+        # Brief instructions
         lines.extend([
             "---",
             "",
-            "## Instructions for Fixing",
+            "## Next Steps",
             "",
-            "1. **Analyze the error** - What specifically failed?",
-            "2. **Check the screenshot** - What is the current UI state?",
-            "3. **Review context** - Is the test missing required data?",
-            "4. **Re-explore if needed** - Use Playwright MCP to verify locators",
-            "5. **Update files** - Fix test.py, update script.md if flow changed",
-            "6. **Log changes** - Update changelog.md with the fix",
+            "1. Review the error message above",
+            "2. Check the screenshot to see the UI state",
+            "3. Read the test files at the location above",
+            "4. Review changelog.md for previous fixes",
+            "5. Use Playwright MCP to debug if needed",
             "",
             "See `.cursor/rules/heal.mdc` for detailed healing process.",
         ])

@@ -409,6 +409,7 @@ class TestRunner:
                             video_timestamps=video_timestamps,
                             video_start_time=video_start_time,
                             time_module=time_module,
+                            parent_category=category,
                             until_test=until_test,
                         )
                         
@@ -678,6 +679,7 @@ class TestRunner:
         video_timestamps: list,
         video_start_time: float,
         time_module,
+        parent_category: Category,
         until_test: Optional[str] = None,
     ) -> tuple[bool, str]:
         """
@@ -697,6 +699,9 @@ class TestRunner:
         """
         print(f"\n    >>> Subcategory: {subcategory.name}")
         
+        # Build category path: parent/subcategory (e.g., "scheduling/appointments")
+        category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+        
         # Run subcategory setup if exists
         if subcategory.setup and subcategory.setup.is_valid:
             test_start_offset = time_module.time() - video_start_time
@@ -708,7 +713,7 @@ class TestRunner:
                 context=context,
                 index=0,
                 total=len(subcategory.tests),
-                category_name=subcategory.name,
+                category_name=category_path,
             )
             test_end_offset = time_module.time() - video_start_time
             video_timestamps.append((f"{subcategory.name}/_setup", test_start_offset, test_end_offset, setup_result.status))
@@ -774,7 +779,7 @@ class TestRunner:
                 context=context,
                 index=index + 1,
                 total=len(subcategory.tests),
-                category_name=subcategory.name,
+                category_name=category_path,
             )
             test_end_offset = time_module.time() - video_start_time
             video_timestamps.append((f"{subcategory.name}/{test.name}", test_start_offset, test_end_offset, test_result.status))
@@ -793,11 +798,11 @@ class TestRunner:
                     ))
                 
                 # Run teardown even on failure
-                self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module)
+                self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module, parent_category)
                 return True, f"{subcategory.name}/{test.name}"
         
         # Run subcategory teardown if exists
-        self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module)
+        self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module, parent_category)
         
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
@@ -811,9 +816,13 @@ class TestRunner:
         video_timestamps: list,
         video_start_time: float,
         time_module,
+        parent_category: Category,
     ) -> None:
         """Run subcategory teardown if it exists."""
         if subcategory.teardown and subcategory.teardown.is_valid:
+            # Build category path: parent/subcategory (e.g., "scheduling/appointments")
+            category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+            
             test_start_offset = time_module.time() - video_start_time
             teardown_result = self._run_single_test(
                 test_path=self.tests_root / subcategory.path / "_teardown",
@@ -823,7 +832,7 @@ class TestRunner:
                 context=context,
                 index=0,
                 total=0,
-                category_name=subcategory.name,
+                category_name=category_path,
             )
             test_end_offset = time_module.time() - video_start_time
             video_timestamps.append((f"{subcategory.name}/_teardown", test_start_offset, test_end_offset, teardown_result.status))

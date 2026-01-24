@@ -303,6 +303,13 @@ def cmd_gui(args):
     )
 
 
+def cmd_groom_heal_requests(args):
+    """Groom heal requests: update statuses and clean up old ones."""
+    console.print("\n[bold]Groom Heal Requests Command[/bold]\n")
+    console.print("This command is handled by the AI agent through the `/groom_heal_requests` slash command.")
+    console.print("Please use the slash command in Cursor to groom heal requests.\n")
+
+
 def cmd_stress_test(args):
     """Run stress test on categories."""
     config = load_config()
@@ -451,6 +458,8 @@ def main():
     )
     
     # Stress test command - run categories multiple times
+    groom_parser = subparsers.add_parser("groom_heal_requests", help="Groom heal requests: update statuses and clean up old ones")
+    
     stress_parser = subparsers.add_parser("stress_test", help="Run stress test on categories")
     stress_parser.add_argument(
         "--categories", "-c",
@@ -489,6 +498,7 @@ def main():
         "init": cmd_init,
         "gui": cmd_gui,
         "stress_test": cmd_stress_test,
+        "groom_heal_requests": cmd_groom_heal_requests,
     }
     
     if args.command in commands:

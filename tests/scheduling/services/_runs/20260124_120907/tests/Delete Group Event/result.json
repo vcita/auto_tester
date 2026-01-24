@@ -1,0 +1,11 @@
+{
+  "test_name": "delete_group_event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\delete_group_event",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 5373,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-24T12:10:57.249851"
+}

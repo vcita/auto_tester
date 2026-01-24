@@ -114,6 +114,7 @@ Tests must simulate how a real, average user interacts with the application.
 - Use "hidden" or "shortcut" URLs that users wouldn't know
 - Bypass UI flows with direct navigation
 - Assume knowledge of URL patterns
+- Use `page.reload()` or `page.refresh()` - Wait for UI to update naturally or navigate via UI
 
 ## CRITICAL: No Fallbacks or Alternative Flows
 

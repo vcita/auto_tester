@@ -196,6 +196,8 @@ body {
 .panel-left {
     width: 280px;
     min-width: 200px;
+    max-width: 50%;
+    flex-shrink: 0;
 }
 
 .panel-center {
@@ -206,6 +208,37 @@ body {
 .panel-right {
     width: 320px;
     min-width: 250px;
+    max-width: 50%;
+    flex-shrink: 0;
+}
+
+/* Resize Handles */
+.resize-handle {
+    width: 4px;
+    background-color: var(--color-border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    position: relative;
+    transition: background-color var(--transition);
+    user-select: none;
+}
+
+.resize-handle:hover {
+    background-color: var(--color-primary);
+}
+
+.resize-handle:active {
+    background-color: var(--color-primary);
+}
+
+.resize-handle::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    cursor: col-resize;
 }
 
 .panel-header {

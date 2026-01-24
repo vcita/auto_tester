@@ -195,6 +195,108 @@ Based on MCP observations, determine the issue type.
 
 ---
 
+## STEP 5.5: Validate Test Adheres to Rules (BEFORE Documenting)
+
+**CRITICAL: Before updating the changelog, you MUST validate that the fixed test code adheres to all project rules, especially navigation rules.**
+
+### Navigation Rules (CRITICAL):
+
+**The ONLY allowed direct navigation is:**
+- ✅ Login page: `https://www.vcita.com/login` (entry point, rarely used)
+- ✅ Public marketing pages (entry points)
+
+**NEVER allowed:**
+- ❌ `page.reload()` or `page.refresh()` - Must use UI navigation or wait for updates
+- ❌ `page.goto()` to internal URLs (e.g., `/app/dashboard`, `/app/settings/services`, `/app/clients/{id}`)
+- ❌ Direct URL navigation to bypass UI flows
+
+**Why this matters:**
+- Tests must simulate real user behavior
+- Direct navigation bypasses UI elements that might be broken
+- Page reloads bypass the natural UI refresh flow
+- If navigation is needed, use UI elements (menus, buttons, links)
+
+### Validation Checklist:
+
+Before proceeding to document the fix, verify:
+
+1. **Check test.py for violations:**
+   - [ ] No `page.reload()` or `page.refresh()` calls (except if explicitly documented as product bug workaround)
+   - [ ] No `page.goto()` to internal URLs (only login page is acceptable)
+   - [ ] All navigation uses UI elements (clicks, menus, buttons)
+   - [ ] If previous test should leave browser in correct state, test verifies state instead of navigating
+
+2. **Check script.md for violations:**
+   - [ ] VERIFIED PLAYWRIGHT CODE blocks don't contain `page.reload()` or `page.goto()` to internal URLs
+   - [ ] Navigation steps use UI elements, not direct URLs
+   - [ ] Any navigation is documented with proper justification
+
+3. **Check steps.md for violations:**
+   - [ ] Steps describe UI navigation, not URL navigation
+   - [ ] No mentions of "reload page" or "navigate to URL" (except login)
+
+4. **If violations are found:**
+   - **STOP** - Do not proceed to document the fix
+   - **Fix the violations** by replacing with UI-based navigation
+   - **Re-validate with MCP** if navigation approach changed
+   - **Only then** proceed to document the fix
+
+### Common Violations to Fix:
+
+**❌ WRONG:**
+```python
+page.reload(wait_until="domcontentloaded")
+```
+
+**✅ RIGHT:**
+```python
+# Wait for list to update naturally, or navigate via UI
+# If list doesn't update, this might be a product bug - document it
+page.wait_for_timeout(2000)  # Wait for backend sync
+# Then verify the item appears (with scrolling if needed)
+```
+
+**❌ WRONG:**
+```python
+page.goto("https://app.vcita.com/app/dashboard")
+```
+
+**✅ RIGHT:**
+```python
+# If not already on dashboard, navigate via UI
+if "/app/dashboard" not in page.url:
+    # Navigate via sidebar/menu
+    dashboard_link = page.get_by_text("Dashboard")
+    dashboard_link.click()
+    page.wait_for_url("**/app/dashboard**", timeout=10000)
+```
+
+**❌ WRONG:**
+```python
+page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+```
+
+**✅ RIGHT:**
+```python
+# Verify we're already on the correct page (from previous test)
+if matter_id not in page.url:
+    raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
+# Or search and click if navigation is needed
+```
+
+### Exception Handling:
+
+**If a `page.reload()` or `page.goto()` is truly necessary as a product bug workaround:**
+- Document it clearly in comments as a **product bug workaround**
+- Add to changelog explaining why UI navigation doesn't work
+- Consider reporting as a product bug if it's a recurring issue
+- Still prefer waiting for updates over reload when possible
+- **Note**: This should be extremely rare - most cases can be solved with proper waiting or UI navigation
+
+**Only proceed to STEP 6 (Document the Fix) after validation passes with zero violations (or documented product bug workarounds).**
+
+---
+
 ## STEP 6: Document the Fix
 
 **Follow `.cursor/rules/heal.mdc` section "6. Update changelog.md"** for changelog format and examples.
@@ -213,13 +315,21 @@ Add entry to `tests/{category}/{test_name}/changelog.md` following the format in
 ### 6.2: Update Heal Request
 
 **If test was fixed:**
-Add "## Healing Result" section to the heal request file with:
-- Issue Type (Test Bug / Product Bug)
-- Root Cause
-- Fix Applied
-- MCP Validation confirmation
-- Files Updated
-- Category re-run result (PASS/FAIL)
+1. Add "## Healing Result" section to the heal request file with:
+   - Issue Type (Test Bug / Product Bug)
+   - Root Cause
+   - Fix Applied
+   - MCP Validation confirmation
+   - Files Updated
+   - Category re-run result (PASS/FAIL)
+2. **Update the status** in the heal request file:
+   - Find the heal request file in `.cursor/heal_requests/` (format: `{test_name}_{timestamp}.md`)
+   - Read the file content
+   - Look for existing `**Status**: `status`` line
+   - If found, replace it with `**Status**: `fixed``
+   - If not found, add it after the header section (after `**Duration**` line, before `---` separator)
+   - Write the updated content back to the file
+   - This marks the heal request as resolved
 
 **If test remains unresolved after 5 attempts:**
 Add "## Healing Result - UNRESOLVED" section with:
@@ -231,6 +341,39 @@ Add "## Healing Result - UNRESOLVED" section with:
 - **Estimation of what might be the issue** (even if unvalidated)
 - Hypotheses that need further investigation
 - Why the issue couldn't be resolved
+- **Keep status as "open"** - the `/groom_heal_requests` command will automatically mark it as "expired" if changelog has newer entries
+
+**If product bug identified:**
+1. Create bug report in `.cursor/bug_reports/`
+2. **Update status** in the heal request file:
+   - Find the heal request file in `.cursor/heal_requests/`
+   - Update the status to `**Status**: `reported``
+   - Or leave as "open" - the `/groom_heal_requests` command will automatically detect the bug report and mark as "reported"
+3. Add "## Healing Result" section indicating it's a product bug
+
+## How to Update Status in Heal Request File
+
+When updating status, follow this pattern:
+
+1. **Read the heal request file** from `.cursor/heal_requests/{test_name}_{timestamp}.md`
+2. **Find the status line** (look for `**Status**: `status``)
+3. **Update or add the status:**
+   - If status line exists: Replace `**Status**: `old_status`` with `**Status**: `new_status``
+   - If status line doesn't exist: Add it after the header section, before the `---` separator
+4. **Write the file back**
+
+Example status update location:
+```markdown
+# Heal Request: Category/Test Name
+
+> **Generated**: 2026-01-24T10:34:43.536439
+> **Test Type**: test
+> **Duration**: 20496ms
+**Status**: `fixed`  ← Add or update this line
+
+---
+```
+
 
 ### 6.3: Update Failed Run Log
 
@@ -321,6 +464,7 @@ Add "## Healing Result - UNRESOLVED" section with:
 - [ ] Issue classified correctly (Test bug vs Product bug)
 - [ ] Fix validated with MCP (A-Z before code changes)
 - [ ] Files fixed in correct order (steps.md -> script.md -> test.py)
+- [ ] **Test code validated for rule adherence** (no `page.reload()` or `page.goto()` to internal URLs)
 - [ ] changelog.md updated
 - [ ] Heal request updated
 - [ ] Failed run log updated

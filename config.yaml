@@ -37,19 +37,9 @@ healing:
   max_heal_attempts: 3       # Max attempts to self-heal a test
   re_explore_on_failure: true
 
-# Database settings
-database:
-  path: "db/test_results.db"
-  
-# Logging and output
-logging:
-  path: "logs"
-  keep_days: 30              # Days to keep log files
-  
-# Snapshots (screenshots and DOM)
-snapshots:
-  path: "snapshots"
-  keep_days: 7               # Days to keep snapshot files
+# Note: Database and file logging are not currently implemented
+# Run results are stored in tests/{category}/_runs/ directories
+# Screenshots are stored with run results in _runs/{run_id}/tests/{test_name}/
 
 # Test organization
 tests:

@@ -25,7 +25,6 @@ function initializeElements() {
         testDetails: document.getElementById('test-details'),
         resultsLog: document.getElementById('results-log'),
         runsList: document.getElementById('runs-list'),
-        runsCategoryFilter: document.getElementById('runs-category-filter'),
         runsRefresh: document.getElementById('runs-refresh'),
         btnRunSelected: document.getElementById('btn-run-selected'),
         btnRunAll: document.getElementById('btn-run-all'),
@@ -509,18 +508,7 @@ function renderRuns(runs, categoryFilter = null, testFilter = null) {
         return;
     }
 
-    // Show/hide filters based on whether a test is selected
-    const runsHeader = document.querySelector('.runs-header');
-    const runsFilters = document.querySelector('.runs-filters');
-    if (runsHeader && runsFilters) {
-        if (testFilter) {
-            // Hide category filter when a test is selected
-            runsFilters.style.display = 'none';
-        } else {
-            // Show category filter when viewing all runs
-            runsFilters.style.display = 'flex';
-        }
-    }
+    // No filters to show/hide - category dropdown removed
 
     // Show header if filtering by test
     let headerHtml = '';
@@ -1100,29 +1088,27 @@ async function loadHealRequests() {
 }
 
 async function loadRuns(testFilter = null) {
-    console.log('loadRuns called', { testFilter, categoryFilterValue: elements.runsCategoryFilter?.value });
+    console.log('loadRuns called', { testFilter });
     
     if (!elements.runsList) {
         console.error('runsList element not found');
         return;
     }
     
+    // Use state.currentTestFilter if testFilter is not provided but a test is selected
+    if (!testFilter && state.currentTestFilter) {
+        testFilter = state.currentTestFilter;
+    }
+    
     elements.runsList.innerHTML = '<div class="loading">Loading runs...</div>';
     
     let runs = [];
-    let categoryFilter = elements.runsCategoryFilter?.value || '';
     
     try {
         // If a specific test is selected, show only runs for that test
         if (testFilter && testFilter.category && testFilter.testName) {
             console.log('Loading test-specific runs:', testFilter);
             const data = await fetchTestRuns(testFilter.category, testFilter.testName);
-            runs = data.runs || [];
-            categoryFilter = testFilter.category; // Use test's category
-        } else if (categoryFilter && categoryFilter !== '' && categoryFilter !== 'All Categories') {
-            // Filter by category
-            console.log('Loading category runs:', categoryFilter);
-            const data = await fetchCategoryRuns(categoryFilter);
             runs = data.runs || [];
         } else {
             // Show all runs
@@ -1133,7 +1119,7 @@ async function loadRuns(testFilter = null) {
         }
         
         console.log(`Loaded ${runs.length} runs:`, runs.map(r => r.run_id || r.id));
-        renderRuns(runs, categoryFilter, testFilter);
+        renderRuns(runs, null, testFilter);
     } catch (error) {
         console.error('Error loading runs:', error);
         elements.runsList.innerHTML = '<div class="error">Failed to load runs. Please refresh.</div>';
@@ -1166,26 +1152,6 @@ async function refreshArtifacts() {
     ]);
 }
 
-async function populateCategoryFilter() {
-    if (!elements.runsCategoryFilter) {
-        console.error('runsCategoryFilter element not found');
-        return;
-    }
-    
-    const categories = await fetchCategories();
-    const filter = elements.runsCategoryFilter;
-    
-    // Clear existing options except "All Categories"
-    filter.innerHTML = '<option value="">All Categories</option>';
-    
-    // Add category options - use folder name (id) as value, display name as text
-    for (const category of categories) {
-        const option = document.createElement('option');
-        option.value = category.id || category.path || category.name.toLowerCase(); // This is the folder name
-        option.textContent = category.name || category.path || category.id; // This is the display name
-        filter.appendChild(option);
-    }
-}
 
 // ==================== Event Handlers ====================
 
@@ -1209,20 +1175,15 @@ function setupEventHandlers() {
 
     elements.btnRefresh.addEventListener('click', async () => {
         await loadCategories();
-        await populateCategoryFilter();
     });
 
     if (elements.runsRefresh) {
         elements.runsRefresh.addEventListener('click', async () => {
-            await loadRuns();
+            // Preserve test filter when refreshing
+            await loadRuns(state.currentTestFilter);
         });
     }
 
-    if (elements.runsCategoryFilter) {
-        elements.runsCategoryFilter.addEventListener('change', async () => {
-            await loadRuns();
-        });
-    }
 
     // Tab switching
     document.querySelectorAll('.tabs .tab').forEach(tab => {
@@ -1257,6 +1218,133 @@ function setupEventHandlers() {
     }
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') hideModal();
+    });
+}
+
+// ==================== Panel Resizing ====================
+
+function initPanelResizing() {
+    // Load saved widths from localStorage
+    const savedLeftWidth = localStorage.getItem('panel-left-width');
+    const savedRightWidth = localStorage.getItem('panel-right-width');
+    
+    const leftPanel = document.getElementById('panel-left');
+    const rightPanel = document.getElementById('panel-right');
+    const leftResizeHandle = document.getElementById('resize-handle-left');
+    const rightResizeHandle = document.getElementById('resize-handle-right');
+    
+    // Apply saved widths
+    if (savedLeftWidth && leftPanel) {
+        leftPanel.style.width = savedLeftWidth + 'px';
+    }
+    if (savedRightWidth && rightPanel) {
+        rightPanel.style.width = savedRightWidth + 'px';
+    }
+    
+    // Left panel resize
+    if (leftResizeHandle && leftPanel) {
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        
+        leftResizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = leftPanel.offsetWidth;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const diff = e.clientX - startX;
+            const newWidth = startWidth + diff;
+            const minWidth = 200;
+            const maxWidth = window.innerWidth * 0.5; // Max 50% of window width
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                leftPanel.style.width = newWidth + 'px';
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                // Save to localStorage
+                localStorage.setItem('panel-left-width', leftPanel.offsetWidth.toString());
+            }
+        });
+    }
+    
+    // Right panel resize
+    if (rightResizeHandle && rightPanel) {
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        
+        rightResizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = rightPanel.offsetWidth;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const diff = startX - e.clientX; // Inverted for right panel
+            const newWidth = startWidth + diff;
+            const minWidth = 250;
+            const maxWidth = window.innerWidth * 0.5; // Max 50% of window width
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                rightPanel.style.width = newWidth + 'px';
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                // Save to localStorage
+                localStorage.setItem('panel-right-width', rightPanel.offsetWidth.toString());
+            }
+        });
+    }
+    
+    // Handle window resize to maintain panel constraints
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const leftPanel = document.getElementById('panel-left');
+            const rightPanel = document.getElementById('panel-right');
+            
+            if (leftPanel) {
+                const currentWidth = leftPanel.offsetWidth;
+                const maxWidth = window.innerWidth * 0.5;
+                if (currentWidth > maxWidth) {
+                    leftPanel.style.width = maxWidth + 'px';
+                    localStorage.setItem('panel-left-width', maxWidth.toString());
+                }
+            }
+            
+            if (rightPanel) {
+                const currentWidth = rightPanel.offsetWidth;
+                const maxWidth = window.innerWidth * 0.5;
+                if (currentWidth > maxWidth) {
+                    rightPanel.style.width = maxWidth + 'px';
+                    localStorage.setItem('panel-right-width', maxWidth.toString());
+                }
+            }
+        }, 100);
     });
 }
 
@@ -1332,10 +1420,13 @@ async function loadActiveRunOutput(activeRunData) {
 
 async function init() {
     console.log('init() called');
+    
+    // Initialize panel resizing first
+    initPanelResizing();
+    
     // Load initial data
     try {
         await loadCategories();
-        await populateCategoryFilter();
         console.log('About to call loadRuns()');
         await loadRuns();
         console.log('loadRuns() completed');

@@ -43,8 +43,6 @@ test-results/
 playwright-report/
 
 # Project specific
-db/*.db
-logs/*.log
 .temp_videos/
 .temp_screenshots/
 .context/
@@ -61,10 +59,7 @@ runs_index/
 .cursor/bug_reports/*.md
 
 # Keep the directory structure
-!db/.gitkeep
-!logs/.gitkeep
 !tests/.gitkeep
-!generated_tests/.gitkeep
 !.cursor/heal_requests/.gitkeep
 !.cursor/bug_reports/.gitkeep
 

@@ -56,11 +56,16 @@ class RunStorage:
         Get the _runs directory for a category.
         
         Args:
-            category: Category name
+            category: Category name or path (e.g., 'scheduling' or 'scheduling/appointments')
             
         Returns:
-            Path to tests/{category}/_runs/
+            Path to tests/{category}/_runs/ or tests/{parent}/{subcategory}/_runs/
         """
+        # Handle nested category paths (e.g., "scheduling/appointments")
+        if "/" in category:
+            # Split into parent and subcategory
+            parts = category.split("/")
+            return self.tests_root / "/".join(parts) / self.RUNS_DIR_NAME
         return self.tests_root / category / self.RUNS_DIR_NAME
     
     def get_current_run_dir(self, category: str) -> Path:
@@ -203,6 +208,83 @@ class RunStorage:
         self.index_dir.mkdir(parents=True, exist_ok=True)
         index_path = self.index_dir / f"{self.current_run_id}.json"
         
+        # Collect failed tests with their category paths
+        failed_tests = []
+        for category_result in run_result.category_results:
+            # Get base category path for this category
+            base_category_path = None
+            if category_result.category_path:
+                try:
+                    # Get relative path from tests_root
+                    rel_path = category_result.category_path.relative_to(self.tests_root)
+                    base_category_path = str(rel_path).replace("\\", "/")
+                except ValueError:
+                    base_category_path = category_result.category_name
+            
+            if not base_category_path:
+                base_category_path = category_result.category_name
+            
+            def get_category_path_for_test(test_result):
+                """Extract the actual category path where the test was saved."""
+                # For subcategory tests, test_name includes subcategory prefix (e.g., "Appointments/Cancel Appointment")
+                # and test_path shows the full path (e.g., "tests/scheduling/appointments/cancel_appointment")
+                if test_result.test_path:
+                    try:
+                        # Extract category path from test_path
+                        rel_test_path = test_result.test_path.relative_to(self.tests_root)
+                        # Get parent directory (removes test folder name)
+                        category_path_from_test = str(rel_test_path.parent).replace("\\", "/")
+                        return category_path_from_test
+                    except (ValueError, AttributeError):
+                        pass
+                
+                # Fallback: check if test_name has subcategory prefix
+                if "/" in test_result.test_name:
+                    # Test name like "Appointments/Cancel Appointment" or "Services/Create Service"
+                    subcategory_name = test_result.test_name.split("/")[0]
+                    # Build nested path: parent/subcategory
+                    return f"{base_category_path}/{subcategory_name}"
+                
+                # Default to base category path
+                return base_category_path
+            
+            # Check setup failures
+            if category_result.setup_result and category_result.setup_result.status == "failed":
+                category_path = get_category_path_for_test(category_result.setup_result)
+                failed_tests.append({
+                    "test_name": category_result.setup_result.test_name,
+                    "category": category_result.category_name,
+                    "category_path": category_path,
+                    "test_type": category_result.setup_result.test_type,
+                    "error": category_result.setup_result.error,
+                    "error_type": category_result.setup_result.error_type,
+                })
+            
+            # Check test failures
+            for test_result in category_result.test_results:
+                if test_result.status == "failed":
+                    category_path = get_category_path_for_test(test_result)
+                    failed_tests.append({
+                        "test_name": test_result.test_name,
+                        "category": category_result.category_name,
+                        "category_path": category_path,
+                        "test_type": test_result.test_type,
+                        "error": test_result.error,
+                        "error_type": test_result.error_type,
+                    })
+            
+            # Check teardown failures
+            if category_result.teardown_result and category_result.teardown_result.status == "failed":
+                category_path = get_category_path_for_test(category_result.teardown_result)
+                failed_tests.append({
+                    "test_name": category_result.teardown_result.test_name,
+                    "category": category_result.category_name,
+                    "category_path": category_path,
+                    "test_type": category_result.teardown_result.test_type,
+                    "error": category_result.teardown_result.error,
+                    "error_type": category_result.teardown_result.error_type,
+                })
+        
         index_data = {
             "run_id": self.current_run_id,
             "started_at": run_result.started_at.isoformat(),
@@ -216,6 +298,7 @@ class RunStorage:
                 "total": run_result.total_tests,
             },
             "duration_ms": run_result.duration_ms,
+            "failed_tests": failed_tests,
         }
         
         index_path.write_text(json.dumps(index_data, indent=2), encoding="utf-8")
@@ -298,6 +381,10 @@ class RunStorage:
             if run_json.exists():
                 try:
                     data = json.loads(run_json.read_text(encoding="utf-8"))
+                    # Ensure run_id is set (from directory name, which is the source of truth)
+                    data["run_id"] = run_dir.name
+                    # Set category field (normalize to lowercase for consistency)
+                    data["category"] = category.lower()
                     runs.append(data)
                 except (json.JSONDecodeError, IOError):
                     # Skip corrupted files
@@ -388,43 +475,192 @@ class RunStorage:
         List all runs that contain a specific test.
         
         Args:
-            category: Category name
-            test_name: Test name (e.g., 'create_matter')
+            category: Category name (parent category, e.g., 'scheduling')
+            test_name: Test name (e.g., 'Create Service' or 'create_service')
             
         Returns:
             List of run metadata dicts that contain this test, newest first
         """
+        # First, try the parent category's runs directory
         runs_dir = self.get_category_runs_dir(category)
-        if not runs_dir.exists():
-            return []
-        
         runs = []
-        for run_dir in sorted(runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
-            if not run_dir.is_dir():
-                continue
-            
-            # Check if this run contains the test
-            test_dir = run_dir / "tests" / test_name
-            if not test_dir.exists():
-                continue
-            
-            # Check if test has a result
-            result_json = test_dir / "result.json"
-            if not result_json.exists():
-                continue
-            
-            # Load run.json for metadata
-            run_json = run_dir / "run.json"
-            if run_json.exists():
-                try:
-                    data = json.loads(run_json.read_text(encoding="utf-8"))
-                    # Add test-specific result
-                    test_result = json.loads(result_json.read_text(encoding="utf-8"))
-                    data["test_result"] = test_result
-                    data["test_name"] = test_name
-                    runs.append(data)
-                except (json.JSONDecodeError, IOError):
-                    pass
+        run_ids_found = set()
+        
+        if runs_dir.exists():
+            for run_dir in sorted(runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
+                if not run_dir.is_dir():
+                    continue
+                
+                run_id = run_dir.name
+                
+                # Check if this run contains the test (try different name formats)
+                test_dir = run_dir / "tests" / test_name
+                if not test_dir.exists():
+                    # Try lowercase version
+                    test_dir = run_dir / "tests" / test_name.lower().replace(" ", "_")
+                if not test_dir.exists():
+                    # Try with subcategory prefix (e.g., "Services/Create Service")
+                    # Check all subdirectories in tests/ for matching test names
+                    tests_dir = run_dir / "tests"
+                    if tests_dir.exists():
+                        for subdir in tests_dir.iterdir():
+                            if subdir.is_dir():
+                                # Check if subdir name matches test (case-insensitive)
+                                if subdir.name.lower() == test_name.lower() or \
+                                   subdir.name.lower() == test_name.lower().replace(" ", "_"):
+                                    test_dir = subdir
+                                    break
+                                # Also check subcategory/test format
+                                for subcat_dir in subdir.iterdir():
+                                    if subcat_dir.is_dir() and \
+                                       (subcat_dir.name.lower() == test_name.lower() or \
+                                        subcat_dir.name.lower() == test_name.lower().replace(" ", "_")):
+                                        test_dir = subcat_dir
+                                        break
+                
+                if not test_dir.exists():
+                    continue
+                
+                # Check if test has a result
+                result_json = test_dir / "result.json"
+                if not result_json.exists():
+                    continue
+                
+                # Load run.json for metadata
+                run_json = run_dir / "run.json"
+                if run_json.exists():
+                    try:
+                        data = json.loads(run_json.read_text(encoding="utf-8"))
+                        # Add test-specific result
+                        test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                        data["test_result"] = test_result
+                        data["test_name"] = test_name
+                        data["run_id"] = run_id
+                        runs.append(data)
+                        run_ids_found.add(run_id)
+                    except (json.JSONDecodeError, IOError):
+                        pass
+        
+        # Also check subcategory runs directories
+        # Subcategories might have their own _runs directories either:
+        # 1. As nested paths: tests/scheduling/appointments/_runs/ (new behavior)
+        # 2. As subdirectories: tests/scheduling/services/_runs/ (legacy)
+        # 3. As top-level categories: tests/appointments/_runs/ (legacy, if subcategory name matches a top-level category)
+        category_path = self.tests_root / category
+        if category_path.exists():
+            # First, check nested subcategory paths (e.g., scheduling/appointments/_runs/)
+            # This is the new behavior where subcategory runs are saved under parent/subcategory
+            for subdir in category_path.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith("_"):
+                    # Check nested path: tests/scheduling/appointments/_runs/
+                    nested_runs_dir = subdir / self.RUNS_DIR_NAME
+                    if nested_runs_dir.exists():
+                        for run_dir in sorted(nested_runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
+                            if not run_dir.is_dir():
+                                continue
+                            
+                            run_id = run_dir.name
+                            # Skip if we already found this run in the parent category
+                            if run_id in run_ids_found:
+                                continue
+                            
+                            # Check if this run contains the test (try different name formats)
+                            test_dir = run_dir / "tests" / test_name
+                            if not test_dir.exists():
+                                # Try lowercase version
+                                test_dir = run_dir / "tests" / test_name.lower().replace(" ", "_")
+                            if not test_dir.exists():
+                                # Try with spaces replaced by underscores
+                                test_dir = run_dir / "tests" / test_name.replace(" ", "_")
+                            if not test_dir.exists():
+                                # Try title case
+                                test_dir = run_dir / "tests" / test_name.title().replace(" ", "_")
+                            
+                            if not test_dir.exists():
+                                continue
+                            
+                            # Check if test has a result
+                            result_json = test_dir / "result.json"
+                            if not result_json.exists():
+                                continue
+                            
+                            # Load run.json for metadata
+                            run_json = run_dir / "run.json"
+                            if run_json.exists():
+                                try:
+                                    data = json.loads(run_json.read_text(encoding="utf-8"))
+                                    # Add test-specific result
+                                    test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                                    data["test_result"] = test_result
+                                    data["test_name"] = test_name
+                                    data["run_id"] = run_id
+                                    data["category"] = category.lower()  # Use parent category
+                                    runs.append(data)
+                                    run_ids_found.add(run_id)
+                                except (json.JSONDecodeError, IOError):
+                                    pass
+        
+        # Also check if subcategory names exist as top-level category directories
+        # (e.g., "appointments" subcategory might have runs in tests/appointments/_runs/)
+        # Get subcategory names from the category structure
+        from src.discovery import TestDiscovery
+        discovery = TestDiscovery(self.tests_root)
+        categories = discovery.scan()
+        parent_category = next((c for c in categories if c.name.lower() == category.lower() or (c.path and c.path.name.lower() == category.lower())), None)
+        
+        if parent_category and parent_category.subcategories:
+            for subcat in parent_category.subcategories:
+                # Check if subcategory name matches a top-level category directory
+                subcat_runs_dir = self.tests_root / subcat.path.name / self.RUNS_DIR_NAME if subcat.path else None
+                if not subcat_runs_dir or not subcat_runs_dir.exists():
+                    # Also try by subcategory name directly
+                    subcat_runs_dir = self.tests_root / subcat.name.lower() / self.RUNS_DIR_NAME
+                
+                if subcat_runs_dir and subcat_runs_dir.exists():
+                    for run_dir in sorted(subcat_runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
+                        if not run_dir.is_dir():
+                            continue
+                        
+                        run_id = run_dir.name
+                        # Skip if we already found this run
+                        if run_id in run_ids_found:
+                            continue
+                        
+                        # Check if this run contains the test (try different name formats)
+                        test_dir = run_dir / "tests" / test_name
+                        if not test_dir.exists():
+                            # Try lowercase version
+                            test_dir = run_dir / "tests" / test_name.lower().replace(" ", "_")
+                        if not test_dir.exists():
+                            # Try with spaces replaced by underscores
+                            test_dir = run_dir / "tests" / test_name.replace(" ", "_")
+                        if not test_dir.exists():
+                            # Try title case
+                            test_dir = run_dir / "tests" / test_name.title().replace(" ", "_")
+                        
+                        if not test_dir.exists():
+                            continue
+                        
+                        # Check if test has a result
+                        result_json = test_dir / "result.json"
+                        if not result_json.exists():
+                            continue
+                        
+                        # Load run.json for metadata
+                        run_json = run_dir / "run.json"
+                        if run_json.exists():
+                            try:
+                                data = json.loads(run_json.read_text(encoding="utf-8"))
+                                # Add test-specific result
+                                test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                                data["test_result"] = test_result
+                                data["test_name"] = test_name
+                                data["run_id"] = run_id
+                                data["category"] = category.lower()  # Use parent category
+                                runs.append(data)
+                                run_ids_found.add(run_id)
+                            except (json.JSONDecodeError, IOError):
+                                pass
         
         return runs
     

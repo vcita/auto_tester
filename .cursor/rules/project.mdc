@@ -135,6 +135,7 @@ Tests must simulate how a real, average user interacts with the application:
 - Assume the user knows URL patterns
 - Use browser developer tools actions
 - Bypass UI flows with direct navigation
+- Use `page.reload()` or `page.refresh()` - Wait for UI to update naturally or navigate via UI
 
 ### Why This Matters:
 - Tests should catch UI/UX issues a user would encounter
@@ -241,11 +242,10 @@ These are the SAME action - extract to `navigate_to_add_client` function.
 - `tests/` - Test categories, tests, and functions
 - `tests/_functions/` - Global reusable functions
 - `.context/` - Runtime shared context (gitignored)
-- `src/` - Agent source code
+- `src/` - Source code
 - `config.yaml` - Configuration settings
-- `db/` - SQLite database for results
-- `logs/` - Execution logs
-- `snapshots/` - Screenshots and DOM captures
+- `tests/{category}/_runs/` - Test run results, screenshots, and videos
+- `runs_index/` - Multi-category run index files
 
 ## Cursor Rules Files
 
