@@ -34,6 +34,21 @@ tests:
     status: active
     priority: high
     description: Delete the test service to clean up
+  - id: create_group_event
+    name: Create Group Event
+    status: active
+    priority: high
+    description: Create a new group event service with name, duration, price, and participant limit
+  - id: edit_group_event
+    name: Edit Group Event
+    status: active
+    priority: high
+    description: Modify group event duration, price, and participant limit
+  - id: delete_group_event
+    name: Delete Group Event
+    status: active
+    priority: high
+    description: Delete the test group event to clean up
 
 # Category metadata
 status: active

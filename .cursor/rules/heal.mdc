@@ -94,22 +94,36 @@ If the heal request doesn't have a screenshot, that's a bug - the test runner sh
 
 ## MANDATORY THIRD STEP: Debug with MCP (NO BLIND FIXES!)
 
-**NEVER guess fixes! After reading changelog and analyzing screenshots, you MUST debug using Playwright MCP:**
+**CRITICAL RULE: When a test fails, NEVER guess what the issue is. ALWAYS run it using MCP and observe the UI as a user would.**
 
-1. **Open MCP browser** - Navigate to the starting point of the failing test
-2. **Execute test steps one by one** - Run each action exactly as the test.py code does
-3. **Verify each step visually** - Take snapshot after EVERY action to confirm it worked
-4. **Find the EXACT failure point** - Which specific action fails? What happens?
-5. **Understand WHY it fails** - Is it a selector issue? Timing? Element state?
-6. **Only THEN write the fix** - Based on what you learned from MCP debugging
+### The Wrong Way (NEVER DO THIS):
+- ❌ Look at error message and guess the fix
+- ❌ Try a different selector based on assumptions
+- ❌ Make code changes and run again hoping it works
+- ❌ Fix based on screenshots alone without understanding the flow
 
-**CRITICAL: Do NOT write code fixes based on guessing from screenshots alone!**
+### The Right Way (ALWAYS DO THIS):
+- ✅ **Open MCP browser** - Navigate to the starting point of the failing test
+- ✅ **Execute test steps one by one** - Run each action exactly as the test.py code does
+- ✅ **Observe the UI like a user** - Watch what actually happens on screen
+- ✅ **Verify each step visually** - Take snapshot after EVERY action to confirm it worked
+- ✅ **Find the EXACT failure point** - Which specific action fails? What happens visually?
+- ✅ **Understand WHY it fails** - Is it a selector issue? Timing? Element state? UI change?
+- ✅ **Only THEN write the fix** - Based on what you learned from MCP debugging
 
+**Key Principle: Trying to fix and run again is NEVER the right way. Check what doesn't work and try to understand by observing the UI first.**
+
+### What MCP Debugging Reveals:
 The screenshot shows the END state. MCP debugging shows you the JOURNEY to that state and reveals:
-- Which step actually failed
+- Which step actually failed (not just where the error occurred)
 - What the element structure looks like at that moment
-- What selectors would work
-- What timing issues exist
+- What selectors would work (by testing them live)
+- What timing issues exist (by watching the UI respond)
+- What the user actually sees (not what the code assumes)
+
+**CRITICAL: Do NOT write code fixes based on guessing from screenshots or error messages alone!**
+
+You must SEE what happens in the browser, step by step, to understand the real problem.
 
 ## Heal Process Overview
 
@@ -171,18 +185,23 @@ Read the heal request and determine the failure type:
 
 ### 3. Step-by-Step Debugging with MCP (REQUIRED)
 
+**MANDATORY: When a test fails, you MUST use MCP to observe what actually happens. Do NOT try to guess the fix.**
+
 When debugging a failing test, you MUST use the Playwright MCP browser to execute the test step-by-step, exactly as the test code does. This is the ONLY reliable way to identify what's broken.
 
 **CRITICAL RULES:**
 
-1. **Execute EXACTLY like the test code** - Use the same selectors, same actions, same order as in test.py
-2. **Validate EVERY step visually** - After each action, take a screenshot or snapshot to verify:
+1. **NEVER guess the issue** - Always observe the UI first using MCP
+2. **Think like a user** - What would a user see? What would they experience?
+3. **Execute EXACTLY like the test code** - Use the same selectors, same actions, same order as in test.py
+4. **Validate EVERY step visually** - After each action, take a screenshot or snapshot to verify:
    - Did the action succeed?
    - Is the UI in the expected state?
    - Are the values filled correctly?
-3. **Never assume success** - Just because no error occurred doesn't mean it worked
-4. **Compare actual vs expected** - After filling a field, verify the value is actually there
-5. **Stop immediately on failure** - When a step doesn't produce the expected result, investigate before continuing
+5. **Never assume success** - Just because no error occurred doesn't mean it worked
+6. **Compare actual vs expected** - After filling a field, verify the value is actually there
+7. **Stop immediately on failure** - When a step doesn't produce the expected result, investigate before continuing
+8. **Understand before fixing** - Don't try to fix and run again. Understand what's wrong first by observing the UI
 
 **BEFORE STARTING: Create Step Checklist (MANDATORY)**
 

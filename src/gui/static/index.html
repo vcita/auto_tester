@@ -47,7 +47,7 @@
                 <div class="panel-header">
                     <div class="tabs">
                         <button class="tab active" data-tab="details">Details</button>
-                        <button class="tab" data-tab="results">Results</button>
+                        <button class="tab" data-tab="runs">Runs</button>
                     </div>
                 </div>
                 <div class="panel-content">
@@ -60,47 +60,40 @@
                         </div>
                     </div>
                     
-                    <!-- Results Tab -->
-                    <div id="tab-results" class="tab-content">
-                        <div id="test-results" class="test-results">
-                            <div class="results-log" id="results-log">
-                                <div class="placeholder">
-                                    <p>Run tests to see results here</p>
+                    <!-- Results Tab - Removed, moved to right panel -->
+                    
+                    <!-- Runs Tab -->
+                    <div id="tab-runs" class="tab-content">
+                        <div id="runs-view" class="runs-view">
+                            <div class="runs-header">
+                                <div class="runs-filters">
+                                    <select id="runs-category-filter" class="runs-filter">
+                                        <option value="">All Categories</option>
+                                    </select>
+                                    <button id="runs-refresh" class="btn btn-icon" title="Refresh">&#8635;</button>
                                 </div>
+                            </div>
+                            <div id="runs-list" class="runs-list">
+                                <div class="loading">Loading runs...</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Right Panel - Artifacts -->
+            <!-- Right Panel - Current Run Output -->
             <aside class="panel panel-right">
                 <div class="panel-header">
-                    <div class="tabs">
-                        <button class="tab active" data-tab="screenshots">Screenshots</button>
-                        <button class="tab" data-tab="videos">Videos</button>
-                        <button class="tab" data-tab="heal">Heal</button>
-                    </div>
+                    <h2>Current Run Output</h2>
                 </div>
                 <div class="panel-content">
-                    <!-- Screenshots Tab -->
-                    <div id="tab-screenshots" class="tab-content active">
-                        <div id="screenshots-list" class="artifact-list">
-                            <div class="loading">Loading...</div>
-                        </div>
+                    <div class="results-header-info">
+                        <span class="results-header-note">Live test execution results</span>
                     </div>
-                    
-                    <!-- Videos Tab -->
-                    <div id="tab-videos" class="tab-content">
-                        <div id="videos-list" class="artifact-list">
-                            <div class="loading">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Heal Requests Tab -->
-                    <div id="tab-heal" class="tab-content">
-                        <div id="heal-list" class="artifact-list">
-                            <div class="loading">Loading...</div>
+                    <div class="results-log" id="results-log">
+                        <div class="placeholder">
+                            <p>Run tests to see results here</p>
+                            <p class="results-note">This shows real-time output from the current test run.</p>
                         </div>
                     </div>
                 </div>
@@ -117,6 +110,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/app.js?v=14"></script>
 </body>
 </html>

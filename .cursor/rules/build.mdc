@@ -11,9 +11,11 @@ Before building, verify:
 2. You have access to the Playwright MCP browser tools (navigate, snapshot, click, type, etc.)
 3. You know the target URL (from config.yaml or steps.md)
 
-## CRITICAL: Use Playwright MCP for Exploration
+## CRITICAL: Use Playwright MCP for Exploration and Debugging
 
 **ALWAYS use the Playwright MCP server for browser exploration**, not the built-in cursor-ide-browser.
+
+**When debugging failing tests: NEVER guess what the issue is. ALWAYS run the test using MCP and observe the UI as a user would. Trying to fix and run again is never the right way - check what doesn't work and try to understand by observing the UI first.**
 
 ### Why Playwright MCP:
 - **Full accessibility tree capture** - sees dropdown menus, modal content, nested elements
@@ -75,6 +77,28 @@ For "Add New Client" test:
 ### Knowledge Center URL:
 https://support.vcita.com/hc/en-us
 
+## CRITICAL: Use URLs from config.yaml
+
+**ALWAYS use URLs defined in `config.yaml` when accessing vcita.**
+
+### Required URLs from config:
+- **Login**: Use `target.login_url` (https://www.vcita.com/login) - NOT app.vcita.com/login
+- **Base URL**: Use `target.base_url` for URL verification patterns
+
+### Why:
+- `www.vcita.com/login` avoids Cloudflare security checks that block automation
+- `app.vcita.com/login` triggers Cloudflare challenges requiring manual intervention
+- Consistent URL usage ensures tests work reliably
+
+### In MCP exploration:
+```python
+# WRONG - triggers Cloudflare
+page.goto("https://app.vcita.com/login")
+
+# RIGHT - uses configured login URL
+page.goto("https://www.vcita.com/login")
+```
+
 ## CRITICAL: Real User Actions Only
 
 Tests must simulate how a real, average user interacts with the application.
@@ -112,6 +136,46 @@ Tests must simulate how a real, average user interacts with the application.
 2. **Is it a bug?** - document it and report
 3. **Is the test wrong?** - update `steps.md` with the correct flow
 4. **Never** add a fallback to work around the issue
+
+## CRITICAL: Report Suspected Bugs - Do Not Bypass
+
+**If you encounter behavior that appears to be a bug or malfunctioning feature, STOP immediately and notify the user.**
+
+### What counts as a suspected bug:
+- Feature doesn't work as documented/expected
+- Button/action does nothing or produces unexpected results
+- Data doesn't save correctly
+- UI elements missing or broken
+- Error messages that shouldn't appear
+- Inconsistent behavior (works sometimes, fails others)
+- Workarounds needed for basic functionality
+
+### When you suspect a bug:
+1. **STOP** - Do not continue building/exploring
+2. **Document what you observed** - exact steps, expected vs actual behavior
+3. **Take a screenshot** if possible
+4. **Notify the user immediately** - describe the issue clearly
+5. **Wait for guidance** - the user will decide how to proceed
+
+### Why this matters:
+- Bugs should be reported and fixed, not worked around
+- Silent workarounds hide real issues from the development team
+- Tests that bypass bugs give false confidence
+- The user needs to know about system issues
+
+### NEVER do this:
+- Find a workaround and continue without mentioning the bug
+- Assume "it's supposed to work this way"
+- Add code to handle buggy behavior silently
+- Complete the test by avoiding the broken feature
+
+### Example:
+```
+WRONG: "The email field doesn't save, so I'll skip it and just fill the required fields"
+RIGHT: "STOP - I noticed the email field value disappears after typing. This appears to be a bug. 
+        Steps to reproduce: 1) Open client form 2) Type in email field 3) Click elsewhere - value disappears.
+        Should I report this or is this expected behavior?"
+```
 
 ### Example - WRONG:
 ```markdown
@@ -342,6 +406,96 @@ Dropdowns that don't work with the built-in browser work perfectly with Playwrig
 1. Click the dropdown to open it: `browser_click` on the listbox
 2. Take a snapshot - you'll see the options with their refs
 3. Click the desired option: `browser_click` on the option ref
+
+### CRITICAL: Handling Virtual Scrolling / Lazy-Loaded Lists (Endless Scroll)
+
+**If you cannot find an expected element in a list, table, or grid, ALWAYS scroll down MULTIPLE TIMES until no more items load before concluding it doesn't exist.**
+
+#### Why this matters:
+- Many modern UIs use **virtual scrolling** or **endless scroll** - items below the viewport are NOT rendered in the DOM
+- Items may exist in the data but are invisible to Playwright until scrolled into view
+- A locator search will return 0 results even if the item exists but is off-screen
+- **Endless scroll lists require multiple scrolls** - each scroll loads a new batch of items
+- This is especially common in long lists (services, clients, appointments, etc.)
+
+#### Symptoms that suggest virtual/endless scrolling:
+- You create/add an item, but `getByText()` or `filter(has_text=)` returns 0 matches
+- The list shows many items but the snapshot only shows a subset
+- Items at the top of a list are visible, but newer items at the bottom are not
+- After navigating away and back, recently created items are "missing"
+- You scroll once but still can't find the item - need to scroll multiple times
+
+#### Solution - Scroll MULTIPLE TIMES until end of list:
+```python
+# WRONG - may fail due to endless scroll (only scrolls once)
+add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+add_button.scroll_into_view_if_needed()
+page.wait_for_timeout(500)
+service_in_list = iframe.get_by_role('button').filter(has_text=name)
+service_in_list.wait_for(state='visible', timeout=10000)  # MAY STILL TIMEOUT!
+
+# RIGHT - scroll multiple times until no more items load
+# Step 1: Wait for list to load
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+
+# Step 2: Scroll to bottom multiple times until no new items appear
+max_scrolls = 10
+previous_count = 0
+for scroll_attempt in range(max_scrolls):
+    # Get all service buttons currently visible
+    all_services = iframe.get_by_role("button").filter(has_text="Test Consultation")
+    current_count = all_services.count()
+    
+    if current_count > 0:
+        # Scroll the last visible service into view to trigger loading more
+        last_service = all_services.nth(current_count - 1)
+        last_service.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)  # Wait for new items to load
+        
+        # Check if new items loaded
+        new_count = all_services.count()
+        if new_count == previous_count:
+            # No new items loaded - we've reached the end
+            break
+        previous_count = new_count
+    else:
+        # No services found yet, scroll to "Add" button to trigger initial load
+        add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+        add_button.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)
+
+# Step 3: NOW search for the specific item
+service_in_list = iframe.get_by_role('button').filter(has_text=name)
+service_in_list.wait_for(state='visible', timeout=10000)  # SUCCESS!
+```
+
+#### How to scroll in MCP exploration:
+```javascript
+// Scroll multiple times until no more items load
+let previousCount = 0;
+for (let i = 0; i < 10; i++) {
+  const services = await iframe.locator('button').filter({ hasText: /Test Consultation/ });
+  const count = await services.count();
+  if (count > 0) {
+    const lastService = services.nth(count - 1);
+    await lastService.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1000);
+    const newCount = await services.count();
+    if (newCount === previousCount) break; // No new items
+    previousCount = newCount;
+  }
+}
+```
+
+#### When to apply this pattern:
+- **ALWAYS** after creating a new item in a list (services, clients, events, etc.)
+- When verifying an item exists in a long list
+- When searching for an item that was created in a previous test
+- When navigating back to a list page after being elsewhere
+- **ESPECIALLY** when the list uses endless/infinite scroll (scrolls multiple times needed)
+
+#### Key insight:
+**Think like a user** - if a user wanted to find an item at the bottom of a long list with endless scroll, they would scroll down MULTIPLE TIMES until they reach the end. Your test must do the same - scroll repeatedly until no more items load, THEN search.
 
 ## CRITICAL: Always Use press_sequentially() for Text Input
 
@@ -615,27 +769,37 @@ python tests/clients/delete_matter/test.py
 **CRITICAL: Never skip step 2 (reading the screenshot). It reveals issues that error messages alone cannot.**
 6. **Update script.md** - if you learned something new about the flow
 
-## CRITICAL: Validate Success from User Perspective
+## CRITICAL: Validate Success from User Perspective (NO TOAST MESSAGES)
 
-**Every test MUST verify the action succeeded by checking the ACTUAL RESULT in the system, not just confirmation messages.**
+**Every test MUST verify the action succeeded by checking the ACTUAL RESULT in the system. NEVER rely on toast messages or confirmation dialogs.**
 
 ### Why:
-- Toast messages can appear even when actions fail
-- Confirmation dialogs don't guarantee the action completed
-- The only reliable validation is seeing the actual change in the system
-- Users validate success by seeing the result, tests should too
+- **Toast messages are unreliable** - they can appear even when actions fail, or may not appear at all
+- **Confirmation dialogs don't guarantee completion** - backend could still fail
+- **The only reliable validation is seeing the actual change** - data in the UI proves success
+- **Users validate success by seeing results** - tests should do the same
 
 ### ALWAYS validate by:
-1. **Checking the actual data changed** - is the client actually deleted?
-2. **Verifying the UI reflects the change** - is the client gone from the list?
-3. **Searching/navigating to confirm** - can you still find the deleted item?
-4. **Checking counts/totals** - did the number decrease?
+1. **Checking the actual data exists/changed** - is the new item visible? is the deleted item gone?
+2. **Verifying the UI reflects the change** - list updated, form shows new values
+3. **Searching/navigating to confirm** - find the created item, verify deleted item is gone
+4. **Checking counts/totals** - did the number increase/decrease?
 
-### NEVER rely solely on:
-- Toast messages ("Client deleted successfully")
+### NEVER validate by (these are FORBIDDEN):
+- Toast messages ("Success!", "Deleted successfully", "Created!", "Appointment scheduled")
 - Confirmation dialogs closing
-- API response codes (unless also verified in UI)
-- Absence of error messages
+- Alert messages appearing
+- "Saved" or "Updated" text appearing temporarily
+- Snackbar notifications
+- Any transient UI element that auto-dismisses
+
+### What counts as "actual data":
+- Items appearing in lists/grids
+- Items appearing in calendar views
+- URL containing the created item's ID
+- Page title containing item name
+- Form fields showing saved values
+- Search results showing the item
 
 ### Validation Examples:
 

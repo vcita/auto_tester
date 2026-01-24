@@ -25,3 +25,65 @@ functions:
     description: Log out the current user from the system
     parameters: []
     returns: []
+
+  - id: create_service
+    name: Create Service
+    description: Create a minimal 1-on-1 service for test setup purposes
+    parameters:
+      - name: name
+        type: string
+        required: false
+        description: Name of the service (defaults to "Test Service {timestamp}")
+    returns:
+      - name: created_service_id
+        description: ID of the created service
+      - name: created_service_name
+        description: Name of the created service
+
+  - id: delete_service
+    name: Delete Service
+    description: Delete a service by name for test teardown
+    parameters:
+      - name: name
+        type: string
+        required: false
+        description: Name of the service to delete (defaults to context value)
+    returns: []
+
+  - id: create_client
+    name: Create Client
+    description: Create a minimal client (matter/property) for test setup purposes
+    parameters:
+      - name: first_name
+        type: string
+        required: false
+        description: First name of the client (defaults to "Test")
+      - name: last_name
+        type: string
+        required: false
+        description: Last name of the client (defaults to "Client{timestamp}")
+      - name: email
+        type: string
+        required: false
+        description: Email address (defaults to generated test email)
+    returns:
+      - name: created_client_id
+        description: ID of the created client
+      - name: created_client_name
+        description: Full name of the client
+      - name: created_client_email
+        description: Email of the client
+
+  - id: delete_client
+    name: Delete Client
+    description: Delete a client (matter/property) by name for test teardown
+    parameters:
+      - name: name
+        type: string
+        required: false
+        description: Name of the client to delete (defaults to context value)
+      - name: id
+        type: string
+        required: false
+        description: ID of the client to delete (defaults to context value)
+    returns: []

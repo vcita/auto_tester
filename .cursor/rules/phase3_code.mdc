@@ -9,6 +9,15 @@ This applies to:
 - Functions  
 - Setup/Teardown
 
+## CRITICAL: Debugging Failing Tests
+
+**When a test fails, NEVER guess what the issue is. ALWAYS run it using MCP and observe the UI as a user would.**
+
+- ❌ **WRONG**: Look at error message, guess the fix, change code, run again
+- ✅ **RIGHT**: Open MCP browser, execute test steps one by one, observe what actually happens, understand the real problem, then fix
+
+**Key principle**: Trying to fix and run again is NEVER the right way. Check what doesn't work and try to understand by observing the UI first.
+
 ## CRITICAL: Use Verified Code Only
 
 **The code in test.py MUST be copied directly from the VERIFIED PLAYWRIGHT CODE blocks in script.md.**
@@ -248,6 +257,66 @@ Only use `wait_for_timeout()` for:
 
 Always pair with an element wait - never use alone for action completion.
 
+### Handling Virtual Scrolling / Lazy-Loaded Lists (Endless Scroll)
+
+**When searching for items in lists that use virtual scrolling or endless scroll, ALWAYS scroll MULTIPLE TIMES until no more items load, then search.**
+
+Many vcita lists (services, clients, appointments) use endless scroll - items not in viewport are not in the DOM, and scrolling loads more items in batches.
+
+```python
+# WRONG - item may exist but not be rendered, and one scroll may not be enough
+add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+add_button.scroll_into_view_if_needed()
+page.wait_for_timeout(500)
+service_btn = iframe.get_by_role('button').filter(has_text=service_name)
+service_btn.wait_for(state='visible', timeout=10000)  # May still timeout!
+
+# RIGHT - scroll multiple times until end of list, then search
+# Step 1: Wait for list section to load
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+
+# Step 2: Scroll multiple times until no more items load
+max_scrolls = 10
+previous_count = 0
+for scroll_attempt in range(max_scrolls):
+    # Get all service buttons currently visible (use a pattern that matches existing items)
+    all_services = iframe.get_by_role("button").filter(has_text="Test Consultation")
+    current_count = all_services.count()
+    
+    if current_count > 0:
+        # Scroll the last visible service into view to trigger loading more
+        last_service = all_services.nth(current_count - 1)
+        last_service.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)  # Wait for new items to load
+        
+        # Check if new items loaded
+        new_count = all_services.count()
+        if new_count == previous_count:
+            # No new items loaded - we've reached the end
+            break
+        previous_count = new_count
+    else:
+        # No services found yet, scroll to "Add" button to trigger initial load
+        add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+        add_button.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)
+
+# Step 3: NOW search for the specific item
+service_btn = iframe.get_by_role('button').filter(has_text=service_name)
+service_btn.wait_for(state='visible', timeout=10000)  # SUCCESS!
+```
+
+**When to apply this pattern:**
+- **ALWAYS** after creating a new item in a list
+- When verifying an item exists in a long list
+- When searching for items created in previous tests
+- When navigating back to a list page
+- **ESPECIALLY** when the list uses endless/infinite scroll (multiple scrolls required)
+
+**Key insight:** Endless scroll lists require MULTIPLE scrolls - each scroll loads a new batch. You must scroll repeatedly until the count stops increasing, THEN search.
+
+See `build.mdc` for detailed explanation of endless scroll behavior.
+
 ### Context Operations
 
 ```python
@@ -277,13 +346,63 @@ if phone:
 - Use Playwright's built-in waiting (auto-wait)
 - Add explicit waits only when script.md specifies them
 
-### Assertions
+## CRITICAL: No Standalone Test Blocks
 
-Use Playwright's `expect()` for assertions:
-```python
-expect(page.locator(".confirmation")).to_be_visible()
-expect(page.get_by_text("Booking confirmed")).to_be_visible()
+**NEVER add `if __name__ == "__main__":` blocks to test files.**
+
+Tests MUST be run through the runner:
+```bash
+python main.py run --category <category_name>
 ```
+
+The runner handles:
+- Captcha bypass (custom user-agent)
+- Proper timeouts
+- Video recording for debugging
+- Screenshots on failure
+- Browser lifecycle management
+- Context sharing between tests
+
+**Category is the atomic test unit** - you cannot run individual tests. This ensures:
+1. Setup/teardown always run
+2. Tests run in the correct order
+3. Configuration is consistent
+4. No duplicate code to maintain
+
+### Assertions and Success Verification
+
+**CRITICAL: Verify actual data, NEVER rely on toast messages or confirmation dialogs.**
+
+Use Playwright's `expect()` for assertions on **actual data**:
+
+```python
+# CORRECT - verify actual data exists
+expect(page.get_by_role("row", name=client_name)).to_be_visible()  # Item in list
+expect(page).to_have_url(re.compile(r"/app/clients/[a-z0-9]+"))  # URL has ID
+expect(iframe.get_by_role("menuitem").filter(has_text=client_name)).to_be_visible()  # Calendar event
+
+# CORRECT - verify deleted item is gone
+expect(page.get_by_role("row", name=deleted_name)).to_have_count(0)
+
+# WRONG - NEVER rely on toast/confirmation messages
+expect(page.get_by_text("Success!")).to_be_visible()  # Forbidden
+expect(page.get_by_text("Deleted successfully")).to_be_visible()  # Forbidden
+expect(page.get_by_text("Appointment scheduled")).to_be_visible()  # Forbidden
+```
+
+**Forbidden verification patterns:**
+- Toast messages ("Success", "Created", "Deleted", "Saved")
+- Snackbar notifications
+- Alert dialogs confirming action
+- Any auto-dismissing UI element
+
+**Required verification patterns:**
+- Item appears in list/grid/calendar
+- URL contains new item's ID
+- Page title shows item name
+- Form fields show saved values
+- Search results include the item
+- Count increased/decreased
 
 ## When to Regenerate
 

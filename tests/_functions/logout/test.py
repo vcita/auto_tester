@@ -70,44 +70,4 @@ def fn_logout(page: Page, context: dict, **params) -> None:
     if "logged_in_user" in context:
         del context["logged_in_user"]
     
-    print("  ✅ Logout successful")
-
-
-# For standalone testing
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
-    import sys
-    import os
-    
-    # Add parent directory to path to import login function
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from login.test import fn_login
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
-        context = {}
-        
-        # First login
-        print("Step 1: Logging in...")
-        fn_login(
-            page, 
-            context,
-            username="itzik+autotest@vcita.com",
-            password="vcita123"
-        )
-        print(f"  Logged in as: {context.get('logged_in_user')}")
-        print(f"  Current URL: {page.url}")
-        
-        # Then logout via UI
-        print("\nStep 2: Logging out via UI...")
-        fn_logout(page, context)
-        print(f"  Logged out successfully!")
-        print(f"  Context after logout: {context}")
-        print(f"  Current URL: {page.url}")
-        
-        print("\n=== Both login and logout functions work! ===")
-        
-        # Keep browser open for inspection
-        input("\nPress Enter to close browser...")
-        browser.close()
+    print("  [OK] Logout successful")

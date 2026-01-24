@@ -24,6 +24,7 @@ from src.discovery.test_discovery import print_discovery_tree
 from src.discovery.function_discovery import print_functions_list
 from src.models import TestStatus
 from src.runner import TestRunner, CLIReporter
+from src.runner.stress_test import StressTestRunner
 from src.gui import run_server
 
 console = Console()
@@ -142,13 +143,14 @@ def cmd_run(args):
     config = load_config()
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     
-    # Check for headless mode and keep-open flag
+    # Check for headless mode, keep-open flag, and until-test
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
+    until_test = getattr(args, 'until_test', None)
     
     try:
         # Create runner
-        runner = TestRunner(tests_root, headless=headless, keep_open=keep_open)
+        runner = TestRunner(tests_root, headless=headless, keep_open=keep_open, until_test=until_test)
         
         # Attach CLI reporter for real-time output
         reporter = CLIReporter(runner.events)
@@ -301,6 +303,78 @@ def cmd_gui(args):
     )
 
 
+def cmd_stress_test(args):
+    """Run stress test on categories."""
+    config = load_config()
+    tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
+    
+    # Get categories from args
+    categories = args.categories if args.categories else []
+    
+    if not categories:
+        console.print("[red]Error: At least one category must be specified[/red]")
+        console.print("Usage: stress_test --categories category1 category2 --iterations 10")
+        return
+    
+    # Get iterations
+    iterations = args.iterations
+    if iterations < 1:
+        console.print("[red]Error: Iterations must be at least 1[/red]")
+        return
+    
+    # Check for headless mode and keep-open flag
+    headless = args.headless if hasattr(args, 'headless') else False
+    keep_open = getattr(args, 'keep_open', False)
+    
+    try:
+        # Validate categories exist
+        from src.discovery import TestDiscovery
+        discovery = TestDiscovery(tests_root)
+        valid_categories = []
+        
+        for cat_name in categories:
+            category = discovery.find_category(cat_name)
+            if not category:
+                console.print(f"[yellow]Warning: Category '{cat_name}' not found, skipping[/yellow]")
+            else:
+                valid_categories.append(cat_name)
+        
+        if not valid_categories:
+            console.print("[red]Error: No valid categories found[/red]")
+            return
+        
+        # Run stress test
+        stress_runner = StressTestRunner(
+            tests_root=tests_root,
+            headless=headless,
+            keep_open=keep_open,
+        )
+        
+        console.print(f"\n[bold]Starting stress test[/bold]")
+        console.print(f"Categories: {', '.join(valid_categories)}")
+        console.print(f"Iterations: {iterations}")
+        console.print()
+        
+        results = stress_runner.run_stress_test(
+            category_names=valid_categories,
+            iterations=iterations,
+        )
+        
+        # Print report
+        stress_runner.print_report(results)
+        
+        # Exit with appropriate code
+        total_failed = sum(r.failed_count for r in results)
+        if total_failed > 0:
+            sys.exit(1)
+            
+    except Exception as e:
+        console.print(f"[red]Error running stress test: {e}[/red]")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="vcita Test Agent - AI-driven browser testing"
@@ -312,11 +386,7 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run tests")
     run_parser.add_argument(
         "--category", "-c",
-        help="Run only tests in this category"
-    )
-    run_parser.add_argument(
-        "--test", "-t",
-        help="Run only this specific test"
+        help="Run only tests in this category (category is the atomic test unit)"
     )
     run_parser.add_argument(
         "--headless",
@@ -327,6 +397,10 @@ def main():
         "--keep-open",
         action="store_true",
         help="Keep browser open on failure for debugging"
+    )
+    run_parser.add_argument(
+        "--until-test",
+        help="Stop before executing this test and keep browser open for MCP debugging. Test name can be full path (e.g., 'Services/Edit Group Event') or just the test name (e.g., 'Edit Group Event')"
     )
     
     # Explore command - explore and generate tests
@@ -376,6 +450,31 @@ def main():
         help="Port to listen on (default: 8080)"
     )
     
+    # Stress test command - run categories multiple times
+    stress_parser = subparsers.add_parser("stress_test", help="Run stress test on categories")
+    stress_parser.add_argument(
+        "--categories", "-c",
+        nargs="+",
+        required=True,
+        help="Category names to stress test (can specify multiple)"
+    )
+    stress_parser.add_argument(
+        "--iterations", "-i",
+        type=int,
+        required=True,
+        help="Number of times to run each category"
+    )
+    stress_parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run browser in headless mode"
+    )
+    stress_parser.add_argument(
+        "--keep-open",
+        action="store_true",
+        help="Keep browser open on failure for debugging"
+    )
+    
     args = parser.parse_args()
     
     if args.command is None:
@@ -389,6 +488,7 @@ def main():
         "status": cmd_status,
         "init": cmd_init,
         "gui": cmd_gui,
+        "stress_test": cmd_stress_test,
     }
     
     if args.command in commands:

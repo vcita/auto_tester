@@ -41,7 +41,56 @@ service_name = context.get("created_service_name")
 if not service_name:
     raise ValueError("created_service_name not found in context - run create_service first")
 
-# Locate service in list and hover to reveal edit button
+# HEALED: Services list uses endless scroll - must scroll to find service
+# Wait for "My Services" text to confirm the list section has loaded
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+
+# Scroll multiple times until service is found or end of list reached
+import re
+max_scrolls = 10
+previous_last_text = ""
+no_change_count = 0
+service_row = None
+
+for scroll_attempt in range(max_scrolls):
+    # First, try to find the service - if found, we're done
+    try:
+        service_row = iframe.get_by_role("button").filter(has_text=service_name)
+        if service_row.count() > 0:
+            break
+    except:
+        pass
+    
+    # Get all service buttons to find the last one
+    all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
+    
+    try:
+        service_count = all_services.count()
+        
+        if service_count > 0:
+            last_service = all_services.nth(service_count - 1)
+            current_last_text = last_service.text_content()
+            
+            if current_last_text == previous_last_text and previous_last_text != "":
+                no_change_count += 1
+                if no_change_count >= 2:
+                    break
+            else:
+                no_change_count = 0
+                previous_last_text = current_last_text
+            
+            last_service.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+        else:
+            add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+            add_button.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+    except:
+        add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+        add_button.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)
+
+# Now locate service in list and hover to reveal edit button
 service_row = iframe.get_by_role("button").filter(has_text=service_name)
 service_row.hover()
 

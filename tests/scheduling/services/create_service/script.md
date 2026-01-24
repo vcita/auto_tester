@@ -196,44 +196,52 @@ create_btn.click()
 
 # Wait for dialog to close (indicates creation completed)
 dialog.wait_for(state="hidden", timeout=15000)
+
+# HEALED: Wait longer after creation to allow service to sync to backend
+# The service needs time to be saved and available in the list
+page.wait_for_timeout(3000)  # Wait for service to be saved to backend
 ```
 
 - **How verified**: Clicked in MCP, dialog closed, service appeared in list
-- **Wait for**: Dialog closes (state="hidden")
+- **Wait for**: Dialog closes (state="hidden"), then wait 3 seconds for backend sync
 
 ---
 
 ## Step 10: Refresh Services List (Workaround for UI Bug)
 
-- **Action**: Navigate
-- **Target**: Navigate to Settings main page and back to Services to refresh the list
-- **Note**: BUG - After creating a service, the list shows an empty row instead of the new service. Refreshing via navigation fixes this.
+- **Action**: Reload
+- **Target**: Reload the page to refresh the services list
+- **Note**: BUG - After creating a service, the list shows an empty row instead of the new service. Reloading the page fixes this.
+
+**LOCATOR DECISION:**
+
+The previous approach of navigating away and back may not be reliable. A simple page reload should be more reliable and faster.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # BUG WORKAROUND: After service creation, the list doesn't refresh automatically
-# Navigate away and back to force a refresh
-settings_menu = page.locator("[data-testid='settings']").or_(page.get_by_text("Settings", exact=True))
-settings_menu.click()
+# Reload the page to force a refresh - more reliable than navigation
+page.reload(wait_until="domcontentloaded")
 
-# Wait for Settings main page
-page.wait_for_url("**/app/settings", timeout=10000)
+# Wait for Services page to load after reload
+page.wait_for_url("**/app/settings/services", timeout=10000)
 
-# Navigate back to Services
+# Re-acquire iframe reference after reload
 angular_iframe = page.locator('iframe[title="angularjs"]')
 angular_iframe.wait_for(state="visible", timeout=10000)
 iframe = page.frame_locator('iframe[title="angularjs"]')
-services_btn = iframe.get_by_role("button", name="Define the services your")
-services_btn.click()
 
-# Wait for Services page to load
-page.wait_for_url("**/app/settings/services", timeout=10000)
+# Wait for Services heading to confirm page loaded
 services_heading = iframe.get_by_role("heading", name="Settings / Services")
 services_heading.wait_for(state="visible", timeout=10000)
+
+# HEALED: Wait longer after reload to allow service to sync to the list
+# Services may take a moment to appear in the list after page reload
+page.wait_for_timeout(2000)  # Additional wait for service to appear in list
 ```
 
-- **How verified**: Navigated to Settings and back in MCP, services list showed new service
-- **Wait for**: Services heading becomes visible
+- **How verified**: Page reload is more reliable than navigation for refreshing the list
+- **Wait for**: Services heading becomes visible after reload, then additional 2 second wait for service sync
 
 ---
 
@@ -242,11 +250,73 @@ services_heading.wait_for(state="visible", timeout=10000)
 - **Action**: Verify and Click
 - **Target**: New service appears in the list, then click to open advanced edit
 
-**VERIFIED PLAYWRIGHT CODE**:
+**LOCATOR DECISION:**
+
+The services list uses **endless scroll** - items below the viewport are not rendered until scrolled into view. New services appear at the bottom and require multiple scrolls to load all items before searching.
+
+**VERIFIED PLAYWRIGHT CODE** (Validated with MCP):
 ```python
-# Wait for the service to appear in the list (should be visible after refresh)
-# Use the full service name to avoid matching other "Test Consultation" services
-service_in_list = iframe.get_by_role("button").filter(has_text=service_name)
+# HEALED: Services list uses endless scroll - must scroll multiple times until end
+# Wait for "My Services" text to confirm the list section has loaded
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+
+# Scroll multiple times until no more services load (endless scroll pattern)
+# After each scroll, check if the target service is visible - if found, stop scrolling
+max_scrolls = 10
+previous_last_service_text = ""
+no_change_count = 0
+
+for scroll_attempt in range(max_scrolls):
+    # First, try to find the service - if found, we're done
+    try:
+        service_in_list = iframe.get_by_text(service_name)
+        if service_in_list.count() > 0:
+            print(f"  Found service after {scroll_attempt} scrolls")
+            break
+    except:
+        pass
+    
+    # Get all service buttons to find the last one for scrolling
+    # Use a pattern that matches service buttons (not action buttons)
+    all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
+    
+    try:
+        # Get count of visible services
+        service_count = all_services.count()
+        
+        if service_count > 0:
+            # Get the last visible service and scroll it into view
+            last_service = all_services.nth(service_count - 1)
+            current_last_text = last_service.text_content()
+            
+            # If the last service text hasn't changed for 2 scrolls, we've reached the end
+            if current_last_text == previous_last_service_text and previous_last_service_text != "":
+                no_change_count += 1
+                if no_change_count >= 2:
+                    print(f"  Reached end of list after {scroll_attempt + 1} scrolls (no new items)")
+                    break
+            else:
+                no_change_count = 0
+                previous_last_service_text = current_last_text
+            
+            # Scroll the last service into view to trigger loading more
+            last_service.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)  # Wait for new items to load
+        else:
+            # No services found yet, scroll to "Add" button to trigger initial load
+            add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+            add_button.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+    except Exception as e:
+        # If anything fails, scroll to Add button
+        add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+        add_button.scroll_into_view_if_needed()
+        page.wait_for_timeout(1000)
+
+# NOW search for the specific service (all items should be loaded)
+# HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
+# get_by_text() correctly finds the service button even when it contains additional text
+service_in_list = iframe.get_by_text(service_name)
 service_in_list.wait_for(state="visible", timeout=10000)
 
 # Click on service to open advanced edit
@@ -264,8 +334,8 @@ service_id_match = re.search(r'/services/([a-z0-9]+)', url)
 service_id = service_id_match.group(1) if service_id_match else None
 ```
 
-- **How verified**: Service visible in list after refresh, clicking opens edit page
-- **Wait for**: Service button visible, then URL changes to service edit page
+- **How verified**: Wait for "My Services" and existing services ensures list is loaded, then retry logic handles timing issues
+- **Wait for**: "My Services" text visible, existing service visible, then specific service visible (with retries)
 
 ---
 

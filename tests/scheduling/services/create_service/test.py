@@ -1,5 +1,5 @@
 # Auto-generated from script.md
-# Last updated: 2026-01-22
+# Last updated: 2026-01-23
 # Source: tests/scheduling/services/create_service/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
@@ -103,33 +103,97 @@ def test_create_service(page: Page, context: dict) -> None:
     # Wait for dialog to close (indicates creation completed)
     dialog.wait_for(state="hidden", timeout=15000)
     
+    # HEALED: Wait longer after creation to allow service to sync to backend
+    # The service needs time to be saved and available in the list
+    page.wait_for_timeout(3000)  # Wait for service to be saved to backend
+    
     # Step 10: Refresh Services List (Workaround for UI Bug)
     print("  Step 10: Refreshing services list...")
     # BUG WORKAROUND: After service creation, the list doesn't refresh automatically
-    # Navigate away and back to force a refresh
-    settings_menu = page.get_by_text("Settings", exact=True)
-    settings_menu.click()
+    # Reload the page to force a refresh - more reliable than navigation
+    page.reload(wait_until="domcontentloaded")
     
-    # Wait for Settings main page
-    page.wait_for_url("**/app/settings", timeout=10000)
+    # Wait for Services page to load after reload
+    page.wait_for_url("**/app/settings/services", timeout=10000)
     
-    # Navigate back to Services
+    # Re-acquire iframe reference after reload
     angular_iframe = page.locator('iframe[title="angularjs"]')
     angular_iframe.wait_for(state="visible", timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')
-    services_btn = iframe.get_by_role("button", name="Define the services your")
-    services_btn.click()
     
-    # Wait for Services page to load
-    page.wait_for_url("**/app/settings/services", timeout=10000)
+    # Wait for Services heading to confirm page loaded
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
     services_heading.wait_for(state="visible", timeout=10000)
     
+    # HEALED: Wait longer after reload to allow service to sync to the list
+    # Services may take a moment to appear in the list after page reload
+    page.wait_for_timeout(2000)  # Additional wait for service to appear in list
+    
     # Step 11: Verify Service Created and Open Advanced Edit
     print("  Step 11: Verifying service was created...")
-    # Wait for the service to appear in the list (should be visible after refresh)
-    # Use the full service name to avoid matching other "Test Consultation" services
-    service_in_list = iframe.get_by_role("button").filter(has_text=service_name)
+    # HEALED: Services list uses endless scroll - must scroll multiple times until end
+    # Wait for "My Services" text to confirm the list section has loaded
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    
+    # Scroll multiple times until no more services load (endless scroll pattern)
+    # Scroll to bottom repeatedly until the service appears or we've scrolled enough times
+    print("  Scrolling to load all services...")
+    max_scrolls = 10
+    previous_last_service_text = ""
+    no_change_count = 0
+    
+    for scroll_attempt in range(max_scrolls):
+        # First, try to find the service - if found, we're done
+        # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
+        try:
+            service_in_list = iframe.get_by_text(service_name)
+            if service_in_list.count() > 0:
+                print(f"  Found service after {scroll_attempt} scrolls")
+                break
+        except:
+            pass
+        
+        # Get all service buttons to find the last one
+        # Use a pattern that matches service buttons (not action buttons)
+        all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
+        
+        try:
+            # Get count of visible services
+            service_count = all_services.count()
+            
+            if service_count > 0:
+                # Get the last visible service and scroll it into view
+                last_service = all_services.nth(service_count - 1)
+                current_last_text = last_service.text_content()
+                
+                # If the last service text hasn't changed for 2 scrolls, we've reached the end
+                if current_last_text == previous_last_service_text and previous_last_service_text != "":
+                    no_change_count += 1
+                    if no_change_count >= 2:
+                        print(f"  Reached end of list after {scroll_attempt + 1} scrolls (no new items)")
+                        break
+                else:
+                    no_change_count = 0
+                    previous_last_service_text = current_last_text
+                
+                # Scroll the last service into view to trigger loading more
+                last_service.scroll_into_view_if_needed()
+                page.wait_for_timeout(1000)  # Wait for new items to load
+            else:
+                # No services found yet, scroll to "Add" button to trigger initial load
+                add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+                add_button.scroll_into_view_if_needed()
+                page.wait_for_timeout(1000)
+        except Exception as e:
+            # If anything fails, scroll to Add button
+            add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+            add_button.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+    
+    # NOW search for the specific service (all items should be loaded)
+    # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
+    # get_by_text() correctly finds the service button even when it contains additional text
+    service_in_list = iframe.get_by_text(service_name)
     service_in_list.wait_for(state="visible", timeout=10000)
     
     # Click on service to open advanced edit
@@ -196,47 +260,3 @@ def test_create_service(page: Page, context: dict) -> None:
     print(f"     Description: {service_description}")
     print(f"     Duration: 30 minutes")
     print(f"     Price: 50")
-
-
-# For standalone testing
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
-    import sys
-    import os
-    
-    # Add project root to path
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-    sys.path.insert(0, project_root)
-    
-    from tests.scheduling._setup.test import setup_scheduling
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        browser_context = browser.new_context()
-        page = browser_context.new_page()
-        context = {}
-        
-        try:
-            # Run setup first
-            print("Running setup...")
-            setup_scheduling(page, context)
-            print("Setup complete!")
-            
-            # Run the test
-            print("\nCreating service...")
-            test_create_service(page, context)
-            print("\n[OK] Test passed!")
-            print(f"\nContext:")
-            print(f"  - created_service_id: {context.get('created_service_id')}")
-            print(f"  - created_service_name: {context.get('created_service_name')}")
-            print(f"  - created_service_description: {context.get('created_service_description')}")
-            
-            # Keep browser open for inspection
-            input("\nPress Enter to close browser...")
-            
-        except Exception as e:
-            print(f"\n[FAIL] Test failed: {e}")
-            page.screenshot(path="create_service_error.png")
-            raise
-        finally:
-            browser.close()

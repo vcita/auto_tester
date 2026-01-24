@@ -1,0 +1,53 @@
+# Appointments Subcategory
+# Tests for manually creating and managing 1-on-1 appointments from the business side
+# This subcategory runs after the services subcategory
+
+name: Appointments
+description: Tests for creating, editing, and canceling 1-on-1 appointments manually from the business calendar
+
+# Run after services subcategory (after group event CRUD is complete)
+run_after: services
+
+# Execution order - tests run sequentially in this order
+tests:
+  - id: create_appointment
+    name: Create Appointment
+    status: active
+    priority: high
+    description: Manually create a 1-on-1 appointment for a client using a service
+  - id: view_appointment
+    name: View Appointment
+    status: active
+    priority: high
+    description: Open and view appointment details
+  - id: edit_appointment
+    name: Edit Appointment
+    status: active
+    priority: high
+    description: Modify appointment notes or other details
+  - id: reschedule_appointment
+    name: Reschedule Appointment
+    status: active
+    priority: high
+    description: Change appointment date/time
+  - id: cancel_appointment
+    name: Cancel Appointment
+    status: active
+    priority: high
+    description: Cancel the appointment
+  - id: create_custom_appointment
+    name: Create Custom Appointment
+    status: active
+    priority: medium
+    description: Create an appointment without using a predefined service (custom meeting)
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - appointments
+  - scheduling
+  - calendar
+  - manual-booking
+owner: QA Team
+created_at: 2026-01-23

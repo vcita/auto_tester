@@ -1,8 +1,9 @@
 # Auto-generated from script.md
-# Last updated: 2026-01-22
+# Last updated: 2026-01-23
 # Source: tests/scheduling/services/delete_service/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
+import re
 from playwright.sync_api import Page, expect
 
 
@@ -40,7 +41,58 @@ def test_delete_service(page: Page, context: dict) -> None:
     if not service_name:
         raise ValueError("created_service_name not found in context - run create_service first")
     
-    # Locate service in list and hover to reveal edit button
+    # HEALED: Services list uses endless scroll - must scroll to find service
+    # Wait for "My Services" text to confirm the list section has loaded
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    
+    # Scroll multiple times until service is found or end of list reached
+    print("  Scrolling to find service...")
+    max_scrolls = 10
+    previous_last_text = ""
+    no_change_count = 0
+    service_row = None
+    
+    for scroll_attempt in range(max_scrolls):
+        # First, try to find the service - if found, we're done
+        try:
+            service_row = iframe.get_by_role("button").filter(has_text=service_name)
+            if service_row.count() > 0:
+                print(f"  Found service after {scroll_attempt} scrolls")
+                break
+        except:
+            pass
+        
+        # Get all service buttons to find the last one
+        all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
+        
+        try:
+            service_count = all_services.count()
+            
+            if service_count > 0:
+                last_service = all_services.nth(service_count - 1)
+                current_last_text = last_service.text_content()
+                
+                if current_last_text == previous_last_text and previous_last_text != "":
+                    no_change_count += 1
+                    if no_change_count >= 2:
+                        print(f"  Reached end of list after {scroll_attempt + 1} scrolls")
+                        break
+                else:
+                    no_change_count = 0
+                    previous_last_text = current_last_text
+                
+                last_service.scroll_into_view_if_needed()
+                page.wait_for_timeout(1000)
+            else:
+                add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+                add_button.scroll_into_view_if_needed()
+                page.wait_for_timeout(1000)
+        except:
+            add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
+            add_button.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+    
+    # Now locate service in list and hover to reveal edit button
     service_row = iframe.get_by_role("button").filter(has_text=service_name)
     service_row.hover()
     
@@ -115,55 +167,3 @@ def test_delete_service(page: Page, context: dict) -> None:
     context.pop("edited_service_price", None)
     
     print("  [OK] Context cleared")
-
-
-# For standalone testing
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
-    import sys
-    import os
-    
-    # Add project root to path
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-    sys.path.insert(0, project_root)
-    
-    from tests.scheduling._setup.test import setup_scheduling
-    from tests.scheduling.services.create_service.test import test_create_service
-    from tests.scheduling.services.edit_service.test import test_edit_service
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        browser_context = browser.new_context()
-        page = browser_context.new_page()
-        context = {}
-        
-        try:
-            # Run setup first
-            print("Running setup...")
-            setup_scheduling(page, context)
-            print("Setup complete!")
-            
-            # Create a service first
-            print("\nCreating service...")
-            test_create_service(page, context)
-            print("Service created!")
-            
-            # Edit the service
-            print("\nEditing service...")
-            test_edit_service(page, context)
-            print("Service edited!")
-            
-            # Run the delete test
-            print("\nDeleting service...")
-            test_delete_service(page, context)
-            print("\n[OK] Test passed!")
-            
-            # Keep browser open for inspection
-            input("\nPress Enter to close browser...")
-            
-        except Exception as e:
-            print(f"\n[FAIL] Test failed: {e}")
-            page.screenshot(path="delete_service_error.png")
-            raise
-        finally:
-            browser.close()

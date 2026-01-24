@@ -32,6 +32,7 @@ def fn_login(page: Page, context: dict, **params) -> None:
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            # Use www.vcita.com/login (from config.yaml) - avoids Cloudflare blocks
             page.goto("https://www.vcita.com/login", wait_until="commit")
             
             # Wait for page to load - either login form appears or we get redirected
@@ -154,28 +155,3 @@ def fn_login(page: Page, context: dict, **params) -> None:
     # Save to context
     context["logged_in_user"] = username
     print(f"  [OK] Login successful for: {username}")
-
-
-# For standalone testing
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
-        context = {}
-        
-        print("Testing login function...")
-        fn_login(
-            page, 
-            context,
-            username="itzik+autotest@vcita.com",
-            password="vcita123"
-        )
-        
-        print(f"Login successful! User: {context.get('logged_in_user')}")
-        print(f"Current URL: {page.url}")
-        
-        # Keep browser open for inspection
-        input("Press Enter to close browser...")
-        browser.close()

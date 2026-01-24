@@ -53,6 +53,7 @@ class TestRunner:
         snapshots_dir: Optional[Path] = None,
         record_video: bool = True,
         keep_open: bool = False,
+        until_test: Optional[str] = None,
     ):
         """
         Initialize the test runner.
@@ -63,12 +64,14 @@ class TestRunner:
             snapshots_dir: Directory for screenshots (default: snapshots/)
             record_video: Whether to record video of test execution (default: True)
             keep_open: Whether to keep browser open on failure for debugging (default: False)
+            until_test: Stop before executing this test and keep browser open (for MCP debugging)
         """
         self.tests_root = Path(tests_root)
         self.headless = headless
         self.snapshots_dir = snapshots_dir or Path("snapshots")
         self.record_video = record_video
         self.keep_open = keep_open
+        self.until_test = until_test
         
         # Components
         self.events = EventEmitter()
@@ -146,12 +149,14 @@ class TestRunner:
         
         return result
     
-    def run_category(self, category_name: str) -> CategoryResult:
+    def run_category(self, category_name: str, until_test: Optional[str] = None) -> CategoryResult:
         """
         Run a specific category.
         
         Args:
             category_name: Name of the category to run
+            until_test: Stop before executing this test and keep browser open (for MCP debugging)
+                       If None, uses self.until_test from initialization
             
         Returns:
             CategoryResult with results from the category
@@ -165,6 +170,9 @@ class TestRunner:
                 stopped_early=True,
             )
         
+        # Use until_test parameter if provided, otherwise use instance variable
+        until_test_name = until_test or self.until_test
+        
         # Start a new run in storage
         run_id = self.storage.start_run()
         
@@ -176,7 +184,7 @@ class TestRunner:
             "run_id": run_id,
         })
         
-        result = self._run_category_internal(category, 1, 1)
+        result = self._run_category_internal(category, 1, 1, until_test=until_test_name)
         
         # Finalize run in storage
         run_result = RunResult(
@@ -199,6 +207,7 @@ class TestRunner:
         category: Category,
         category_index: int,
         total_categories: int,
+        until_test: Optional[str] = None,
     ) -> CategoryResult:
         """
         Internal method to run a single category.
@@ -327,6 +336,45 @@ class TestRunner:
                     if isinstance(item, Test):
                         # Run a test
                         test = item
+                        
+                        # Check if we should stop before this test (for MCP debugging)
+                        if until_test:
+                            # Match test name (can be "Services/Edit Group Event" or "Edit Group Event")
+                            test_full_name = f"{category.name}/{test.name}" if hasattr(category, 'name') else test.name
+                            # Also check subcategory format like "Services/Edit Group Event"
+                            subcategory_prefix = ""
+                            if hasattr(category, 'subcategories') and category.subcategories:
+                                # Try to find if test is in a subcategory
+                                for subcat in category.subcategories:
+                                    if test in subcat.tests:
+                                        subcategory_prefix = f"{subcat.name}/"
+                                        break
+                            test_with_subcat = f"{subcategory_prefix}{test.name}"
+                            
+                            if (test.name == until_test or 
+                                test_full_name == until_test or 
+                                test_with_subcat == until_test or
+                                until_test in test.name or
+                                until_test in test_full_name):
+                                result.stopped_early = True
+                                result.until_test_reached = True
+                                print(f"\n  [>] Stopped before test: {test.name}")
+                                print(f"  [>] Browser kept open for MCP debugging")
+                                print(f"  [>] Current URL: {page.url}")
+                                print(f"  [>] Current Title: {page.title()}")
+                                print(f"  [>] Use Playwright MCP to run the test step-by-step")
+                                
+                                # Note: Video recording continues until browser context closes
+                                # The video will include the MCP debugging wait time until you press Enter
+                                if self.record_video:
+                                    print(f"  [>] Note: Video recording will stop when you close the browser")
+                                
+                                # Skip remaining items
+                                self._skip_remaining_items(execution_plan[index:], result, test.name)
+                                # Keep browser open - don't run teardown yet
+                                input("  [>] Press Enter when done with MCP debugging to close browser...")
+                                break
+                        
                         test_start_offset = time_module.time() - video_start_time
                         test_result = self._run_single_test(
                             test_path=test.path,
@@ -361,6 +409,7 @@ class TestRunner:
                             video_timestamps=video_timestamps,
                             video_start_time=video_start_time,
                             time_module=time_module,
+                            until_test=until_test,
                         )
                         
                         # If subcategory failed, stop and skip remaining items
@@ -369,8 +418,9 @@ class TestRunner:
                             self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
                             break
                 
-                # Run teardown if exists (always, even on failure)
-                self._run_teardown_if_exists(category, page, context, result)
+                # Run teardown if exists (always, even on failure, unless until_test was reached)
+                if not getattr(result, 'until_test_reached', False):
+                    self._run_teardown_if_exists(category, page, context, result)
                 
             finally:
                 # Get video path before closing (if recording enabled)
@@ -379,13 +429,16 @@ class TestRunner:
                     video_path = page.video.path()
                 
                 # If keep_open is enabled and there was a failure, wait for user
-                if self.keep_open and result.stopped_early:
+                # Or if until_test was reached, browser is already open (handled above)
+                if self.keep_open and result.stopped_early and not getattr(result, 'until_test_reached', False):
                     print("\n  [!] Browser kept open for debugging (--keep-open flag)")
                     print(f"  [>] Current URL: {page.url}")
                     print(f"  [>] Current Title: {page.title()}")
                     input("  [>] Press Enter to close browser and continue...")
                 
                 # Close browser
+                # Note: Video recording stops when browser_context.close() is called
+                # If until_test was reached, the video will include the MCP debugging wait time
                 self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
                 browser_context.close()  # Close context first to finalize video
                 browser.close()
@@ -625,6 +678,7 @@ class TestRunner:
         video_timestamps: list,
         video_start_time: float,
         time_module,
+        until_test: Optional[str] = None,
     ) -> tuple[bool, str]:
         """
         Run a subcategory inline within the parent category's browser session.
@@ -677,6 +731,40 @@ class TestRunner:
         
         # Run subcategory tests
         for index, test in enumerate(subcategory.tests):
+            # Check if we should stop before this test (for MCP debugging)
+            if until_test:
+                test_full_name = f"{subcategory.name}/{test.name}"
+                if (test.name == until_test or 
+                    test_full_name == until_test or 
+                    until_test in test.name or
+                    until_test in test_full_name):
+                    result.stopped_early = True
+                    result.until_test_reached = True
+                    print(f"\n  [>] Stopped before test: {test_full_name}")
+                    print(f"  [>] Browser kept open for MCP debugging")
+                    print(f"  [>] Current URL: {page.url}")
+                    print(f"  [>] Current Title: {page.title()}")
+                    print(f"  [>] Use Playwright MCP to run the test step-by-step")
+                    
+                    # Note: Video recording continues until browser context closes
+                    # The video will include the MCP debugging wait time until you press Enter
+                    if getattr(self, 'record_video', False):
+                        print(f"  [>] Note: Video recording will stop when you close the browser")
+                    
+                    # Skip remaining items
+                    for remaining_test in subcategory.tests[index:]:
+                        result.test_results.append(TestResult(
+                            test_name=f"{subcategory.name}/{remaining_test.name}",
+                            test_path=remaining_test.path,
+                            test_type="test",
+                            status="skipped",
+                            duration_ms=0,
+                            error=f"Skipped - stopped before test for MCP debugging",
+                        ))
+                    # Keep browser open - don't run teardown yet
+                    input("  [>] Press Enter when done with MCP debugging to close browser...")
+                    return True, test_full_name
+            
             test_start_offset = time_module.time() - video_start_time
             test_result = self._run_single_test(
                 test_path=test.path,

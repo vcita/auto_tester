@@ -59,7 +59,8 @@ tests:
 # Target application (vcita)
 target:
   base_url: "https://app.vcita.com"
+  login_url: "https://www.vcita.com/login"  # Use this for login - avoids Cloudflare issues
   # Add authentication details as needed
-  # auth:
-  #   username: ""
-  #   password: ""
+  auth:
+    username: "itzik+autotest@vcita.com"
+    password: "vcita123"

@@ -52,35 +52,3 @@ def setup_scheduling(page: Page, context: dict) -> None:
     heading.wait_for(state="visible", timeout=10000)
     
     print(f"  Scheduling setup complete - on Services page")
-
-
-# For standalone testing
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
-    import sys
-    import os
-    
-    # Add project root to path
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    sys.path.insert(0, project_root)
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        browser_context = browser.new_context()
-        page = browser_context.new_page()
-        context = {}
-        
-        try:
-            setup_scheduling(page, context)
-            print("\n[OK] Setup complete!")
-            print(f"Current URL: {page.url}")
-            
-            # Keep browser open for inspection
-            input("\nPress Enter to close browser...")
-            
-        except Exception as e:
-            print(f"\n[FAIL] Setup failed: {e}")
-            page.screenshot(path="scheduling_setup_error.png")
-            raise
-        finally:
-            browser.close()

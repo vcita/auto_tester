@@ -307,23 +307,124 @@ class RunStorage:
     
     def list_all_runs(self) -> List[Dict]:
         """
-        List all runs from the index directory.
+        List all runs from all categories and the index directory.
         
         Returns:
-            List of run index data, newest first
+            List of run data, newest first. For "All Categories" view:
+            - Multi-category runs from index (shown once)
+            - Individual category runs that aren't in index
+            This avoids showing the same run multiple times in the all-runs view.
         """
-        if not self.index_dir.exists():
+        runs = []
+        index_runs_by_id = {}  # Track index runs by run_id
+        category_runs_by_id = {}  # Track category runs by (run_id, category) to avoid duplicates
+        
+        # First, get runs from index (these are multi-category runs)
+        if self.index_dir.exists():
+            for index_file in sorted(self.index_dir.iterdir(), key=lambda f: f.name, reverse=True):
+                if index_file.suffix != ".json":
+                    continue
+                try:
+                    data = json.loads(index_file.read_text(encoding="utf-8"))
+                    run_id = data.get("run_id")
+                    if run_id:
+                        index_runs_by_id[run_id] = data
+                        runs.append(data)
+                except (json.JSONDecodeError, IOError):
+                    pass
+        
+        # Then, scan all category _runs directories (including subcategories) to find individual category runs
+        def scan_runs_directory(category_path: Path, category_name: str):
+            """Recursively scan a category directory for _runs folders."""
+            runs_dir = category_path / self.RUNS_DIR_NAME
+            if runs_dir.exists():
+                for run_dir in sorted(runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
+                    if not run_dir.is_dir():
+                        continue
+                    
+                    run_id = run_dir.name
+                    run_json = run_dir / "run.json"
+                    
+                    if run_json.exists():
+                        try:
+                            data = json.loads(run_json.read_text(encoding="utf-8"))
+                            # Ensure run_id is set (from directory name, which is the source of truth)
+                            data["run_id"] = run_id
+                            # Normalize category name to lowercase
+                            category_from_path = category_name.lower()
+                            data["category"] = category_from_path
+                            
+                            # Only add category runs that aren't already in index
+                            # (Index runs are more complete for multi-category runs)
+                            if run_id not in index_runs_by_id:
+                                # Also check for duplicates within category runs
+                                key = (run_id, category_from_path)
+                                if key not in category_runs_by_id:
+                                    category_runs_by_id[key] = True
+                                    runs.append(data)
+                        except (json.JSONDecodeError, IOError):
+                            pass
+            
+            # Recursively scan subdirectories
+            for subdir in category_path.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith("_") and subdir.name != self.RUNS_DIR_NAME:
+                    # Check if it's a subcategory (has _category.yaml or contains _runs)
+                    subcategory_name = f"{category_name}/{subdir.name}" if category_name != subdir.name else subdir.name
+                    scan_runs_directory(subdir, subcategory_name)
+        
+        # Start scanning from top-level categories
+        for category_dir in self.tests_root.iterdir():
+            if not category_dir.is_dir() or category_dir.name.startswith("_"):
+                continue
+            scan_runs_directory(category_dir, category_dir.name)
+        
+        # Sort by run_id (timestamp) descending
+        runs.sort(key=lambda r: r.get("run_id", ""), reverse=True)
+        
+        return runs
+    
+    def list_test_runs(self, category: str, test_name: str) -> List[Dict]:
+        """
+        List all runs that contain a specific test.
+        
+        Args:
+            category: Category name
+            test_name: Test name (e.g., 'create_matter')
+            
+        Returns:
+            List of run metadata dicts that contain this test, newest first
+        """
+        runs_dir = self.get_category_runs_dir(category)
+        if not runs_dir.exists():
             return []
         
         runs = []
-        for index_file in sorted(self.index_dir.iterdir(), key=lambda f: f.name, reverse=True):
-            if index_file.suffix != ".json":
+        for run_dir in sorted(runs_dir.iterdir(), key=lambda d: d.name, reverse=True):
+            if not run_dir.is_dir():
                 continue
-            try:
-                data = json.loads(index_file.read_text(encoding="utf-8"))
-                runs.append(data)
-            except (json.JSONDecodeError, IOError):
-                pass
+            
+            # Check if this run contains the test
+            test_dir = run_dir / "tests" / test_name
+            if not test_dir.exists():
+                continue
+            
+            # Check if test has a result
+            result_json = test_dir / "result.json"
+            if not result_json.exists():
+                continue
+            
+            # Load run.json for metadata
+            run_json = run_dir / "run.json"
+            if run_json.exists():
+                try:
+                    data = json.loads(run_json.read_text(encoding="utf-8"))
+                    # Add test-specific result
+                    test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                    data["test_result"] = test_result
+                    data["test_name"] = test_name
+                    runs.append(data)
+                except (json.JSONDecodeError, IOError):
+                    pass
         
         return runs
     

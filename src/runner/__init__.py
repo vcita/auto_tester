@@ -7,6 +7,7 @@ from .executor import TestExecutor
 from .heal import HealRequestGenerator
 from .runner import TestRunner
 from .cli_reporter import CLIReporter
+from .stress_test import StressTestRunner
 
 __all__ = [
     # Models
@@ -23,4 +24,5 @@ __all__ = [
     # Main
     "TestRunner",
     "CLIReporter",
+    "StressTestRunner",
 ]

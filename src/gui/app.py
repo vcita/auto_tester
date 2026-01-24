@@ -279,6 +279,70 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
             "tests_root": str(app.state.tests_root)
         }
     
+    @app.get("/api/active-run")
+    async def get_active_run():
+        """Check if there's an active run and return its info."""
+        # First check if GUI knows about a running test
+        if _is_running and _runner:
+            return {
+                "is_active": True,
+                "run_id": None,  # We don't track run_id in GUI state
+                "started_via_gui": True
+            }
+        
+        # Check for recent run directories that might be active
+        # A run is considered potentially active if:
+        # 1. It was created in the last 30 minutes
+        # 2. It doesn't have a completed status in the index
+        
+        storage = RunStorage(app.state.tests_root)
+        from datetime import timedelta
+        
+        # Check runs_index for the most recent run
+        if storage.index_dir.exists():
+            index_files = sorted(
+                [f for f in storage.index_dir.glob("*.json") if f.is_file()],
+                key=lambda f: f.stat().st_mtime,
+                reverse=True
+            )
+            
+            if index_files:
+                # Check the most recent index file
+                most_recent = index_files[0]
+                try:
+                    index_data = json.loads(most_recent.read_text(encoding="utf-8"))
+                    run_id = index_data.get("run_id")
+                    completed_at = index_data.get("completed_at")
+                    started_at = index_data.get("started_at")
+                    
+                    # If not completed and started recently (within 30 min), consider it active
+                    if not completed_at and started_at:
+                        try:
+                            start_time = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                            if start_time.tzinfo is None:
+                                # Assume local time if no timezone
+                                start_time = datetime.fromisoformat(started_at)
+                            age = datetime.now() - start_time.replace(tzinfo=None) if start_time.tzinfo else datetime.now() - start_time
+                            
+                            if age < timedelta(minutes=30):
+                                return {
+                                    "is_active": True,
+                                    "run_id": run_id,
+                                    "started_via_gui": False,
+                                    "started_at": started_at,
+                                    "categories": index_data.get("categories", [])
+                                }
+                        except (ValueError, AttributeError):
+                            pass
+                except (json.JSONDecodeError, KeyError):
+                    pass
+        
+        return {
+            "is_active": False,
+            "run_id": None,
+            "started_via_gui": False
+        }
+    
     # ==================== Run History Endpoints ====================
     
     @app.get("/api/runs")
@@ -294,6 +358,13 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
         storage = RunStorage(app.state.tests_root)
         runs = storage.list_category_runs(category)
         return {"category": category, "runs": runs}
+    
+    @app.get("/api/runs/{category}/test/{test_name:path}")
+    async def get_test_runs(category: str, test_name: str):
+        """List all runs that contain a specific test."""
+        storage = RunStorage(app.state.tests_root)
+        runs = storage.list_test_runs(category, test_name)
+        return {"category": category, "test_name": test_name, "runs": runs}
     
     @app.get("/api/runs/{category}/{run_id}")
     async def get_run_details(category: str, run_id: str):
