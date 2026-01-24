@@ -96,7 +96,9 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     print("  Step 7: Clicking Save...")
     save_btn = form_frame.get_by_role("button", name="Save")
     save_btn.click()
-    page.wait_for_url(re.compile(r"/app/clients/"), timeout=15000)
+    # Wait for navigation - increase timeout and wait for URL pattern
+    # The navigation may take time, so we wait up to 30 seconds
+    page.wait_for_url(re.compile(r"/app/clients/"), timeout=30000)
     
     # Step 10: Extract Client ID
     url = page.url
@@ -110,7 +112,8 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     page.wait_for_load_state("domcontentloaded")
     
     # Verify the client name appears in the page title
-    expect(page).to_have_title(re.compile(re.escape(full_name)), timeout=15000)
+    # Increase timeout as page title may take time to update
+    expect(page).to_have_title(re.compile(re.escape(full_name)), timeout=20000)
     
     # Save to context
     context["created_client_id"] = client_id

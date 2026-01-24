@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Remove Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 617,
+  "error": "ValueError: Remove button not found for attendee 'Event TestClient1769269734'. Searched 0 buttons in attendees section.",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_174836\\tests\\Remove Attendee\\screenshot.png",
+  "saved_at": "2026-01-24T17:49:57.755791"
+}

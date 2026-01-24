@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 18031,
+  "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"New Event\") to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_165514\\tests\\Schedule Event\\screenshot.png",
+  "saved_at": "2026-01-24T16:56:24.357582"
+}

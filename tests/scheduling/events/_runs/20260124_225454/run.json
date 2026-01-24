@@ -1,0 +1,86 @@
+{
+  "category_name": "Events",
+  "category_path": "scheduling\\events",
+  "status": "failed",
+  "passed": 0,
+  "failed": 1,
+  "skipped": 5,
+  "total": 6,
+  "duration_ms": 48000,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Events/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 35513,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Events/Schedule Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 12487,
+      "error": "TargetClosedError: Locator.press_sequentially: Target page, context or browser has been closed\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"textbox\", name=\"Select service\")\n    - locator resolved to <input type=\"text\" id=\"input-1397\" autocomplete=\"off\" islistloaded=\"true\" placeholder=\"Select service\" data-qa=\"service-select-input\" customkey=\"common.words.custom\" categoriesdata=\"[object Object],[object Object]\"/>\n  - elementHandle.type(\"Event Test Workshop 1769288122\")\n",
+      "error_type": "TargetClosedError",
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/View Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Add Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Remove Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Edit Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\edit_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Cancel Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": null,
+  "run_id": "20260124_225454",
+  "saved_at": "2026-01-24T22:56:10.302311"
+}

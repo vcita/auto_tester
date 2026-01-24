@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 22210,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-24T18:31:51.033855"
+}

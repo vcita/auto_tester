@@ -11,6 +11,8 @@ An AI-driven browser test agent that:
 
 import argparse
 import sys
+import json
+from datetime import datetime
 from pathlib import Path
 
 # Add src to path
@@ -150,7 +152,12 @@ def cmd_run(args):
     
     try:
         # Create runner
-        runner = TestRunner(tests_root, headless=headless, keep_open=keep_open, until_test=until_test)
+        runner = TestRunner(
+            tests_root, 
+            headless=headless, 
+            keep_open=keep_open, 
+            until_test=until_test,
+        )
         
         # Attach CLI reporter for real-time output
         reporter = CLIReporter(runner.events)

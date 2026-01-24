@@ -49,6 +49,67 @@ Playwright MCP is configured in `.cursor/mcp.json`:
 4. Interact with elements using the discovered refs
 5. Record the Playwright locators that work (shown in tool output)
 
+### Key UI Interaction Patterns (CRITICAL)
+
+**These patterns were learned from real debugging sessions and MUST be applied when interacting with UI elements:**
+
+1. **Hover before interacting with hidden buttons**: If buttons only appear on hover (common in list items, table rows, etc.), you MUST hover over the parent element first, then wait for buttons to appear before finding/clicking them.
+   ```python
+   # WRONG - buttons won't be visible
+   menu_button.click()
+   
+   # RIGHT - hover first to reveal buttons
+   parent_element.hover()
+   page.wait_for_timeout(1500)  # Wait for buttons to appear
+   menu_button.click()
+   ```
+
+2. **Use MCP to inspect DOM during interaction**: When debugging complex UI interactions, use MCP to inspect the actual DOM structure while hovering/interacting, rather than guessing from code. The DOM structure may reveal classes, hierarchy, or states that aren't obvious from the code.
+
+3. **Use multiple class checks for button identification**: When multiple similar buttons exist (e.g., 3-dots menu vs payment button), require multiple classes (e.g., both "three-dots" AND "activator-container") and explicitly exclude unwanted classes (e.g., "take-payment-button").
+   ```python
+   # WRONG - might match wrong button
+   button = container.locator('button.three-dots')
+   
+   # RIGHT - requires both classes and excludes unwanted
+   button = container.locator('button.three-dots.activator-container:not(.take-payment-button)')
+   # Or check in code:
+   has_three_dots = "three-dots" in btn_class
+   has_activator = "activator-container" in btn_class
+   has_take_payment = "take-payment-button" in btn_class
+   if has_three_dots and has_activator and not has_take_payment:
+       # This is the correct button
+   ```
+
+4. **Check for confirmation dialogs after menu actions**: After clicking menu items, a confirmation dialog may appear in a different iframe context (outer vs inner); handle it explicitly.
+   ```python
+   # After clicking menu item
+   menu_item.click()
+   page.wait_for_timeout(2000)  # Wait for dialog
+   
+   # Check outer iframe first (where dialogs often appear)
+   submit_btn = outer_iframe.get_by_role('button', name='Submit')
+   if submit_btn.count() > 0:
+       submit_btn.first().click()
+   ```
+
+5. **Use evaluate() for reliable clicking**: If Playwright's click() fails on visible elements, use `element.evaluate()` with `scrollIntoView()` and `click()` for more reliable interaction.
+   ```python
+   # If normal click fails
+   try:
+       button.click()
+   except:
+       # Use evaluate for force-click
+       button.evaluate("""
+           (el) => {
+               el.scrollIntoView({ behavior: 'instant', block: 'center' });
+               el.click();
+           }
+       """)
+   ```
+
+6. **CRITICAL: Don't update test code until MCP flow succeeds**: Complete the entire flow step-by-step with MCP before updating test code. Only code after the flow works in MCP. This ensures you understand the actual UI behavior and have verified the fix works end-to-end.
+
 ## CRITICAL: Research Phase - Knowledge Center
 
 **BEFORE exploring or writing any test**, consult the vcita Knowledge Center to understand the feature:
@@ -377,6 +438,8 @@ await page.locator('iframe[title="angularjs"]').contentFrame()
 ```
 
 This verified code goes directly into script.md - **do not modify it**.
+
+**CRITICAL: Complete the ENTIRE flow with MCP before updating code** - Don't update script.md or test.py until you've successfully run the whole flow with MCP and verified it works end-to-end. Only code after the flow works in MCP.
 
 #### g) Document in script.md
 
@@ -734,6 +797,42 @@ Then generate script.md and test.py from these findings.
 - Create temporary test data first (e.g., create a client to delete)
 - Complete the full action on that test data
 - Document exactly what happens at each step
+
+## CRITICAL: Continue Until Complete - Don't Stop Unless You Don't Know How to Continue
+
+**When implementing tests, you MUST continue working through all phases until completion. Do NOT stop unless you genuinely don't know how to proceed.**
+
+**This is a CRITICAL instruction: Continue the work without stopping unless you run into a wall and don't know how to continue.**
+
+### Why:
+- Tests are only useful when fully implemented and validated
+- Partial implementations create technical debt
+- Stopping mid-way requires context switching and re-familiarization
+- Complete implementations provide immediate value
+
+### When to Continue:
+- ✅ You know the next step but it's tedious - CONTINUE
+- ✅ You've done similar work before - CONTINUE
+- ✅ The pattern is clear from previous tests - CONTINUE
+- ✅ You need to explore more with MCP - CONTINUE
+- ✅ You need to generate more files - CONTINUE
+
+### When You Can Stop:
+- ❌ You encounter a genuine blocker with no clear path forward
+- ❌ You need information only the user can provide
+- ❌ You discover a product bug that needs user decision
+- ❌ You've completed ALL phases for ALL tests in the category
+
+### Implementation Checklist:
+Before stopping, verify you've completed:
+- [ ] All steps.md files created
+- [ ] All script.md files created with verified code
+- [ ] All test.py files generated
+- [ ] PHASE 3.5 validation completed
+- [ ] Tests run and pass (PHASE 4)
+- [ ] Changelog.md files updated (PHASE 5)
+
+**If any item is incomplete and you know how to do it, CONTINUE working.**
 
 ## CRITICAL: Run the Test Before Marking Complete
 

@@ -1,0 +1,59 @@
+# Events Subcategory
+# Tests for scheduling and managing group event instances
+# This subcategory runs after the services subcategory (after group event CRUD is complete)
+
+name: Events
+description: Tests for scheduling group event instances, managing attendees, and canceling events
+
+# Run after services subcategory completes
+# Note: run_after doesn't support subcategory names yet, so this runs at end (after Services)
+# run_after: services
+
+# Execution order - tests run sequentially in this order
+tests:
+  - id: _setup
+    name: Setup
+    status: active
+    priority: high
+    description: Create group event service and test client for event scheduling
+  - id: schedule_event
+    name: Schedule Event
+    status: active
+    priority: high
+    description: Schedule a group event instance (select date/time)
+  - id: view_event
+    name: View Event
+    status: active
+    priority: high
+    description: Open and view event details
+  - id: add_attendee
+    name: Add Attendee
+    status: active
+    priority: high
+    description: Add a client to the event
+  - id: remove_attendee
+    name: Remove Attendee
+    status: active
+    priority: medium
+    description: Remove a client from the event
+  - id: edit_event
+    name: Edit Event
+    status: active
+    priority: high
+    description: Modify event details
+  - id: cancel_event
+    name: Cancel Event
+    status: active
+    priority: high
+    description: Cancel the scheduled event
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - events
+  - scheduling
+  - group-events
+  - calendar
+owner: QA Team
+created_at: 2026-01-24

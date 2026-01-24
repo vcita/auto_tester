@@ -6,7 +6,7 @@ This document defines the comprehensive test plan for vcita's Scheduling module 
 
 **Scope**: Business admin functionality only (not client-side booking)
 
-**Status**: Planning Phase
+**Status**: In Progress - Services, Appointments, and Events Implemented
 
 ---
 
@@ -55,20 +55,27 @@ scheduling/
 │   ├── edit_group_event/      # ✅ Done
 │   └── delete_group_event/    # ✅ Done
 │
-├── appointments/              # 🆕 NEW - Manual appointment management
+├── appointments/              # ✅ IMPLEMENTED
 │   ├── _category.yaml
-│   ├── create_appointment/    # Create 1-on-1 appointment manually
-│   ├── edit_appointment/      # Modify appointment details
-│   ├── cancel_appointment/    # Cancel an appointment
-│   ├── reschedule_appointment/# Change appointment time
-│   └── delete_appointment/    # Delete appointment (if different from cancel)
+│   ├── _setup/                # ✅ Done
+│   ├── _teardown/             # ✅ Done
+│   ├── create_appointment/    # ✅ Done
+│   ├── create_custom_appointment/ # ✅ Done
+│   ├── view_appointment/      # ✅ Done
+│   ├── edit_appointment/      # ✅ Done
+│   ├── reschedule_appointment/# ✅ Done
+│   ├── cancel_appointment/    # ✅ Done
+│   └── cancel_custom_appointment/ # ✅ Done
 │
-├── events/                    # 🆕 NEW - Group event scheduling
+├── events/                    # ✅ IMPLEMENTED
 │   ├── _category.yaml
-│   ├── schedule_event/        # Schedule a group event instance
-│   ├── edit_event/            # Modify scheduled event
-│   ├── manage_attendees/      # Add/remove attendees from event
-│   └── cancel_event/          # Cancel scheduled event
+│   ├── _setup/                # ✅ Done
+│   ├── schedule_event/        # ✅ Done
+│   ├── view_event/              # ✅ Done
+│   ├── add_attendee/          # ✅ Done
+│   ├── remove_attendee/       # ⚠️ Partial (needs UI exploration fix)
+│   ├── edit_event/            # ✅ Done
+│   └── cancel_event/          # ✅ Done
 │
 ├── calendar/                  # 🆕 NEW - Calendar management
 │   ├── _category.yaml
@@ -100,32 +107,36 @@ scheduling/
 | 5 | edit_group_event | Edit Group Event | high | ✅ Done | Modify group event |
 | 6 | delete_group_event | Delete Group Event | high | ✅ Done | Delete test group event |
 
-### 3.2 Appointments Subcategory (🆕 NEW - High Priority)
+### 3.2 Appointments Subcategory (✅ IMPLEMENTED)
 
-| Order | Test ID | Name | Priority | Description |
-|-------|---------|------|----------|-------------|
-| 1 | create_appointment | Create Appointment | high | Manually create a 1-on-1 appointment for existing client |
-| 2 | view_appointment | View Appointment | high | Open and view appointment details |
-| 3 | edit_appointment | Edit Appointment | high | Change appointment notes, service, or other details |
-| 4 | reschedule_appointment | Reschedule Appointment | high | Change appointment date/time |
-| 5 | cancel_appointment | Cancel Appointment | high | Cancel the appointment (mark as cancelled) |
-| 6 | delete_appointment | Delete Appointment | medium | Permanently delete appointment if different from cancel |
+| Order | Test ID | Name | Priority | Status | Description |
+|-------|---------|------|----------|--------|-------------|
+| 0 | _setup | Setup | high | ✅ Done | Create test service and client for appointments |
+| 1 | create_appointment | Create Appointment | high | ✅ Done | Manually create a 1-on-1 appointment for existing client |
+| 2 | view_appointment | View Appointment | high | ✅ Done | Open and view appointment details |
+| 3 | edit_appointment | Edit Appointment | high | ✅ Done | Change appointment notes, service, or other details |
+| 4 | reschedule_appointment | Reschedule Appointment | high | ✅ Done | Change appointment date/time |
+| 5 | cancel_appointment | Cancel Appointment | high | ✅ Done | Cancel the appointment (mark as cancelled) |
+| 6 | create_custom_appointment | Create Custom Appointment | medium | ✅ Done | Create an appointment without using a predefined service |
+| 7 | cancel_custom_appointment | Cancel Custom Appointment | high | ✅ Done | Cancel the custom appointment |
+| 8 | _teardown | Teardown | high | ✅ Done | Clean up test data |
 
 **Context Flow:**
 - create_appointment → saves: `created_appointment_id`, `created_appointment_time`
 - All subsequent tests read from context
 - cancel/delete → clears context
 
-### 3.3 Events Subcategory (🆕 NEW - High Priority)
+### 3.3 Events Subcategory (✅ IMPLEMENTED)
 
-| Order | Test ID | Name | Priority | Description |
-|-------|---------|------|----------|-------------|
-| 1 | schedule_event | Schedule Event | high | Schedule a group event instance (select date/time) |
-| 2 | view_event | View Event | high | Open and view event details |
-| 3 | add_attendee | Add Attendee | high | Add a client to the event |
-| 4 | remove_attendee | Remove Attendee | medium | Remove a client from the event |
-| 5 | edit_event | Edit Event | high | Modify event details |
-| 6 | cancel_event | Cancel Event | high | Cancel the scheduled event |
+| Order | Test ID | Name | Priority | Status | Description |
+|-------|---------|------|----------|--------|-------------|
+| 0 | _setup | Setup | high | ✅ Done | Create group event service and test client for event scheduling |
+| 1 | schedule_event | Schedule Event | high | ✅ Done | Schedule a group event instance (select date/time) |
+| 2 | view_event | View Event | high | ✅ Done | Open and view event details |
+| 3 | add_attendee | Add Attendee | high | ✅ Done | Add a client to the event |
+| 4 | remove_attendee | Remove Attendee | medium | ⚠️ Partial | Remove a client from the event (needs UI exploration fix) |
+| 5 | edit_event | Edit Event | high | ✅ Done | Modify event details |
+| 6 | cancel_event | Cancel Event | high | ✅ Done | Cancel the scheduled event |
 
 **Prerequisites:**
 - Requires a group event service to exist (from services subcategory)
@@ -216,11 +227,11 @@ The subcategories should run in this order:
 
 ### Phase 1: High Priority (Implement First)
 1. ✅ Services - DONE
-2. 🔜 Appointments - Manual appointment CRUD
-3. 🔜 Events - Group event scheduling
+2. ✅ Appointments - DONE (Manual appointment CRUD)
+3. ✅ Events - DONE (Group event scheduling - 6 of 7 tests complete)
 
 ### Phase 2: Medium Priority
-4. Calendar - Working hours and calendar navigation
+4. 🔜 Calendar - Working hours and calendar navigation (NEXT)
 
 ### Phase 3: Low Priority
 5. Booking Settings - Configuration options
@@ -253,23 +264,47 @@ The subcategories should run in this order:
 
 ## 8. Next Steps
 
-1. **Implement `appointments/` subcategory**
-   - Create _category.yaml
-   - Create _setup (creates a test service + test client)
-   - Implement tests one at a time
+### ✅ Completed
+1. ✅ **Services subcategory** - All 6 tests implemented
+2. ✅ **Appointments subcategory** - All 7 tests + setup/teardown implemented
+3. ✅ **Events subcategory** - 6 of 7 tests implemented (remove_attendee needs UI exploration fix)
 
-2. **Implement `events/` subcategory**
-   - Create _category.yaml  
-   - Create _setup (creates a group event service + test client)
-   - Implement tests one at a time
+**Events Implementation Notes:**
+- `_setup` - Creates group event service and test client ✅
+- `schedule_event` - Schedules event (uses default date if date picker doesn't appear) ✅
+- `view_event` - Views event details (handles already being on event page) ✅
+- `add_attendee` - Adds client to event ✅
+- `remove_attendee` - Needs UI exploration to find correct remove button interaction ⚠️
+- `edit_event` - Modifies event max attendance ✅
+- `cancel_event` - Cancels scheduled event ✅
 
-3. **Implement `calendar/` subcategory**
-   - Create _category.yaml
-   - Implement working hours and calendar view tests
+**Known Issues:**
+- `schedule_event`: Date picker menu sometimes doesn't appear - test falls back to default date
+- `remove_attendee`: Remove button interaction needs further UI exploration
 
-4. **Update main scheduling _category.yaml**
-   - Add new subcategories
-   - Configure run_after dependencies
+### 🔜 Next: Calendar Subcategory (Medium Priority)
+
+**Implementation Tasks:**
+1. Create `calendar/_category.yaml` with subcategory configuration
+2. Implement tests in order:
+   - `view_calendar_day` - Navigate to day view and verify
+   - `view_calendar_week` - Navigate to week view and verify
+   - `view_calendar_month` - Navigate to month view and verify
+   - `set_working_hours` - Configure business working hours
+   - `block_time` - Create a time block (vacation/break)
+   - `unblock_time` - Remove time block
+
+**Prerequisites:**
+- User is logged in
+- Calendar page is accessible
+
+**Context Variables to Save:**
+- `working_hours_set` - Boolean flag indicating working hours configured
+- `blocked_time_id` - ID of created time block
+
+### 📋 Future: Booking Settings Subcategory (Low Priority)
+- Configuration options for booking rules
+- Run after calendar subcategory
 
 ---
 

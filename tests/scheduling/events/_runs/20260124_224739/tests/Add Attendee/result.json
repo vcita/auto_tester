@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Add Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 7396,
+  "error": "ValueError: Client 'Event TestClient1769287683' not found in search results. Searched 27 buttons.",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_224739\\tests\\Add Attendee\\screenshot.png",
+  "saved_at": "2026-01-24T22:49:31.547698"
+}

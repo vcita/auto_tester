@@ -31,12 +31,27 @@ Follow .cursor/rules/phase2_script.mdc
 - Document LOCATOR DECISION tables for every interactive element
 - Record VERIFIED PLAYWRIGHT CODE from MCP tool output
 
+### Key UI Interaction Patterns (CRITICAL)
+
+**These patterns were learned from real debugging sessions and MUST be applied when interacting with UI elements:**
+
+1. **Hover before interacting with hidden buttons**: If buttons only appear on hover, hover over the parent element first, then wait before finding/clicking them.
+2. **Use MCP to inspect DOM during interaction**: When debugging complex UI interactions, use MCP to inspect the actual DOM structure while hovering/interacting, rather than guessing from code.
+3. **Use multiple class checks for button identification**: When multiple similar buttons exist, require multiple classes and explicitly exclude unwanted classes.
+4. **Check for confirmation dialogs after menu actions**: After clicking menu items, a confirmation dialog may appear in a different iframe context; handle it explicitly.
+5. **Use evaluate() for reliable clicking**: If Playwright's click() fails on visible elements, use `element.evaluate()` with `scrollIntoView()` and `click()` for more reliable interaction.
+6. **CRITICAL: Don't update test code until MCP flow succeeds**: Complete the entire flow step-by-step with MCP before updating script.md or test.py. Only code after the flow works in MCP. This ensures you understand the actual UI behavior and have verified the approach works end-to-end.
+
+**See `.cursor/rules/build.mdc` section "Key UI Interaction Patterns (CRITICAL)" for detailed examples and code patterns.**
+
 ## PHASE 3: Generate test.py
 
 Follow .cursor/rules/phase3_code.mdc
 
 - Copy VERIFIED PLAYWRIGHT CODE exactly from script.md
 - Never modify or improve the verified locators
+
+**CRITICAL: Only generate test.py AFTER you've completed the entire flow with MCP and verified it works end-to-end. Don't update test code until MCP flow succeeds.**
 
 ---
 
@@ -190,3 +205,42 @@ python main.py run --category <category_name>
 ---
 
 ## PHASE 5: Update changelog.md
+
+---
+
+## CRITICAL: Continue Until Complete - Don't Stop Unless You Don't Know How to Continue
+
+**When implementing tests, you MUST continue working through all phases until completion. Do NOT stop unless you genuinely don't know how to proceed.**
+
+**This is a CRITICAL instruction: Continue the work without stopping unless you run into a wall and don't know how to continue.**
+
+### Why:
+- Tests are only useful when fully implemented and validated
+- Partial implementations create technical debt
+- Stopping mid-way requires context switching and re-familiarization
+- Complete implementations provide immediate value
+
+### When to Continue:
+- ✅ You know the next step but it's tedious - CONTINUE
+- ✅ You've done similar work before - CONTINUE
+- ✅ The pattern is clear from previous tests - CONTINUE
+- ✅ You need to explore more with MCP - CONTINUE
+- ✅ You need to generate more files - CONTINUE
+- ✅ You're implementing multiple tests in a category - CONTINUE through all of them
+
+### When You Can Stop:
+- ❌ You encounter a genuine blocker with no clear path forward
+- ❌ You need information only the user can provide (credentials, decisions, etc.)
+- ❌ You discover a product bug that needs user decision on how to proceed
+- ❌ You've completed ALL phases for ALL tests in the category
+
+### Implementation Checklist:
+Before stopping, verify you've completed:
+- [ ] All steps.md files created for all tests
+- [ ] All script.md files created with verified code from MCP exploration
+- [ ] All test.py files generated from script.md
+- [ ] PHASE 3.5 validation completed for all tests
+- [ ] Tests run and pass (PHASE 4)
+- [ ] Changelog.md files updated (PHASE 5)
+
+**If any item is incomplete and you know how to do it, CONTINUE working. Don't ask for permission - just continue.**

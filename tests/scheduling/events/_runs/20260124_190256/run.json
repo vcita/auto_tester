@@ -1,0 +1,86 @@
+{
+  "category_name": "Events",
+  "category_path": "scheduling\\events",
+  "status": "partial",
+  "passed": 3,
+  "failed": 1,
+  "skipped": 2,
+  "total": 6,
+  "duration_ms": 68570,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Events/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 32627,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Events/Schedule Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 26659,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/View Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 10,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Add Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 9260,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Remove Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 14,
+      "error": "TypeError: 'Locator' object is not callable",
+      "error_type": "TypeError",
+      "screenshot": ".temp_screenshots\\remove_attendee_20260124_190426.png"
+    },
+    {
+      "test_name": "Events/Edit Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\edit_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Remove Attendee failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Cancel Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Remove Attendee failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": null,
+  "run_id": "20260124_190256",
+  "saved_at": "2026-01-24T19:04:26.568892"
+}

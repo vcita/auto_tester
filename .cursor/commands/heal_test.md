@@ -105,6 +105,19 @@ This ensures:
 
 See `.cursor/rules/heal.mdc` section "3. Step-by-Step Debugging with MCP (REQUIRED)" for complete process and checklist format.
 
+### 2.3: Key UI Interaction Patterns (CRITICAL)
+
+**These patterns were learned from real debugging sessions and MUST be applied when interacting with UI elements:**
+
+1. **Hover before interacting with hidden buttons**: If buttons only appear on hover, hover over the parent element first, then wait before finding/clicking them.
+2. **Use MCP to inspect DOM during interaction**: When debugging complex UI interactions, use MCP to inspect the actual DOM structure while hovering/interacting, rather than guessing from code.
+3. **Use multiple class checks for button identification**: When multiple similar buttons exist, require multiple classes and explicitly exclude unwanted classes.
+4. **Check for confirmation dialogs after menu actions**: After clicking menu items, a confirmation dialog may appear in a different iframe context; handle it explicitly.
+5. **Use evaluate() for reliable clicking**: If Playwright's click() fails on visible elements, use `element.evaluate()` with `scrollIntoView()` and `click()` for more reliable interaction.
+6. **CRITICAL: Don't update test code until MCP flow succeeds**: Complete the entire flow step-by-step with MCP before updating test code. Only code after the flow works in MCP. This ensures you understand the actual UI behavior and have verified the fix works end-to-end.
+
+**See `.cursor/rules/heal.mdc` section "3.5. Key UI Interaction Patterns (CRITICAL)" for detailed examples and code patterns.**
+
 ---
 
 ## STEP 3: Classify the Issue
@@ -150,6 +163,8 @@ Based on MCP observations, determine the issue type.
 
 **CRITICAL: Before fixing any code, you MUST validate the fix works end-to-end using MCP.**
 
+**This is the MOST IMPORTANT step - you MUST complete the entire flow with MCP before updating any code files.**
+
 1. **Navigate to starting point** in MCP browser
 2. **Execute the ENTIRE test flow** with the proposed fix:
    - Use the new selectors/approach
@@ -166,6 +181,8 @@ Based on MCP observations, determine the issue type.
 - Validate again with MCP
 
 **DO NOT update code files until MCP validation passes.**
+
+**Remember: Don't update test code until MCP flow succeeds - this is a CRITICAL rule that prevents wasted effort and ensures fixes actually work.**
 
 ---
 

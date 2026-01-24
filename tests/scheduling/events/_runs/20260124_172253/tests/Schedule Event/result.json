@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 16356,
+  "error": "Error: Locator.text_content: Error: strict mode violation: get_by_role(\"button\", name=\"End Date:\") resolved to 2 elements:\n    1) <div role=\"button\" label=\"End Date:\" data-v-66df3d06=\"\" autocomplete=\"off\" aria-haspopup=\"true\" aria-expanded=\"false\" color=\"rgba(0, 0, 0, 0.4)\" clear-icon=\"far fa-times-circle\" prepend-inner-icon=\"icon-Calendar\" class=\"v-input vcita-text-input date-picker-text-input v-input--hide-details v-input--is-label-active v-input--is-dirty v-input--is-readonly theme--light v-text-field v-text-field--is-booted\">\u2026</div> aka get_by_role(\"button\", name=\"End Date:\").first\n    2) <input type=\"\" step=\"1\" role=\"button\" id=\"input-822\" autocomplete=\"off\" readonly=\"readonly\" aria-haspopup=\"true\" aria-expanded=\"false\" data-qa=\"date-picker-text-input\"/> aka get_by_label(\"End Date:\")\n\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"button\", name=\"End Date:\")\n",
+  "error_type": "Error",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_172253\\tests\\Schedule Event\\screenshot.png",
+  "saved_at": "2026-01-24T17:23:58.412321"
+}

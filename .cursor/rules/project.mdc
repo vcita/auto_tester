@@ -178,6 +178,96 @@ if matter_id not in page.url:
     raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
 ```
 
+## Test Cleanup Rule (CRITICAL)
+
+**Each test category must leave minimal leftover objects when it runs completely.**
+
+### Principle
+
+After a category completes execution (all tests, setup, and teardown), the system should be left in a clean state with minimal test data remaining. This ensures:
+- Test data doesn't accumulate across runs
+- Tests don't interfere with each other
+- The system remains usable for manual testing
+- Test runs are reproducible and independent
+
+### Requirements
+
+1. **Objects created in `_setup` must be deleted in `_teardown`**
+   - All test data created during setup must be cleaned up
+   - Use delete functions or direct deletion steps in teardown
+   - Clear context variables after deletion
+
+2. **Objects created in tests must be deleted in subsequent tests or `_teardown`**
+   - Follow CRUD pattern: Create → Read/Edit → Delete
+   - Delete tests should run after create/edit tests
+   - If deletion isn't part of the test flow, use teardown
+
+3. **Objects that cannot be deleted should be cancelled/marked as inactive**
+   - Some objects (e.g., appointments) can only be cancelled, not deleted
+   - Cancelled objects remaining in system is acceptable (they're inactive)
+   - Document this limitation in teardown or delete test
+
+4. **Context variables must be cleared after objects are deleted**
+   - Remove context variables when objects are deleted
+   - Prevents stale data from affecting future runs
+
+### Verification
+
+Before marking a category complete, verify:
+- Run the category end-to-end
+- Check that no active test objects remain in the system
+- Verify context variables are cleared
+- Confirm cancelled/inactive objects are acceptable (documented)
+
+### Cleanup Patterns
+
+**Pattern 1: Delete Test in Sequence**
+```
+create_service → edit_service → delete_service
+```
+The delete test removes the object created earlier in the sequence.
+
+**Pattern 2: Teardown Cleanup**
+```
+_setup (creates service, client)
+create_appointment → cancel_appointment
+create_custom_appointment → cancel_custom_appointment
+_teardown (deletes service, client)
+```
+Teardown removes objects created in setup. Tests clean up their own objects.
+
+**Pattern 3: Cancellation Instead of Deletion**
+```
+create_appointment → cancel_appointment (appointment marked as "Cancelled")
+create_custom_appointment → cancel_custom_appointment (appointment marked as "Cancelled")
+```
+Appointments cannot be deleted, only cancelled. Cancelled appointments remaining is acceptable.
+
+### Examples
+
+**✅ GOOD - Complete Cleanup:**
+- `clients` category: `create_matter` → `delete_matter` (matter deleted)
+- `clients/notes` subcategory: `add_note` → `delete_note` (note deleted)
+- `scheduling/services` subcategory: `create_service` → `delete_service`, `create_group_event` → `delete_group_event` (both deleted)
+- `scheduling/appointments` subcategory: `create_appointment` → `cancel_appointment`, `create_custom_appointment` → `cancel_custom_appointment` (both cancelled, acceptable)
+
+**❌ BAD - Incomplete Cleanup:**
+- Creating objects without deleting them
+- Relying on teardown but not having teardown
+- Creating objects in tests that are never cleaned up
+
+### Exception Handling
+
+**If an object cannot be deleted:**
+- Document why (e.g., "Appointments can only be cancelled, not deleted")
+- Ensure it's marked as inactive/cancelled
+- Note in teardown or delete test that object remains but is inactive
+- This is acceptable cleanup - inactive objects don't interfere with future runs
+
+### Reference
+
+See cleanup analysis in `.cursor/plans/test_cleanup_analysis_and_fixes_*.plan.md` for detailed examples of proper cleanup patterns.
+
 ## Function Reuse Rules (CRITICAL)
 
 ### Before Creating or Modifying Any Test

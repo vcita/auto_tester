@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 34902,
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_role(\"button\", name=\"Define the services your\")\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_205133\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-24T20:52:47.614163"
+}

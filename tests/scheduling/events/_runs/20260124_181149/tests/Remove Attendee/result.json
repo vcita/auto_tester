@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Remove Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 8294,
+  "error": "ValueError: Attendee 'Event TestClient1769271128' was not removed. Still found 1 instance(s).",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_181149\\tests\\Remove Attendee\\screenshot.png",
+  "saved_at": "2026-01-24T18:13:21.199478"
+}

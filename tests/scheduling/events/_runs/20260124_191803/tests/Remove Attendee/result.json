@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Remove Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 1635,
+  "error": "TypeError: 'Locator' object is not callable",
+  "error_type": "TypeError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_191803\\tests\\Remove Attendee\\screenshot.png",
+  "saved_at": "2026-01-24T19:19:30.922074"
+}

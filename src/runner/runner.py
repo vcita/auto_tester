@@ -242,6 +242,7 @@ class TestRunner:
         self.events.emit(RunnerEvent.BROWSER_STARTING, {"category": category.name})
         
         with sync_playwright() as playwright:
+            # Launch new browser
             # Use channel='chrome' to use the real installed Chrome browser
             # This bypasses most Cloudflare detection since it's a real browser
             browser = playwright.chromium.launch(
@@ -251,7 +252,7 @@ class TestRunner:
                     '--disable-blink-features=AutomationControlled',
                 ]
             )
-            
+                
             # Create context with realistic settings
             # Video recording is enabled by default for debugging
             # Videos are recorded to a temp location and moved to run storage after completion
@@ -259,29 +260,29 @@ class TestRunner:
             if self.record_video:
                 video_dir = Path.cwd() / ".temp_videos"
                 video_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Custom user agent with bypass string to avoid captcha
-            # The bypass string is specific to vcita's captcha allowlist
-            bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
-            custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
-            
-            browser_context = browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                locale='en-US',
-                timezone_id='America/New_York',
-                user_agent=custom_user_agent,
-                record_video_dir=str(video_dir) if video_dir else None,
-                record_video_size={'width': 1920, 'height': 1080},
-            )
-            
-            # Minimal stealth - just hide webdriver flag
-            browser_context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
-            """)
-            
-            page = browser_context.new_page()
+                
+                # Custom user agent with bypass string to avoid captcha
+                # The bypass string is specific to vcita's captcha allowlist
+                bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
+                custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
+                
+                browser_context = browser.new_context(
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                    user_agent=custom_user_agent,
+                    record_video_dir=str(video_dir) if video_dir else None,
+                    record_video_size={'width': 1920, 'height': 1080},
+                )
+                
+                # Minimal stealth - just hide webdriver flag
+                browser_context.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                """)
+                
+                page = browser_context.new_page()
             
             # Track video start time for timestamp logging
             import time as time_module
@@ -340,7 +341,9 @@ class TestRunner:
                         # Check if we should stop before this test (for MCP debugging)
                         if until_test:
                             # Match test name (can be "Services/Edit Group Event" or "Edit Group Event")
+                            # Also match by test ID (folder name like "remove_attendee")
                             test_full_name = f"{category.name}/{test.name}" if hasattr(category, 'name') else test.name
+                            test_full_id = f"{category.name}/{test.id}" if hasattr(category, 'name') else test.id
                             # Also check subcategory format like "Services/Edit Group Event"
                             subcategory_prefix = ""
                             if hasattr(category, 'subcategories') and category.subcategories:
@@ -350,12 +353,18 @@ class TestRunner:
                                         subcategory_prefix = f"{subcat.name}/"
                                         break
                             test_with_subcat = f"{subcategory_prefix}{test.name}"
+                            test_id_with_subcat = f"{subcategory_prefix}{test.id}"
                             
                             if (test.name == until_test or 
+                                test.id == until_test or
                                 test_full_name == until_test or 
+                                test_full_id == until_test or
                                 test_with_subcat == until_test or
+                                test_id_with_subcat == until_test or
                                 until_test in test.name or
-                                until_test in test_full_name):
+                                until_test in test.id or
+                                until_test in test_full_name or
+                                until_test in test_full_id):
                                 result.stopped_early = True
                                 result.until_test_reached = True
                                 print(f"\n  [>] Stopped before test: {test.name}")
@@ -363,16 +372,15 @@ class TestRunner:
                                 print(f"  [>] Current URL: {page.url}")
                                 print(f"  [>] Current Title: {page.title()}")
                                 print(f"  [>] Use Playwright MCP to run the test step-by-step")
+                                print(f"  [>] Browser will stay open until you press Enter in the terminal")
                                 
                                 # Note: Video recording continues until browser context closes
-                                # The video will include the MCP debugging wait time until you press Enter
                                 if self.record_video:
                                     print(f"  [>] Note: Video recording will stop when you close the browser")
                                 
                                 # Skip remaining items
                                 self._skip_remaining_items(execution_plan[index:], result, test.name)
-                                # Keep browser open - don't run teardown yet
-                                input("  [>] Press Enter when done with MCP debugging to close browser...")
+                                # Break to exit the loop - browser will be kept open in finally block
                                 break
                         
                         test_start_offset = time_module.time() - video_start_time
@@ -429,20 +437,62 @@ class TestRunner:
                 if self.record_video and page.video:
                     video_path = page.video.path()
                 
-                # If keep_open is enabled and there was a failure, wait for user
-                # Or if until_test was reached, browser is already open (handled above)
-                if self.keep_open and result.stopped_early and not getattr(result, 'until_test_reached', False):
+                # If until_test was reached, keep browser open and wait for user input
+                if getattr(result, 'until_test_reached', False):
+                    print("\n  [>] Browser is open and ready for MCP debugging")
+                    print(f"  [>] Current URL: {page.url}")
+                    print(f"  [>] Current Title: {page.title()}")
+                    print(f"  [>] Use Playwright MCP tools to interact with the browser")
+                    
+                    # Don't close the browser - it will stay open for MCP debugging
+                    # The browser process will continue running
+                    print("  [Browser] Browser will stay open for MCP debugging")
+                    
+                    # Try to wait for user input, then exit cleanly
+                    # The browser will stay open even if we exit the with block
+                    try:
+                        import sys
+                        if sys.stdin.isatty():
+                            print(f"  [>] Press Enter to exit (browser will stay open)...")
+                            input()  # Wait for user to press Enter
+                        else:
+                            raise EOFError("Non-interactive shell")
+                    except (EOFError, KeyboardInterrupt):
+                        # stdin not available or Ctrl+C - exit immediately
+                        # Browser will stay open
+                        print(f"  [>] Exiting process (browser will stay open)")
+                    
+                    # Don't close browser - it stays open for MCP debugging
+                    # The browser process will continue running
+                    print("  [Browser] Browser will stay open for MCP debugging")
+                
+                # If keep_open is enabled and there was a failure (but not until_test), wait for user
+                elif self.keep_open and result.stopped_early:
                     print("\n  [!] Browser kept open for debugging (--keep-open flag)")
                     print(f"  [>] Current URL: {page.url}")
                     print(f"  [>] Current Title: {page.title()}")
-                    input("  [>] Press Enter to close browser and continue...")
+                    try:
+                        input("  [>] Press Enter to close browser and continue...")
+                    except (EOFError, KeyboardInterrupt):
+                        print("\n  [>] Closing browser...")
+                    # Close browser after waiting
+                    self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
+                    browser_context.close()  # Close context first to finalize video
+                    browser.close()
                 
-                # Close browser
-                # Note: Video recording stops when browser_context.close() is called
-                # If until_test was reached, the video will include the MCP debugging wait time
-                self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
-                browser_context.close()  # Close context first to finalize video
-                browser.close()
+                else:
+                    # Close browser normally (only if until_test was not reached)
+                    if not getattr(result, 'until_test_reached', False):
+                        # Note: Video recording stops when browser_context.close() is called
+                        self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
+                        browser_context.close()  # Close context first to finalize video
+                        browser.close()
+                    else:
+                        # until_test was reached - don't close browser, it stays open for MCP debugging
+                        # We can exit the with block and the browser will continue running
+                        print("  [Browser] Exiting - browser will stay open for MCP debugging")
+                        # Don't call browser.close() - that would kill the browser process
+                        # The browser process will continue running
                 
                 # Process video and save to storage
                 final_video_path = None
@@ -744,11 +794,17 @@ class TestRunner:
         for index, test in enumerate(subcategory.tests):
             # Check if we should stop before this test (for MCP debugging)
             if until_test:
+                # Match by both test name and test ID (folder name)
                 test_full_name = f"{subcategory.name}/{test.name}"
+                test_full_id = f"{subcategory.name}/{test.id}"
                 if (test.name == until_test or 
+                    test.id == until_test or
                     test_full_name == until_test or 
+                    test_full_id == until_test or
                     until_test in test.name or
-                    until_test in test_full_name):
+                    until_test in test.id or
+                    until_test in test_full_name or
+                    until_test in test_full_id):
                     result.stopped_early = True
                     result.until_test_reached = True
                     print(f"\n  [>] Stopped before test: {test_full_name}")
@@ -756,9 +812,9 @@ class TestRunner:
                     print(f"  [>] Current URL: {page.url}")
                     print(f"  [>] Current Title: {page.title()}")
                     print(f"  [>] Use Playwright MCP to run the test step-by-step")
+                    print(f"  [>] Browser will stay open until you press Enter in the terminal")
                     
                     # Note: Video recording continues until browser context closes
-                    # The video will include the MCP debugging wait time until you press Enter
                     if getattr(self, 'record_video', False):
                         print(f"  [>] Note: Video recording will stop when you close the browser")
                     
@@ -772,10 +828,9 @@ class TestRunner:
                             duration_ms=0,
                             error=f"Skipped - stopped before test for MCP debugging",
                         ))
-                    # Keep browser open - don't run teardown yet
                     # Save subcategory result (without teardown) before returning
                     self._save_subcategory_result(subcategory, parent_category, result, category_path)
-                    input("  [>] Press Enter when done with MCP debugging to close browser...")
+                    # Return early - browser will be kept open in finally block
                     return True, test_full_name
             
             test_start_offset = time_module.time() - video_start_time
