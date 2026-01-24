@@ -544,6 +544,10 @@ class TestRunner:
             context=context,
         )
         
+        # Update test_name to match the passed parameter (important for subcategory tests)
+        # The executor uses test_path.name, but we want the full name with subcategory prefix
+        result.test_name = test_name
+        
         # Emit test completed
         self.events.emit(RunnerEvent.TEST_COMPLETED, {
             "test": test_name,
@@ -732,6 +736,8 @@ class TestRunner:
                         duration_ms=0,
                         error=f"Skipped due to {subcategory.name}/_setup failure",
                     ))
+                # Save subcategory result before returning
+                self._save_subcategory_result(subcategory, parent_category, result, category_path)
                 return True, f"{subcategory.name}/_setup"
         
         # Run subcategory tests
@@ -767,6 +773,8 @@ class TestRunner:
                             error=f"Skipped - stopped before test for MCP debugging",
                         ))
                     # Keep browser open - don't run teardown yet
+                    # Save subcategory result (without teardown) before returning
+                    self._save_subcategory_result(subcategory, parent_category, result, category_path)
                     input("  [>] Press Enter when done with MCP debugging to close browser...")
                     return True, test_full_name
             
@@ -799,10 +807,15 @@ class TestRunner:
                 
                 # Run teardown even on failure
                 self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module, parent_category)
+                # Save subcategory result before returning
+                self._save_subcategory_result(subcategory, parent_category, result, category_path)
                 return True, f"{subcategory.name}/{test.name}"
         
         # Run subcategory teardown if exists
         self._run_subcategory_teardown(subcategory, page, context, result, video_timestamps, video_start_time, time_module, parent_category)
+        
+        # Extract subcategory results and save them separately
+        self._save_subcategory_result(subcategory, parent_category, result, category_path)
         
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
@@ -837,3 +850,63 @@ class TestRunner:
             test_end_offset = time_module.time() - video_start_time
             video_timestamps.append((f"{subcategory.name}/_teardown", test_start_offset, test_end_offset, teardown_result.status))
             result.test_results.append(teardown_result)
+    
+    def _save_subcategory_result(
+        self,
+        subcategory: Category,
+        parent_category: Category,
+        parent_result: CategoryResult,
+        category_path: str,
+    ) -> None:
+        """
+        Extract subcategory results from parent CategoryResult and save them separately.
+        
+        This creates a run.json file in the subcategory's _runs directory so that
+        list_test_runs can find the runs.
+        
+        Args:
+            subcategory: The subcategory that was run
+            parent_category: The parent category
+            parent_result: The parent's CategoryResult containing all results
+            category_path: The category path (e.g., "clients/notes")
+        """
+        # Extract all results that belong to this subcategory
+        # Subcategory results have test_name starting with "{subcategory.name}/"
+        subcategory_prefix = f"{subcategory.name}/"
+        
+        subcategory_setup = None
+        subcategory_teardown = None
+        subcategory_tests = []
+        
+        # Filter results from parent_result.test_results
+        for test_result in parent_result.test_results:
+            if not test_result.test_name.startswith(subcategory_prefix):
+                continue
+            
+            # Identify setup, teardown, and regular tests
+            if test_result.test_name == f"{subcategory.name}/_setup" and test_result.test_type == "setup":
+                subcategory_setup = test_result
+            elif test_result.test_name == f"{subcategory.name}/_teardown" and test_result.test_type == "teardown":
+                subcategory_teardown = test_result
+            elif test_result.test_type == "test":
+                # Regular test - remove the subcategory prefix from test_name for cleaner display
+                # But keep the original test_name in the result for consistency
+                subcategory_tests.append(test_result)
+        
+        # Create CategoryResult for subcategory
+        subcategory_result = CategoryResult(
+            category_name=subcategory.name,
+            category_path=subcategory.path,
+            setup_result=subcategory_setup,
+            test_results=subcategory_tests,
+            teardown_result=subcategory_teardown,
+            stopped_early=parent_result.stopped_early,
+        )
+        
+        # Save subcategory result (this creates run.json in subcategory's _runs directory)
+        # Don't pass video_path - subcategory shares parent's video
+        self.storage.save_category_result(
+            category=category_path,
+            result=subcategory_result,
+            video_path=None,
+        )

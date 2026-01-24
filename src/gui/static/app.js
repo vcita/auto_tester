@@ -144,8 +144,15 @@ async function fetchRunDetails(category, runId) {
 
 async function fetchTestRuns(category, testName) {
     try {
-        const response = await fetch(`/api/runs/${encodeURIComponent(category)}/test/${testName}`);
-        return await response.json();
+        // Encode both category and testName to handle spaces and special characters
+        const encodedCategory = encodeURIComponent(category);
+        const encodedTestName = encodeURIComponent(testName);
+        const url = `/api/runs/${encodedCategory}/test/${encodedTestName}`;
+        console.log('[fetchTestRuns] Fetching:', url, 'for testName:', testName);
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log('[fetchTestRuns] Response:', data);
+        return data;
     } catch (error) {
         console.error('Failed to fetch test runs:', error);
         return { category, test_name: testName, runs: [] };

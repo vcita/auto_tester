@@ -1,0 +1,90 @@
+# Auto-generated from script.md
+# Last updated: 2026-01-24
+# Source: tests/scheduling/appointments/cancel_custom_appointment/script.md
+# DO NOT EDIT MANUALLY - Regenerate from script.md
+
+from playwright.sync_api import Page, expect
+
+
+def test_cancel_custom_appointment(page: Page, context: dict) -> None:
+    """
+    Test: Cancel Custom Appointment
+    
+    Cancels a custom appointment (appointment without predefined service) from the business calendar.
+    Verifies that the appointment status changes to "Cancelled".
+    
+    Prerequisites:
+    - User is logged in
+    - A custom appointment exists (from create_custom_appointment test)
+    - Context has: created_custom_appointment_client, created_custom_appointment_title
+    """
+    # Get test data from context
+    client_name = context.get("created_custom_appointment_client")
+    
+    if not client_name:
+        raise ValueError("No custom appointment client in context. Run create_custom_appointment first.")
+    
+    # Step 1: Verify on Calendar Page
+    print("  Step 1: Verifying on Calendar page...")
+    if "/app/calendar" not in page.url:
+        calendar_menu = page.get_by_text("Calendar", exact=True)
+        calendar_menu.click()
+        page.wait_for_url("**/app/calendar**", timeout=10000)
+    
+    # Step 2: Wait for Calendar to Load
+    print("  Step 2: Waiting for Calendar to load...")
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    outer_iframe = page.frame_locator('iframe[title="angularjs"]')
+    inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+    page.wait_for_timeout(2000)  # Wait for calendar to load
+    
+    # Step 3: Click on Custom Appointment in Calendar
+    print(f"  Step 3: Clicking on custom appointment for client: {client_name}...")
+    appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+    appointment.wait_for(state='visible', timeout=10000)
+    appointment.click()
+    
+    # Step 4: Wait for Appointment Details Page
+    print("  Step 4: Waiting for appointment details page...")
+    page.wait_for_url("**/app/appointments/**", timeout=10000)
+    heading = outer_iframe.get_by_role('heading', name='Appointment').first
+    heading.wait_for(state='visible', timeout=10000)
+    
+    # Step 5: Click Cancel Appointment Button
+    print("  Step 5: Clicking Cancel Appointment button...")
+    cancel_btn = outer_iframe.get_by_role('button', name='Cancel Appointment')
+    cancel_btn.wait_for(state='visible', timeout=5000)
+    cancel_btn.click()
+    page.wait_for_timeout(1000)  # Wait for dialog to open
+    
+    # Step 6: Wait for Cancel Dialog
+    print("  Step 6: Waiting for cancel dialog...")
+    dialog = outer_iframe.get_by_role('dialog')
+    dialog.wait_for(state='visible', timeout=10000)
+    
+    # Step 7: Click Submit Button
+    print("  Step 7: Confirming cancellation...")
+    submit_btn = outer_iframe.get_by_role('button', name='Submit')
+    submit_btn.click()
+    page.wait_for_timeout(2000)  # Wait for cancellation to complete
+    
+    # Step 8: Verify Appointment is Cancelled (Actual Data Verification)
+    print("  Step 8: Verifying appointment is cancelled...")
+    # Verify the status changed to "Cancelled" (actual data verification)
+    cancelled_status = outer_iframe.get_by_text('Cancelled', exact=True)
+    cancelled_status.wait_for(state='visible', timeout=10000)
+    
+    # Step 9: Return to Calendar
+    print("  Step 9: Returning to calendar...")
+    back_btn = page.get_by_text('Back')
+    back_btn.click()
+    page.wait_for_url("**/app/calendar**", timeout=10000)
+    
+    # Clear context variables
+    if "created_custom_appointment_client" in context:
+        del context["created_custom_appointment_client"]
+    if "created_custom_appointment_title" in context:
+        del context["created_custom_appointment_title"]
+    
+    print(f"  [OK] Successfully cancelled custom appointment")
+    print(f"       Client: {client_name}")

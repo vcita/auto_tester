@@ -40,6 +40,11 @@ tests:
     status: active
     priority: medium
     description: Create an appointment without using a predefined service (custom meeting)
+  - id: cancel_custom_appointment
+    name: Cancel Custom Appointment
+    status: active
+    priority: high
+    description: Cancel the custom appointment
 
 # Category metadata
 status: active

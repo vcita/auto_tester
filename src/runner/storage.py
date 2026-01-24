@@ -564,41 +564,97 @@ class RunStorage:
                             if run_id in run_ids_found:
                                 continue
                             
-                            # Check if this run contains the test (try different name formats)
-                            test_dir = run_dir / "tests" / test_name
-                            if not test_dir.exists():
-                                # Try lowercase version
-                                test_dir = run_dir / "tests" / test_name.lower().replace(" ", "_")
-                            if not test_dir.exists():
-                                # Try with spaces replaced by underscores
-                                test_dir = run_dir / "tests" / test_name.replace(" ", "_")
-                            if not test_dir.exists():
-                                # Try title case
-                                test_dir = run_dir / "tests" / test_name.title().replace(" ", "_")
-                            
-                            if not test_dir.exists():
-                                continue
-                            
-                            # Check if test has a result
-                            result_json = test_dir / "result.json"
-                            if not result_json.exists():
-                                continue
-                            
-                            # Load run.json for metadata
+                            # First, check if run.json exists and contains the test in test_results
                             run_json = run_dir / "run.json"
+                            test_found_in_json = False
+                            matching_test_result = None
+                            
                             if run_json.exists():
                                 try:
                                     data = json.loads(run_json.read_text(encoding="utf-8"))
-                                    # Add test-specific result
-                                    test_result = json.loads(result_json.read_text(encoding="utf-8"))
-                                    data["test_result"] = test_result
+                                    # Check test_results array for matching test name
+                                    # Handle variations: "Edit Note", "edit_note", "Notes/Edit Note", etc.
+                                    test_name_lower = test_name.lower()
+                                    test_name_underscore = test_name.replace(" ", "_").lower()
+                                    test_name_space = test_name.replace("_", " ").lower()
+                                    
+                                    for tr in data.get("test_results", []):
+                                        tr_name = tr.get("test_name", "").lower()
+                                        tr_simple = tr_name.split("/")[-1]  # Get simple name without subcategory prefix
+                                        # Check if test name matches (exact, or with subcategory prefix, or simple name)
+                                        # Also handle space/underscore variations
+                                        if (tr_name == test_name_lower or
+                                            tr_name == test_name_underscore or
+                                            tr_name == test_name_space or
+                                            tr_simple == test_name_lower or
+                                            tr_simple == test_name_underscore or
+                                            tr_simple == test_name_space or
+                                            tr_name.endswith(f"/{test_name_lower}") or
+                                            tr_name.endswith(f"/{test_name_underscore}") or
+                                            tr_name.endswith(f"/{test_name_space}")):
+                                            test_found_in_json = True
+                                            matching_test_result = tr
+                                            break
+                                except (json.JSONDecodeError, IOError):
+                                    pass
+                            
+                            # Also check test directory (for backward compatibility)
+                            test_dir = None
+                            test_name_variants = [
+                                test_name,
+                                test_name.lower().replace(" ", "_"),
+                                test_name.replace(" ", "_"),
+                                test_name.title().replace(" ", "_"),
+                            ]
+                            
+                            for variant in test_name_variants:
+                                test_dir = run_dir / "tests" / variant
+                                if test_dir.exists():
+                                    break
+                            
+                            # If found in run.json, use that; otherwise check directory
+                            if test_found_in_json and matching_test_result:
+                                try:
+                                    data = json.loads(run_json.read_text(encoding="utf-8"))
+                                    data["test_result"] = matching_test_result
                                     data["test_name"] = test_name
                                     data["run_id"] = run_id
-                                    data["category"] = category.lower()  # Use parent category
+                                    data["category"] = category.lower()
                                     runs.append(data)
                                     run_ids_found.add(run_id)
                                 except (json.JSONDecodeError, IOError):
                                     pass
+                            elif test_dir and test_dir.exists():
+                                # Check if test has a result
+                                result_json = test_dir / "result.json"
+                                if result_json.exists():
+                                    if run_json.exists():
+                                        try:
+                                            data = json.loads(run_json.read_text(encoding="utf-8"))
+                                            test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                                            data["test_result"] = test_result
+                                            data["test_name"] = test_name
+                                            data["run_id"] = run_id
+                                            data["category"] = category.lower()
+                                            runs.append(data)
+                                            run_ids_found.add(run_id)
+                                        except (json.JSONDecodeError, IOError):
+                                            pass
+                                    else:
+                                        # If run.json doesn't exist but test directory does, still try to load the result
+                                        try:
+                                            test_result = json.loads(result_json.read_text(encoding="utf-8"))
+                                            data = {
+                                                "test_result": test_result,
+                                                "test_name": test_name,
+                                                "run_id": run_id,
+                                                "category": category.lower(),
+                                                "status": test_result.get("status", "unknown"),
+                                            }
+                                            runs.append(data)
+                                            run_ids_found.add(run_id)
+                                        except (json.JSONDecodeError, IOError):
+                                            pass
         
         # Also check if subcategory names exist as top-level category directories
         # (e.g., "appointments" subcategory might have runs in tests/appointments/_runs/)
@@ -626,37 +682,89 @@ class RunStorage:
                         if run_id in run_ids_found:
                             continue
                         
-                        # Check if this run contains the test (try different name formats)
-                        test_dir = run_dir / "tests" / test_name
-                        if not test_dir.exists():
-                            # Try lowercase version
-                            test_dir = run_dir / "tests" / test_name.lower().replace(" ", "_")
-                        if not test_dir.exists():
-                            # Try with spaces replaced by underscores
-                            test_dir = run_dir / "tests" / test_name.replace(" ", "_")
-                        if not test_dir.exists():
-                            # Try title case
-                            test_dir = run_dir / "tests" / test_name.title().replace(" ", "_")
+                # First, check if run.json exists and contains the test in test_results
+                run_json = run_dir / "run.json"
+                test_found_in_json = False
+                matching_test_result = None
+                
+                if run_json.exists():
+                    try:
+                        data = json.loads(run_json.read_text(encoding="utf-8"))
+                        # Check test_results array for matching test name
+                        # Handle variations: "Edit Note", "edit_note", "Notes/Edit Note", etc.
+                        test_name_lower = test_name.lower()
+                        test_name_underscore = test_name.replace(" ", "_").lower()
+                        test_name_space = test_name.replace("_", " ").lower()
                         
-                        if not test_dir.exists():
-                            continue
+                        # Normalize test name for comparison (remove spaces/underscores)
+                        def normalize_name(name):
+                            return name.replace(" ", "").replace("_", "").lower()
                         
-                        # Check if test has a result
-                        result_json = test_dir / "result.json"
-                        if not result_json.exists():
-                            continue
+                        test_name_normalized = normalize_name(test_name)
                         
-                        # Load run.json for metadata
-                        run_json = run_dir / "run.json"
+                        for tr in data.get("test_results", []):
+                            tr_name = tr.get("test_name", "").lower()
+                            tr_simple = tr_name.split("/")[-1]  # Get simple name without subcategory prefix
+                            tr_normalized = normalize_name(tr_name)
+                            tr_simple_normalized = normalize_name(tr_simple)
+                            
+                            # Check if test name matches (exact, or with subcategory prefix, or simple name)
+                            # Also handle space/underscore variations by normalizing
+                            if (tr_name == test_name_lower or
+                                tr_name == test_name_underscore or
+                                tr_name == test_name_space or
+                                tr_simple == test_name_lower or
+                                tr_simple == test_name_underscore or
+                                tr_simple == test_name_space or
+                                tr_normalized == test_name_normalized or
+                                tr_simple_normalized == test_name_normalized or
+                                tr_name.endswith(f"/{test_name_lower}") or
+                                tr_name.endswith(f"/{test_name_underscore}") or
+                                tr_name.endswith(f"/{test_name_space}")):
+                                test_found_in_json = True
+                                matching_test_result = tr
+                                break
+                    except (json.JSONDecodeError, IOError):
+                        pass
+                
+                # Also check test directory (for backward compatibility)
+                test_dir = None
+                test_name_variants = [
+                    test_name,
+                    test_name.lower().replace(" ", "_"),
+                    test_name.replace(" ", "_"),
+                    test_name.title().replace(" ", "_"),
+                ]
+                
+                for variant in test_name_variants:
+                    test_dir = run_dir / "tests" / variant
+                    if test_dir.exists():
+                        break
+                
+                # If found in run.json, use that; otherwise check directory
+                if test_found_in_json and matching_test_result:
+                    try:
+                        data = json.loads(run_json.read_text(encoding="utf-8"))
+                        data["test_result"] = matching_test_result
+                        data["test_name"] = test_name
+                        data["run_id"] = run_id
+                        data["category"] = category.lower()
+                        runs.append(data)
+                        run_ids_found.add(run_id)
+                    except (json.JSONDecodeError, IOError):
+                        pass
+                elif test_dir and test_dir.exists():
+                    # Check if test has a result
+                    result_json = test_dir / "result.json"
+                    if result_json.exists():
                         if run_json.exists():
                             try:
                                 data = json.loads(run_json.read_text(encoding="utf-8"))
-                                # Add test-specific result
                                 test_result = json.loads(result_json.read_text(encoding="utf-8"))
                                 data["test_result"] = test_result
                                 data["test_name"] = test_name
                                 data["run_id"] = run_id
-                                data["category"] = category.lower()  # Use parent category
+                                data["category"] = category.lower()
                                 runs.append(data)
                                 run_ids_found.add(run_id)
                             except (json.JSONDecodeError, IOError):

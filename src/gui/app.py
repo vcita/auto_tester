@@ -362,8 +362,12 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
     @app.get("/api/runs/{category}/test/{test_name:path}")
     async def get_test_runs(category: str, test_name: str):
         """List all runs that contain a specific test."""
+        print(f"[DEBUG] API call: category={category}, test_name={test_name}, tests_root={app.state.tests_root}")
         storage = RunStorage(app.state.tests_root)
         runs = storage.list_test_runs(category, test_name)
+        print(f"[DEBUG] Found {len(runs)} runs for {category}/{test_name}")
+        if runs:
+            print(f"[DEBUG] Run IDs: {[r.get('run_id') for r in runs]}")
         return {"category": category, "test_name": test_name, "runs": runs}
     
     @app.get("/api/runs/{category}/{run_id}")
