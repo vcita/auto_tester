@@ -49,79 +49,52 @@ def test_add_attendee(page: Page, context: dict) -> None:
     search_field.click()
     page.wait_for_timeout(100)
     search_field.press_sequentially(client_name, delay=30)
-    page.wait_for_timeout(1500)  # Allow search to filter results and list to update
-    
+    page.wait_for_timeout(2500)  # Allow search to filter results and list to update
+
     # Step 4: Select Client from Results
     print("  Step 4: Selecting client from results...")
-    # Select the client from filtered results
-    # Get all buttons and find the one with client name
-    # Wait for list to populate
-    page.wait_for_timeout(1000)  # Allow list to update after search
-    all_buttons = outer_iframe.get_by_role('button')
-    button_count = all_buttons.count()
-    client_button = None
-    
-    # Try to find client by name - check all buttons
-    for i in range(button_count):
-        try:
-            btn = all_buttons.nth(i)
-            btn_text = btn.text_content()
-            if btn_text and client_name in btn_text:
-                client_button = btn
-                break
-        except:
-            continue
-    
-    if not client_button:
-        # Try searching by email instead
+    dialog = outer_iframe.get_by_role('dialog')
+    # Prefer semantic: button with client name inside dialog
+    client_locator = dialog.get_by_role('button').filter(has_text=client_name)
+    if client_locator.count() == 0:
+        # Fallback: any element with client name in dialog (list rows may not be buttons)
+        client_locator = dialog.get_by_text(client_name, exact=False)
+    if client_locator.count() == 0:
         client_email = context.get("event_client_email")
         if client_email:
             print(f"  Trying to find client by email: {client_email}")
-            for i in range(button_count):
-                try:
-                    btn = all_buttons.nth(i)
-                    btn_text = btn.text_content()
-                    if btn_text and client_email in btn_text:
-                        client_button = btn
-                        break
-                except:
-                    continue
-    
-    if not client_button:
-        raise ValueError(f"Client '{client_name}' not found in search results. Searched {button_count} buttons.")
-    
-    client_button.wait_for(state='visible', timeout=10000)
-    client_button.click()
+            client_locator = dialog.get_by_role('button').filter(has_text=client_email)
+            if client_locator.count() == 0:
+                client_locator = dialog.get_by_text(client_email, exact=False)
+    if client_locator.count() == 0:
+        raise ValueError(f"Client '{client_name}' not found in search results.")
+
+    client_locator.first.wait_for(state='visible', timeout=10000)
+    client_locator.first.click()
     page.wait_for_timeout(500)  # Allow selection to register
     
     # Step 5: Click Continue to Register
     print("  Step 5: Clicking Continue to register client...")
-    # Click Continue to register the client
     continue_btn = outer_iframe.get_by_role('button', name='Continue')
     continue_btn.wait_for(state='visible', timeout=10000)
-    # Wait for button to be enabled (may be disabled until client is selected)
-    continue_btn.wait_for(state='attached', timeout=5000)
     continue_btn.click()
-    # Wait for dialog to close
-    dialog.wait_for(state='hidden', timeout=10000)
+    # Step 5a: Confirmation dialog – click Send to complete registration (MCP-verified)
+    print("  Step 5a: Clicking Send to complete registration...")
+    send_btn = outer_iframe.get_by_role('button', name='Send')
+    send_btn.wait_for(state='visible', timeout=10000)
+    send_btn.click()
+    # Wait for dialog to close: event page returns when Register Clients is visible again
+    register_btn = outer_iframe.get_by_role('button', name='Register Clients')
+    register_btn.wait_for(state='visible', timeout=15000)
+    page.wait_for_timeout(1000)  # Allow attendees list to update
     
     # Step 6: Verify Client Added to Attendees
     print("  Step 6: Verifying client was added to attendees...")
-    # Wait for page to update
-    page.wait_for_timeout(2000)  # Allow attendees list to update
-    
-    # Verify client appears in attendees list
-    # The attendees tab should show the client
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     attendees_tab = inner_iframe.get_by_role('tab', name=re.compile(r'Attendees'))
     attendees_tab.wait_for(state='visible', timeout=10000)
-    
-    # Check if attendees count increased or client name appears
-    # The tab name changes from "Attendees (0)" to "Attendees (1)"
-    attendees_count_text = attendees_tab.text_content()
-    # Should contain "Attendees (1)" or similar
-    
-    # Save client ID to context (if available from the button or list)
+    inner_iframe.get_by_text(client_name).first.wait_for(state='visible', timeout=10000)
+    attendees_count_text = attendees_tab.first.text_content()
     context["event_attendee_id"] = context.get("event_client_id")
     
     print(f"  [OK] Client added as attendee successfully")

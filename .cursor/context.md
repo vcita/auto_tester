@@ -65,6 +65,8 @@ The Playwright MCP browser tool is **critical** for:
 
 **Rule**: Never guess locators. Always verify with MCP first.
 
+For tests that stay unfixed after several MCP attempts, use the standalone debug script: copy `debug_test_skeleton.py` to `debug_<category>_<test_name>.py` and follow the escalation steps in heal.mdc / heal_test.md.
+
 ### 2. Wait Strategy (CRITICAL)
 **Never use `wait_for_timeout()` alone** for action completion. Always use conditional waits:
 

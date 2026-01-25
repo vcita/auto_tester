@@ -73,7 +73,7 @@ scheduling/
 │   ├── schedule_event/        # ✅ Done
 │   ├── view_event/              # ✅ Done
 │   ├── add_attendee/          # ✅ Done
-│   ├── remove_attendee/       # ⚠️ Partial (needs UI exploration fix)
+│   ├── remove_attendee/       # ✅ Done
 │   ├── edit_event/            # ✅ Done
 │   └── cancel_event/          # ✅ Done
 │
@@ -134,7 +134,7 @@ scheduling/
 | 1 | schedule_event | Schedule Event | high | ✅ Done | Schedule a group event instance (select date/time) |
 | 2 | view_event | View Event | high | ✅ Done | Open and view event details |
 | 3 | add_attendee | Add Attendee | high | ✅ Done | Add a client to the event |
-| 4 | remove_attendee | Remove Attendee | medium | ⚠️ Partial | Remove a client from the event (needs UI exploration fix) |
+| 4 | remove_attendee | Remove Attendee | medium | ✅ Done | Remove a client from the event |
 | 5 | edit_event | Edit Event | high | ✅ Done | Modify event details |
 | 6 | cancel_event | Cancel Event | high | ✅ Done | Cancel the scheduled event |
 
@@ -267,20 +267,19 @@ The subcategories should run in this order:
 ### ✅ Completed
 1. ✅ **Services subcategory** - All 6 tests implemented
 2. ✅ **Appointments subcategory** - All 7 tests + setup/teardown implemented
-3. ✅ **Events subcategory** - 6 of 7 tests implemented (remove_attendee needs UI exploration fix)
+3. ✅ **Events subcategory** - All 6 tests implemented
 
 **Events Implementation Notes:**
 - `_setup` - Creates group event service and test client ✅
 - `schedule_event` - Schedules event (uses default date if date picker doesn't appear) ✅
 - `view_event` - Views event details (handles already being on event page) ✅
-- `add_attendee` - Adds client to event ✅
-- `remove_attendee` - Needs UI exploration to find correct remove button interaction ⚠️
-- `edit_event` - Modifies event max attendance ✅
-- `cancel_event` - Cancels scheduled event ✅
+- `add_attendee` - Adds client to event (dialog-scoped locators, get_by_text fallback) ✅
+- `remove_attendee` - Removes attendee via 3-dot menu / Cancel registration ✅
+- `edit_event` - Modifies event max attendance; verifies "0/12 Registered" in outer iframe ✅
+- `cancel_event` - Cancels scheduled event (flexible Cancel Event button locator) ✅
 
 **Known Issues:**
 - `schedule_event`: Date picker menu sometimes doesn't appear - test falls back to default date
-- `remove_attendee`: Remove button interaction needs further UI exploration
 
 ### 🔜 Next: Calendar Subcategory (Medium Priority)
 

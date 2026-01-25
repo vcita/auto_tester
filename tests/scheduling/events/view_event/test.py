@@ -59,8 +59,8 @@ def test_view_event(page: Page, context: dict) -> None:
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     
-    # Navigate to the event date - click on the date in the calendar mini-view
-    date_btn = inner_iframe.get_by_role('button', name=str(event_day))
+    # Navigate to the event date - click day in mini calendar (complementary + exact=True to avoid "January 2026")
+    date_btn = inner_iframe.get_by_role('complementary').first.get_by_role('button', name=str(event_day), exact=True)
     date_btn.click()
     page.wait_for_timeout(1000)  # Allow calendar to navigate to that date
     

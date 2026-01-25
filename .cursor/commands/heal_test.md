@@ -349,15 +349,17 @@ Add entry to `tests/{category}/{test_name}/changelog.md` following the format in
    - This marks the heal request as resolved
 
 **If test remains unresolved after 5 attempts:**
-Add "## Healing Result - UNRESOLVED" section with:
-- Issue Type (Test Bug / Product Bug / Unknown)
-- Summary of all 5 attempts
-- What was tried during debugging (list each attempt)
-- MCP observations from each attempt
-- Patterns noticed across attempts
-- **Estimation of what might be the issue** (even if unvalidated)
-- Hypotheses that need further investigation
-- Why the issue couldn't be resolved
+- First create and run a standalone debug script from `debug_test_skeleton.py` (see heal.mdc "Escalation: Standalone Debug Script When Stuck"); document what it revealed.
+- Then add "## Healing Result - UNRESOLVED" section with:
+  - Issue Type (Test Bug / Product Bug / Unknown)
+  - Summary of all 5 attempts
+  - What was tried during debugging (list each attempt)
+  - Standalone debug script findings (if run)
+  - MCP observations from each attempt
+  - Patterns noticed across attempts
+  - **Estimation of what might be the issue** (even if unvalidated)
+  - Hypotheses that need further investigation
+  - Why the issue couldn't be resolved
 - **Keep status as "open"** - the `/groom_heal_requests` command will automatically mark it as "expired" if changelog has newer entries
 
 **If product bug identified:**
@@ -435,16 +437,21 @@ Example status update location:
      - Document what was tried in each attempt
 
 4. **After 5 failed attempts without clear understanding**:
-   - **STOP the healing process**
-   - Mark the heal request as **"UNRESOLVED"**
+   - **Create and run a standalone debug script** (see `.cursor/rules/heal.mdc` section "Escalation: Standalone Debug Script When Stuck"):
+     1. Copy `debug_test_skeleton.py` to `debug_<category>_<test_name>.py`
+     2. Set TARGET_URL and fill STEP_2 … STEP_N from the failing test's test.py; put the failing step in DEBUG_FOCUS
+     3. Run it: `python debug_<category>_<test_name>.py` from project root
+     4. Document what was observed (which step fails, UI state, any variant that worked)
+   - **Then** mark the heal request as **"UNRESOLVED"**
    - Document in heal request:
      - Summary of all 5 attempts
      - What was tried during debugging
+     - What the standalone debug script revealed (if run)
      - What MCP observations revealed
      - Any patterns noticed across attempts
    - Document in failed run log:
      - Mark as "UNRESOLVED" (not "Healed")
-     - Include summary of attempts
+     - Include summary of attempts and debug script findings
      - **Add your estimation** of what might be the issue (even if you can't validate it)
      - Note any hypotheses that need further investigation
    - **DO NOT delete the heal request** - leave it for manual review
@@ -487,7 +494,7 @@ Example status update location:
 - [ ] Failed run log updated
 - [ ] **Category re-run to validate fix**
 - [ ] If test failed again: Retried healing process (up to 5 times)
-- [ ] If unresolved after 5 attempts: Documented as "UNRESOLVED" with estimation
+- [ ] If unresolved after 5 attempts: Created and ran debug_<category>_<test_name>.py from skeleton; documented findings; then marked UNRESOLVED with estimation
 - [ ] Heal request deleted (only if test is fixed) OR marked as "UNRESOLVED"
 - [ ] Fix doesn't repeat past failures
 

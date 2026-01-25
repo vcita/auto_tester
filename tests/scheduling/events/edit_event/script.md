@@ -109,18 +109,16 @@ dialog.wait_for(state='hidden', timeout=10000)
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+import re
 # Wait for page to update
 page.wait_for_timeout(2000)  # Allow page to refresh
 
-# Verify max attendance is updated
-# The event detail shows "/ 12 Registered" instead of "/ 10 Registered"
-inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-# Check that the registered count text shows "/ 12" or similar
-registered_text = inner_iframe.get_by_text('/ 12 Registered')
+# Verify max attendance is updated (UI shows "0/12 Registered" in main event detail, in outer iframe)
+registered_text = outer_iframe.get_by_text(re.compile(r'\d+\s*/\s*12(\s+Registered)?', re.IGNORECASE))
 expect(registered_text).to_be_visible()
 ```
 
-- **How verified**: Verified max attendance updated in MCP
+- **How verified**: Verified max attendance updated in MCP; UI text format may be "0 / 12" or "1 / 12 Registered"; regex allows flexible match.
 - **Wait for**: Event detail page shows updated value
 
 ## Success Verification

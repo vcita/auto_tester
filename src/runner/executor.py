@@ -97,17 +97,23 @@ class TestExecutor:
                 status="passed",
                 duration_ms=duration_ms,
             )
-            
+        
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
-            
+            # Treat [SKIP] message convention as skipped, not failed
+            if e.args and str(e.args[0]).strip().upper().startswith("[SKIP]"):
+                return TestResult(
+                    test_name=test_name,
+                    test_path=test_path,
+                    test_type=test_type,
+                    status="skipped",
+                    duration_ms=duration_ms,
+                    error=str(e).replace("[SKIP] ", "").strip(),
+                    error_type="Skipped",
+                )
             # Capture screenshot on failure
             screenshot_path = self._capture_screenshot(page, test_name)
-            
-            # Get full traceback
             error_msg = f"{type(e).__name__}: {str(e)}"
-            full_traceback = traceback.format_exc()
-            
             return TestResult(
                 test_name=test_name,
                 test_path=test_path,

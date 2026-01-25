@@ -411,6 +411,34 @@ After updating:
 
 Once fixed, delete the heal request file from `.cursor/heal_requests/`
 
+## Escalation: Standalone Debug Script When Stuck
+
+When a test remains unfixed after **5 MCP-focused attempts** (analyze with MCP, apply fix, run category; repeat), do not only mark the heal request as UNRESOLVED. **Create a dedicated standalone Python debug script** to accelerate debugging.
+
+**Trigger:** After 5 attempts without resolving the test.
+
+**Steps:**
+
+1. **Copy the skeleton**  
+   Copy `debug_test_skeleton.py` (project root) to `debug_<category>_<test_name>.py`.  
+   Naming: use underscores, e.g. `debug_events_remove_attendee.py`.
+
+2. **Configure**  
+   Set `TARGET_URL` (and any IDs from context or heal request) to the test’s starting page.  
+   Copy the failing test’s steps from `test.py` into the skeleton’s STEP_2 … STEP_N blocks.
+
+3. **Focus on the failure**  
+   Put the **failing action or assertion** in the `DEBUG_FOCUS` section. Add extra `print` calls or try multiple locators/variants to see what works.
+
+4. **Run the script**  
+   From project root: `python debug_<category>_<test_name>.py`.  
+   The skeleton uses the same browser/context as the runner, so behaviour matches the full run.
+
+5. **Use the findings**  
+   Document what you observed (which step fails, what the UI shows, any variant that worked). Use this to decide the next fix or to document UNRESOLVED with a clearer "estimation of what might be the issue."
+
+Then complete the UNRESOLVED documentation and status update as described in the heal command.
+
 ## Handling Product Bugs
 
 If you determine the failure is a product bug (not a test issue):

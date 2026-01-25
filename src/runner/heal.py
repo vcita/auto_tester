@@ -24,7 +24,9 @@ class HealRequestGenerator:
     - Relevant test files (steps.md, script.md, test.py)
     
     These files are placed in .cursor/heal_requests/ for manual
-    processing by Cursor.
+    processing by Cursor. All files are stored flat in that directory
+    (no category subfolders); the only subdir is "resolved/" for
+    resolved requests.
     """
     
     def __init__(self, heal_requests_dir: Optional[Path] = None):

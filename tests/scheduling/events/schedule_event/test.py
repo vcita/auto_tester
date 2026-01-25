@@ -85,65 +85,58 @@ def test_schedule_event(page: Page, context: dict) -> None:
     service_option.click()
     page.wait_for_timeout(1000)  # Allow selection to register
     
-    # Step 5: Set Start Date to Tomorrow
+    # Step 5: Set Start Date to Tomorrow (must be future so Cancel Event is available later)
     print("  Step 5: Setting start date to tomorrow...")
-    # Calculate tomorrow's date
     tomorrow = datetime.now() + timedelta(days=1)
     tomorrow_day = tomorrow.day
+    # Use 10:00 so the event is clearly in the future in any timezone
+    context["scheduled_event_time"] = tomorrow.strftime("%Y-%m-%d 10:00")
     
     # Wait for dialog to be fully ready after service selection
     page.wait_for_timeout(2000)  # Allow dialog to fully render
     
-    # Verify service was selected by checking the combobox shows the service name
+    # Verify service was selected
     service_combobox_text = service_combobox.text_content()
     if service_name not in service_combobox_text:
         raise ValueError(f"Service '{service_name}' was not selected. Combobox shows: {service_combobox_text}")
     
-    # Click start date button - click the inner date value button
-    # There are typically two "Start date:" buttons - the second one is the clickable date value
     start_date_buttons = inner_iframe.get_by_role('button', name='Start date:')
     button_count = start_date_buttons.count()
     if button_count >= 2:
-        start_date_btn = start_date_buttons.nth(1)  # Second button is the date value
+        start_date_btn = start_date_buttons.nth(1)
     else:
-        start_date_btn = start_date_buttons.nth(0)  # Fallback to first
+        start_date_btn = start_date_buttons.nth(0)
     
     start_date_btn.wait_for(state='visible', timeout=5000)
-    start_date_btn.click()
+    start_date_btn.scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
     
-    # Wait for date picker menu to appear - it's in the document
-    # Use a longer timeout and check for menu appearance
-    page.wait_for_timeout(3000)  # Allow date picker to appear
+    date_picker_menu = None
+    for attempt in range(2):
+        start_date_btn.click()
+        page.wait_for_timeout(3000)
+        date_picker_menu = page.get_by_role('menu')
+        if date_picker_menu.count() == 0:
+            date_picker_menu = inner_iframe.get_by_role('menu')
+        if date_picker_menu.count() > 0:
+            break
+        page.wait_for_timeout(500)
     
-    # Check for menu in document - it should appear after clicking
-    date_picker_menu = page.get_by_role('menu')
-    menu_count = date_picker_menu.count()
+    if date_picker_menu is None or date_picker_menu.count() == 0:
+        raise ValueError(
+            "Date picker did not open. Event must be scheduled in the future so Cancel Event is available. "
+            "Try running again or check Start date control."
+        )
     
-    if menu_count == 0:
-        # Menu didn't appear - this might be a product issue or timing problem
-        # For now, accept the default date (today) and proceed
-        print(f"  Warning: Date picker menu did not appear. Using default date.")
-        # Use today's date instead of tomorrow
-        today = datetime.now()
-        context["scheduled_event_time"] = today.strftime("%Y-%m-%d 16:00")
-        print(f"  Using default date: {context.get('scheduled_event_time')}")
-    else:
-        # Menu appeared - proceed with date selection
-        date_picker_menu.nth(0).wait_for(state='visible', timeout=5000)
-        
-        # Find and click tomorrow's date button in the menu
-        tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
-        button_count = tomorrow_date_btn.count()
-        if button_count > 0:
-            # Use the last button which should be in the calendar grid
-            tomorrow_date_btn = tomorrow_date_btn.nth(button_count - 1)
-            tomorrow_date_btn.wait_for(state='visible', timeout=5000)
-            tomorrow_date_btn.click()
-            page.wait_for_timeout(1500)  # Allow date to be set and picker to close
-            # Save tomorrow's date to context
-            context["scheduled_event_time"] = tomorrow.strftime("%Y-%m-%d 16:00")
-        else:
-            raise ValueError(f"Date button for day {tomorrow_day} not found in date picker")
+    date_picker_menu.first.wait_for(state='visible', timeout=5000)
+    tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
+    if tomorrow_date_btn.count() == 0:
+        tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day))
+    if tomorrow_date_btn.count() == 0:
+        raise ValueError(f"Date button for day {tomorrow_day} not found in date picker")
+    # Use the last matching button (calendar grid usually has the day in current month last)
+    tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1).click()
+    page.wait_for_timeout(1500)
     
     # Step 6: Verify End Date is Set (Auto-updated)
     print("  Step 6: Verifying end date auto-updated...")
@@ -170,15 +163,42 @@ def test_schedule_event(page: Page, context: dict) -> None:
     # Wait for dialog to close and calendar to update
     page.wait_for_timeout(2000)  # Allow event to be created and calendar to refresh
     
-    # Step 9: Verify Event Created
-    print("  Step 9: Verifying event was created...")
-    # Wait for calendar to update
-    page.wait_for_timeout(3000)  # Allow calendar to refresh
-    
-    # Save event details to context
-    tomorrow = datetime.now() + timedelta(days=1)
-    context["scheduled_event_time"] = tomorrow.strftime("%Y-%m-%d 16:00")
-    # Event ID will be retrieved when viewing the event
-    
-    print(f"  [OK] Event scheduled successfully")
+    # Step 9: Verify Event Created (MCP-validated: search filters list; row with service name visible)
+    print("  Step 9: Verifying event in Event List...")
+    page.wait_for_timeout(2000)  # Allow dialog to close and request to complete
+
+    # Navigate to Event List
+    calendar_menu = page.get_by_text("Calendar", exact=True)
+    calendar_menu.click()
+    page.wait_for_timeout(1500)  # Allow Calendar submenu to expand
+    event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
+    event_list_item.wait_for(state='attached', timeout=10000)
+    event_list_item.first.evaluate('el => el.click()')
+    page.wait_for_url("**/app/event-list**", timeout=15000)
+    page.wait_for_timeout(3000)  # Allow event list to load
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    outer_iframe = page.frame_locator('iframe[title="angularjs"]')
+    inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+
+    # Search by event name to filter to our event
+    event_service_name = context.get("event_group_service_name")
+    if not event_service_name:
+        raise ValueError("event_group_service_name not in context")
+    search_field = inner_iframe.get_by_role('textbox', name='Search by event name')
+    search_field.wait_for(state='visible', timeout=10000)
+    search_field.click()
+    page.wait_for_timeout(100)
+    search_field.press_sequentially(event_service_name, delay=30)
+    page.wait_for_timeout(2000)  # Allow filter to apply
+
+    # HEALED: [cursor="pointer"] is not an HTML attribute (it's CSS); use get_by_text to find event
+    event_cell = inner_iframe.get_by_text(event_service_name)
+    event_cell.wait_for(state='visible', timeout=10000)
+
+    # Return to Calendar via "Calendar View" submenu (clicking "Calendar" only toggles menu when on Event List; MCP-validated)
+    calendar_view_item = page.get_by_text("Calendar View", exact=True)
+    calendar_view_item.click()
+    page.wait_for_url("**/app/calendar**", timeout=10000)
+
+    print(f"  [OK] Event scheduled and verified in Event List")
     print(f"       Date/Time: {context.get('scheduled_event_time')}")

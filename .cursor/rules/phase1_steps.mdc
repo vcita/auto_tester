@@ -53,6 +53,18 @@ If you see similar step sequences (2+ steps), EXTRACT to a new function.
 - **Expected Result**: What success looks like
 - **Test Data**: Any specific values needed
 
+### CRITICAL: Validate That the Action Actually Happened
+
+For any step that **changes state** (create, update, delete, cancel, add, remove), the test must **verify the outcome**, not only that the UI flow completed.
+
+- **Include an explicit verification step or expected result** that asserts the real-world effect:
+  - **Create**: Verify the new item appears in the list/detail (e.g. "Client appears in client list").
+  - **Delete/Remove**: Verify the item is gone or marked removed (e.g. "Item no longer in list" or "Row shows REMOVED").
+  - **Cancel**: Verify status is cancelled where it matters (e.g. "Event is shown as CANCELLED in Event List").
+  - **Update/Edit**: Verify the changed data is visible (e.g. "Detail page shows updated name").
+- **Expected Result** must state **what to assert** (e.g. "Event is marked as CANCELLED in Event List"), not only "dialog closes" or "navigates to calendar."
+- Success = the **intended action was performed** and the **outcome is observable** in the app (list, detail, status).
+
 ### What NOT to Include
 - CSS selectors or XPath
 - Specific element locations

@@ -305,6 +305,19 @@ name_field.press_sequentially(name)
 - Client ID is captured
 ```
 
+## CRITICAL: Outcome Verification for State-Changing Actions
+
+**Every test that performs a state-changing action (create, update, delete, cancel, add, remove) MUST include a final verification step with VERIFIED PLAYWRIGHT CODE that confirms the action actually took effect.**
+
+- **Do not rely only on**: dialog closes, navigation, or toast messages.
+- **Do include**: Assertions that check the real outcome in the UI:
+  - **Create**: New item visible in list/detail (e.g. row with name, or URL with new ID).
+  - **Delete/Remove**: Item gone from list or row shows removed/deleted status (e.g. `row.wait_for(state="hidden")` or assert row text contains "REMOVED"/"CANCELLED").
+  - **Cancel**: Status is cancelled where the app shows it (e.g. Event List row contains "CANCELLED").
+  - **Update**: Changed data visible on the page (e.g. get_by_text(updated_value) visible).
+- Document this as a dedicated step (e.g. "Step N: Verify event is cancelled") with **VERIFIED PLAYWRIGHT CODE** that performs the assertion (e.g. open Event List, find row by context key, assert text contains "CANCELLED"; or find row and expect count 0 after delete).
+- **Success Verification** in script.md should list these outcome checks explicitly.
+
 ## When to Update script.md
 
 - UI elements change (new selectors discovered)

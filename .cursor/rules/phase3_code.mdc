@@ -373,6 +373,8 @@ The runner handles:
 
 **CRITICAL: Verify actual data, NEVER rely on toast messages or confirmation dialogs.**
 
+**CRITICAL: Confirm the action was actually performed.** Every test that changes state (create, update, delete, cancel, add, remove) must include assertions that prove the outcome, not only that the UI flow completed (e.g. dialog closed or URL changed). Examples: after delete, assert the item is gone (e.g. row count 0 or row hidden); after cancel, assert the entity is marked CANCELLED/removed where the app displays status (e.g. Event List row contains "CANCELLED"); after create, assert the new item appears in the list or detail. Copy these verification steps from script.md VERIFIED PLAYWRIGHT CODE.
+
 Use Playwright's `expect()` for assertions on **actual data**:
 
 ```python

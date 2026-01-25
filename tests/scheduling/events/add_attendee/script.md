@@ -126,19 +126,25 @@ page.wait_for_timeout(500)  # Allow selection to register
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Click Continue to register the client
 continue_btn = outer_iframe.get_by_role('button', name='Continue')
 continue_btn.wait_for(state='visible', timeout=10000)
-# Wait for button to be enabled (may be disabled until client is selected)
-continue_btn.wait_for(state='attached', timeout=5000)
 continue_btn.click()
-# Wait for dialog to close
-dialog.wait_for(state='hidden', timeout=10000)
+# Step 5a: Confirmation dialog – click Send to complete registration (MCP-verified)
+send_btn = outer_iframe.get_by_role('button', name='Send')
+send_btn.wait_for(state='visible', timeout=10000)
+send_btn.click()
+register_btn = outer_iframe.get_by_role('button', name='Register Clients')
+register_btn.wait_for(state='visible', timeout=15000)
 ```
 
-- **How verified**: Clicked in MCP, client was registered, dialog closed
-- **Wait for**: Dialog closes
-- **Fallback locators**: `outer_iframe.get_by_text("Continue")`
+- **How verified**: MCP exploration: After Continue, a second dialog appears (confirmation with optional "Add note to registration email"); **Send** completes registration. Without clicking Send, attendee is not added.
+- **Wait for**: Send button visible, then after click: Register Clients visible again
+- **Fallback locators**: `outer_iframe.get_by_text("Continue")`, `outer_iframe.get_by_text("Send")`
+
+### Step 5a: Click Send to Complete Registration
+- **Action**: Click
+- **Target**: "Send" button in confirmation dialog
+- **Note**: Without this step, registration is not submitted; Attendees stays at 0.
 
 ### Step 6: Verify Client Added to Attendees
 - **Action**: Verify
@@ -146,19 +152,11 @@ dialog.wait_for(state='hidden', timeout=10000)
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Wait for page to update
-page.wait_for_timeout(2000)  # Allow attendees list to update
-
-# Verify client appears in attendees list
-# The attendees tab should show the client
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
 attendees_tab = inner_iframe.get_by_role('tab', name=re.compile(r'Attendees'))
 attendees_tab.wait_for(state='visible', timeout=10000)
-
-# Check if attendees count increased or client name appears
-# The tab name changes from "Attendees (0)" to "Attendees (1)"
-attendees_count_text = attendees_tab.text_content()
-# Should contain "Attendees (1)" or similar
+inner_iframe.get_by_text(client_name).first.wait_for(state='visible', timeout=10000)
+attendees_count_text = attendees_tab.first.text_content()
 
 # Save client ID to context (if available from the button or list)
 context["event_attendee_id"] = context.get("event_client_id")

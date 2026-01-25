@@ -50,10 +50,9 @@ page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
 
-# Navigate to the event date - click on the date in the calendar mini-view or use navigation
-# The calendar shows a mini calendar on the left side
-# We can click on the date button in the mini calendar
-date_btn = inner_iframe.get_by_role('button', name=str(event_day))
+# Navigate to the event date - click the day in the mini calendar (left sidebar)
+# HEALED: get_by_role('button', name='26') matches 4+ elements; scope to complementary + exact=True to exclude "January 2026"
+date_btn = inner_iframe.get_by_role('complementary').first.get_by_role('button', name=str(event_day), exact=True)
 date_btn.click()
 page.wait_for_timeout(1000)  # Allow calendar to navigate to that date
 ```

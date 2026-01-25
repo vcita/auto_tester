@@ -219,34 +219,54 @@ page.wait_for_timeout(2000)  # Allow event to be created and calendar to refresh
 
 ### Step 9: Verify Event Created
 - **Action**: Verify
-- **Target**: Event appears in calendar or success indicator
+- **Target**: Event appears in Event List (outcome verification). MCP-validated: Event List has "Search by event name" textbox; use it to filter, then assert row visible.
 
-**VERIFIED PLAYWRIGHT CODE**:
+**VERIFIED PLAYWRIGHT CODE** (MCP-validated 2026-01-25):
 ```python
-# Wait for calendar to update
-page.wait_for_timeout(3000)  # Allow calendar to refresh
+# Wait for creation to complete
+page.wait_for_timeout(2000)  # Allow dialog to close and request to complete
 
-# Verify event was created by checking calendar
-# Note: Event may appear on a different date than currently visible in calendar view
-# The calendar view shows "18-24 January" but event is on 25th
-# For verification, we can check that the dialog closed and toast appeared
-# OR navigate to the event date and verify event appears
+# Navigate to Event List
+calendar_menu = page.get_by_text("Calendar", exact=True)
+calendar_menu.click()
+page.wait_for_timeout(1500)  # Allow Calendar submenu to expand
+event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
+event_list_item.wait_for(state='attached', timeout=10000)
+event_list_item.first.evaluate('el => el.click()')  # Force click (sidebar may be collapsed)
+page.wait_for_url("**/app/event-list**", timeout=15000)
+page.wait_for_timeout(3000)  # Allow event list to load
+page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+outer_iframe = page.frame_locator('iframe[title="angularjs"]')
+inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
 
-# Save event details to context
-from datetime import datetime, timedelta
-tomorrow = datetime.now() + timedelta(days=1)
-context["scheduled_event_time"] = tomorrow.strftime("%Y-%m-%d 16:00")
-# Event ID will be retrieved when viewing the event
+# MCP: Event List has textbox "Search by event name" - use it to filter to our event
+service_name = context.get("event_group_service_name")
+if not service_name:
+    raise ValueError("event_group_service_name not in context")
+search_field = inner_iframe.get_by_role('textbox', name='Search by event name')
+search_field.wait_for(state='visible', timeout=10000)
+search_field.click()
+page.wait_for_timeout(100)
+search_field.press_sequentially(service_name, delay=30)
+page.wait_for_timeout(2000)  # Allow filter to apply
+
+# Assert event visible by text (cursor=pointer is style not DOM attribute; get_by_text works)
+event_cell = inner_iframe.get_by_text(service_name)
+event_cell.wait_for(state='visible', timeout=10000)
+
+# Return to Calendar so next test (view_event) starts from Calendar (click "Calendar View" submenu; MCP-validated)
+calendar_view_item = page.get_by_text("Calendar View", exact=True)
+calendar_view_item.click()
+page.wait_for_url("**/app/calendar**", timeout=10000)
 ```
 
-- **How verified**: Dialog closed, toast "Group event created" appeared in MCP
-- **Wait for**: Calendar updates or toast appears
-- **Save to context**: scheduled_event_time
+- **How verified**: MCP: Search filters list; row visible. HEALED 2026-01-25: locator `[cursor="pointer"]` fails (cursor is CSS, not HTML attr); use `get_by_text(service_name)` — MCP run_code confirmed count 0 vs 1.
+- **Wait for**: Event List loads; after search, event row visible.
+- **Save to context**: scheduled_event_time (set in Step 5).
 
 ## Success Verification
 - Event instance is scheduled successfully
 - Dialog closes after creation
-- Toast message "Group event created" appears (optional - don't rely on it)
-- Calendar updates to show the new event (may require navigating to event date)
+- **Event appears in Event List** (filter by service name, row visible) — MCP-validated
 - Context contains:
   - scheduled_event_time: Date/time of the scheduled event

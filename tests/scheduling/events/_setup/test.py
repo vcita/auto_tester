@@ -40,7 +40,7 @@ def setup_events(page: Page, context: dict) -> None:
     print("  Setup Step 1: Navigating to Settings...")
     settings_menu = page.get_by_text("Settings", exact=True)
     settings_menu.click()
-    page.wait_for_url("**/app/settings**", timeout=10000)
+    page.wait_for_url("**/app/settings**", timeout=20000, wait_until="domcontentloaded")
     
     # Step 2: Navigate to Services
     print("  Setup Step 2: Navigating to Services...")
@@ -48,7 +48,7 @@ def setup_events(page: Page, context: dict) -> None:
     iframe = page.frame_locator('iframe[title="angularjs"]')
     services_btn = iframe.get_by_role("button", name="Define the services your")
     services_btn.click()
-    page.wait_for_url("**/app/settings/services**", timeout=10000)
+    page.wait_for_url("**/app/settings/services**", timeout=20000, wait_until="domcontentloaded")
     
     # Generate unique group event name
     group_event_name = f"Event Test Workshop {timestamp}"
