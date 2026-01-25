@@ -21,17 +21,18 @@ Verify that a user can delete an existing matter from the Clients list, and conf
 2. Wait for the clients list to load
 
 ### Part 2: Find and Select the Matter
-3. Locate the matter to delete by name (from context: `created_matter_name`)
-4. Check the checkbox next to the matter's name to select it
+3. Search for the matter by name in the list search box (so it appears on the first page; list is paginated)
+4. Locate the matter to delete by name (from context: `created_matter_name`)
+5. Check the checkbox next to the matter's name to select it
 
 ### Part 3: Delete the Matter
-5. Click the "More" button (dropdown menu with additional actions)
-6. Click "Delete" from the dropdown menu options
-7. Click "Delete" again in the confirmation dialog to confirm deletion
+6. Click the "More" button (dropdown menu with additional actions)
+7. Click "Delete" from the dropdown menu options
+8. Click "Delete" again in the confirmation dialog to confirm deletion
 
 ### Part 4: Verify Deletion
-8. Verify the matter is no longer visible in the clients list
-9. Optionally search for the matter name to confirm it doesn't exist
+9. Verify the matter is no longer visible in the clients list
+10. Optionally search for the matter name to confirm it doesn't exist
 
 ## Expected Result
 - Matter is successfully deleted

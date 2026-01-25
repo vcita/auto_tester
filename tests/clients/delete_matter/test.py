@@ -46,11 +46,15 @@ def test_delete_matter(page: Page, context: dict) -> None:
     
     # ========== PART 2: Find and Select the Matter ==========
     
-    # Step 2: Locate the matter row in the table
+    # Step 2: Search for the matter so it appears on the first page (list is paginated)
+    # HEALED: Without search, the matter may be on page 2+ (e.g. 116 properties, 6 pages) and row lookup times out
+    searchbox = page.get_by_role("searchbox", name="Search by name, email, or phone number")
+    searchbox.fill(matter_name)
+    # Wait for list to filter and matter row to be visible
     matter_row = page.get_by_role("row", name=matter_name)
     matter_row.wait_for(state="visible", timeout=10000)
     
-    # Step 3: Click the checkbox button in the matter's row
+    # Step 4: Click the checkbox button in the matter's row
     # Note: The checkbox is wrapped in a button element due to UI framework
     checkbox_btn = matter_row.get_by_role("button").first
     checkbox_btn.click()
@@ -61,7 +65,7 @@ def test_delete_matter(page: Page, context: dict) -> None:
     
     # ========== PART 3: Delete the Matter ==========
     
-    # Step 4: Click the More button
+    # Step 5: Click the More button
     more_btn = page.get_by_role("button", name="More", exact=True)
     more_btn.click()
     
@@ -69,14 +73,14 @@ def test_delete_matter(page: Page, context: dict) -> None:
     delete_option = page.locator('div').filter(has_text=re.compile(r"^Delete$")).nth(1)
     delete_option.wait_for(state="visible", timeout=5000)
     
-    # Step 5: Click Delete option in the dropdown
+    # Step 6: Click Delete option in the dropdown
     delete_option.click()
     
     # Wait for confirmation dialog to appear
     dialog_title = page.get_by_text("Delete properties?")
     dialog_title.wait_for(state="visible", timeout=5000)
     
-    # Step 6: Confirm deletion by clicking Delete in the dialog
+    # Step 7: Confirm deletion by clicking Delete in the dialog
     confirm_delete_btn = page.get_by_role("button", name="Delete")
     confirm_delete_btn.click()
     
@@ -84,7 +88,7 @@ def test_delete_matter(page: Page, context: dict) -> None:
     success_dialog_title = page.get_by_text("Properties deleted")
     success_dialog_title.wait_for(state="visible", timeout=10000)
     
-    # Step 7: Acknowledge success dialog
+    # Step 8: Acknowledge success dialog
     # Click OK to dismiss the success dialog
     ok_btn = page.get_by_role("button", name="OK")
     ok_btn.click()
@@ -95,12 +99,12 @@ def test_delete_matter(page: Page, context: dict) -> None:
     # ========== PART 4: Verify Deletion (USER PERSPECTIVE) ==========
     # CRITICAL: We verify the ACTUAL RESULT, not just the success message
     
-    # Step 8: Verify the matter is ACTUALLY no longer in the list
+    # Step 9: Verify the matter is ACTUALLY no longer in the list
     # This is the PRIMARY validation - the user would check if the item is gone
     matter_row_after = page.get_by_role("row", name=matter_name)
     expect(matter_row_after).to_have_count(0, timeout=10000)
     
-    # Step 8: Clear context data
+    # Step 10: Clear context data
     context.pop("created_matter_name", None)
     context.pop("created_matter_email", None)
     context.pop("created_matter_id", None)

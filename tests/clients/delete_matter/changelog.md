@@ -1,5 +1,25 @@
 # Changelog - Delete Matter
 
+## 2026-01-25 - Healed (Search before locating row)
+
+**Phase**: script.md, steps.md, test.py  
+**Author**: Cursor AI (heal)  
+**Reason**: Row lookup timeout - matter not on first page  
+**Error**: `TimeoutError: Locator.wait_for: Timeout 10000ms exceeded. waiting for get_by_role("row", name="Alex ContactEdit1769335464") to be visible`
+
+**Root Cause**: The Properties list is paginated (e.g. 116 properties, 6 pages, 20 per page). The test located the row by name without filtering; the matter created earlier in the run could be on page 2 or later, so `get_by_role("row", name=matter_name)` never saw it and timed out.
+
+**Fix Applied**: Add a step before locating the row: fill the list search box ("Search by name, email, or phone number") with the matter name, then wait for the matter row to be visible. Search filters the list so the target row appears on the first page.
+
+**Changes**:
+- script.md: Added Step 2 "Search for the Matter", renumbered Steps 3–11. Added searchbox to Locator Summary.
+- steps.md: Added step 3 to search by name, renumbered following steps.
+- test.py: After navigation, fill searchbox with matter_name, then wait for matter row; added HEALED comment.
+
+**Verified Approach**: Confirmed with MCP: on Properties page, filled search with "Event TestClient1769331832"; list filtered and row was visible; `get_by_role("row", name="...")` then matched the row. No `page.reload()` or `page.goto()` used.
+
+---
+
 ## 2026-01-21 - Initial Creation (with Complete Exploration)
 
 ### Created

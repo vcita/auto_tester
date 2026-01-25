@@ -25,12 +25,18 @@
 
 ### Part 2: Find and Select the Matter
 
-#### Step 2: Locate the Matter in the List
+#### Step 2: Search for the Matter (so it appears on first page)
+- **Action**: Fill the list search box with the matter name so the table filters and the target row is visible (list has pagination; without search the matter may be on another page).
+- **Locator**: `page.get_by_role("searchbox", name="Search by name, email, or phone number")`
+- **Action**: `searchbox.fill(matter_name)` then wait for the matter row to be visible.
+- **Wait for**: Matter row to appear (ensures search has been applied and row is in DOM).
+
+#### Step 3: Locate the Matter in the List
 - **Action**: Find the row containing the matter name from context
 - **Locator**: `page.get_by_role("row", name=context["created_matter_name"])`
-- **Expected**: Row should be visible in the table
+- **Expected**: Row should be visible in the table (after search)
 
-#### Step 3: Select the Matter Checkbox
+#### Step 4: Select the Matter Checkbox
 - **Action**: Click the checkbox button in the matter's row
 - **Locator**: `page.get_by_role("row", name=context["created_matter_name"]).get_by_role("button").first`
 - **Note**: The checkbox is wrapped in a button element due to UI framework
@@ -39,25 +45,25 @@
 
 ### Part 3: Delete the Matter
 
-#### Step 4: Click the More Button
+#### Step 5: Click the More Button
 - **Action**: Click the "More" button to reveal additional actions
 - **Locator**: `page.get_by_role("button", name="More", exact=True)`
 - **Wait for**: Dropdown menu to appear
 - **Expected**: Menu shows options including "Delete" under "MANAGE" section
 
-#### Step 5: Click Delete Option
+#### Step 6: Click Delete Option
 - **Action**: Click "Delete" from the dropdown menu
 - **Locator**: `page.locator('div').filter(hasText=re.compile(r"^Delete$")).nth(1)` or `page.get_by_text("Delete", exact=True)`
 - **Wait for**: Confirmation dialog to appear
 - **Expected**: Dialog with title "Delete properties?" and message about canceling upcoming payments
 
-#### Step 6: Confirm Deletion
+#### Step 7: Confirm Deletion
 - **Action**: Click "Delete" button in confirmation dialog
 - **Locator**: `page.get_by_role("button", name="Delete")`
 - **Note**: This is the second "Delete" button (in the dialog, not the menu)
 - **Wait for**: Success dialog to appear
 
-#### Step 7: Acknowledge Success Dialog
+#### Step 8: Acknowledge Success Dialog
 - **Action**: Click "OK" button in success dialog
 - **Dialog title**: "Properties deleted"
 - **Dialog message**: "Please allow a couple of seconds for the list to update. If you still see deleted properties - please refresh the page."
@@ -66,18 +72,18 @@
 
 ### Part 4: Verify Deletion (USER PERSPECTIVE)
 
-#### Step 8: Verify Matter is ACTUALLY Removed from List
+#### Step 9: Verify Matter is ACTUALLY Removed from List
 - **Action**: Verify the matter no longer appears in the list
 - **Locator**: `page.get_by_role("row", name=context["created_matter_name"])`
 - **Expected**: Row should NOT be visible (count should be 0)
 - **CRITICAL**: This is the real validation - seeing the item is gone, not just a toast
 
-#### Step 9: Verify Table Count Decreased
+#### Step 10: Verify Table Count Decreased
 - **Action**: Verify the properties count decreased
 - **Locator**: `page.get_by_text(re.compile(r"\d+ PROPERTIES"))`
 - **Expected**: Count should be one less than before deletion
 
-#### Step 10: Clear Context
+#### Step 11: Clear Context
 - **Action**: Remove matter data from context
 - **Clear**: `created_matter_name`, `created_matter_email`, `created_matter_id`
 
@@ -107,7 +113,8 @@
 | Element | Role/Locator |
 |---------|-------------|
 | Properties nav | `.menu-items-group > div:nth-child(4)` |
-| Matter row | `get_by_role("row", name="...")` |
+| Search box | `get_by_role("searchbox", name="Search by name, email, or phone number")` |
+| Matter row | `get_by_role("row", name="...")` (use after search so row is on first page) |
 | Row checkbox | Row's first button element |
 | More button | `get_by_role("button", name="More", exact=True)` |
 | Delete menu item | `locator('div').filter(hasText=r"^Delete$")` |
