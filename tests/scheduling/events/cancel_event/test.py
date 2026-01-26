@@ -83,7 +83,7 @@ def test_cancel_event(page: Page, context: dict) -> None:
                     continue
         if more_btn.count() > 0:
             (more_btn.first if more_btn.count() > 1 else more_btn).click()
-            page.wait_for_timeout(1500)
+            outer_iframe.get_by_role('menuitem', name=re.compile(r'Cancel\s*Event', re.IGNORECASE)).first.wait_for(state='visible', timeout=5000)
             for frame in [outer_iframe, inner_iframe, page]:
                 mi = frame.get_by_role('menuitem', name=re.compile(r'Cancel\s*Event', re.IGNORECASE))
                 if mi.count() == 0:
@@ -98,16 +98,15 @@ def test_cancel_event(page: Page, context: dict) -> None:
         print("  Step 2a: Cancel Event not on detail page; trying from Event List...")
         calendar_menu = page.get_by_text("Calendar", exact=True)
         calendar_menu.click()
-        page.wait_for_timeout(1500)  # Allow Calendar submenu to expand
         event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
+        # HEALED: Submenu item can be attached but hidden when Calendar submenu is collapsed; wait for attached then force click.
         event_list_item.wait_for(state='attached', timeout=10000)
-        # Sidebar item may be in collapsed state; force click to navigate
         event_list_item.first.evaluate('el => el.click()')
         page.wait_for_url("**/app/event-list**", timeout=15000)
-        page.wait_for_timeout(3000)  # Allow event list to load
         page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
         outer_iframe = page.frame_locator('iframe[title="angularjs"]')
         inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+        inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=15000)
         service_name = context.get("event_group_service_name", "")
         if not service_name:
             raise ValueError("event_group_service_name not in context")
@@ -138,7 +137,7 @@ def test_cancel_event(page: Page, context: dict) -> None:
                 menu_btn = row_buttons.last
         if menu_btn is not None:
             menu_btn.click()
-            page.wait_for_timeout(2000)
+            outer_iframe.get_by_role('menuitem', name=re.compile(r'Cancel\s*Event', re.IGNORECASE)).first.wait_for(state='visible', timeout=5000)
             for frame in [outer_iframe, inner_iframe, page]:
                 # Prefer exact "Cancel Event" / "Cancel event"
                 mi = frame.get_by_role('menuitem', name=re.compile(r'Cancel\s*Event', re.IGNORECASE))
@@ -183,10 +182,9 @@ def test_cancel_event(page: Page, context: dict) -> None:
     print("  Step 3: Filling cancellation message...")
     cancellation_message = "Test cancellation - event no longer needed"
     message_field.click()
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     message_field.press_sequentially(cancellation_message, delay=30)
-    page.wait_for_timeout(500)  # Allow message to be entered
-    
+
     # Step 4: Click Submit to Cancel
     print("  Step 4: Clicking Submit to cancel event...")
     submit_btn = dialog_scope.get_by_role('button', name='Submit')
@@ -198,21 +196,18 @@ def test_cancel_event(page: Page, context: dict) -> None:
     print("  Step 5: Verifying event was cancelled...")
     # Verify we're on calendar page
     expect(page).to_have_url(re.compile(r".*app/calendar.*"))
-    page.wait_for_timeout(2000)  # Allow calendar to update
-    
-    # Verify event is marked CANCELLED in Event List (actual state check)
-    page.wait_for_timeout(2000)  # Allow cancellation to propagate before opening Event List
     calendar_menu = page.get_by_text("Calendar", exact=True)
+    calendar_menu.wait_for(state='visible', timeout=5000)
     calendar_menu.click()
-    page.wait_for_timeout(1500)  # Allow Calendar submenu to expand (element not visible otherwise)
     event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
+    # HEALED: Event List submenu item can be attached but hidden when Calendar submenu is collapsed; wait for attached then force click.
     event_list_item.wait_for(state='attached', timeout=10000)
-    event_list_item.first.evaluate('el => el.click()')  # Force click (sidebar may be collapsed)
+    event_list_item.first.evaluate('el => el.click()')
     page.wait_for_url("**/app/event-list**", timeout=15000)
-    page.wait_for_timeout(3000)  # Allow event list to load and show updated status
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+    inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=15000)
     service_name = context.get("event_group_service_name", "")
     if service_name:
         # Find the event by service name; get row text from ancestor (status "CANCELLED" is sibling in row)

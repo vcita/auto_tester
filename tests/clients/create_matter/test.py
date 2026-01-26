@@ -9,6 +9,8 @@ import time
 import random
 from playwright.sync_api import Page, expect
 
+from tests._functions._config import get_base_url
+
 
 def generate_test_data() -> dict:
     """Generate comprehensive random test data for matter creation."""
@@ -60,12 +62,17 @@ def test_create_matter(page: Page, context: dict) -> None:
     test_data = generate_test_data()
     
     # ========== PART 1: Open the New Matter Form ==========
-    
-    print("  Step 1: Navigating to dashboard...")
-    # Always navigate to dashboard to ensure clean state
-    page.goto("https://app.vcita.com/app/dashboard")
+    # HEALED 2026-01-26: Do NOT use page.goto(base_url + "/app/dashboard"). base_url is www.vcita.com;
+    # www.vcita.com/app/dashboard is unavailable (app is on app.vcita.com). Setup leaves us on
+    # app.vcita.com/app/dashboard after login. If not on dashboard, navigate via UI only.
+    base_url = get_base_url(context)
+    print("  Step 1: Ensuring we're on dashboard...")
+    if "/app/dashboard" not in page.url:
+        dashboard_link = page.get_by_text("Dashboard", exact=True)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=15000)
     page.wait_for_load_state("domcontentloaded")
-    
+
     print("  Step 2: Waiting for Quick actions panel...")
     # HEALED 2026-01-22: UI changed - Quick Actions button no longer opens dropdown
     # "Add property" is now directly visible in the Quick actions panel on the right side

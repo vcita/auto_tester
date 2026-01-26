@@ -1,5 +1,18 @@
 # Changelog - Create Matter
 
+## [2.4.0] - 2026-01-26
+
+### Fixed (Healed)
+- **Wrong login page / dashboard URL: "This page is unavailable"**
+  - **Error**: `TimeoutError: Locator.wait_for: Timeout 15000ms exceeded. - waiting for get_by_text("Quick actions", exact=True) to be visible`
+  - **Root cause**: Test used `page.goto(base_url + "/app/dashboard")` with `base_url` from config (https://www.vcita.com). The app dashboard is served from **app.vcita.com**, not www. Navigating to www.vcita.com/app/dashboard shows "This page is unavailable", so "Quick actions" never appeared. Setup correctly leaves the browser on app.vcita.com/app/dashboard after login; the test was then navigating away to the broken URL.
+  - **Fix applied**:
+    1. Removed `page.goto(base_url + "/app/dashboard")` (also a navigation rule violation: no direct goto to internal URLs).
+    2. If not already on dashboard (`/app/dashboard` not in page.url), navigate via UI: click sidebar "Dashboard", then wait for `**/app/dashboard**`.
+    3. Then wait for "Quick actions" panel and continue as before.
+  - **MCP**: Confirmed dashboard on app.vcita.com shows "Quick actions" and "Add client"/"Add property"; www.vcita.com/app/dashboard shows "This page is unavailable."
+  - **Files updated**: test.py, script.md (Initial State + Step 0). steps.md unchanged.
+
 ## [2.3.0] - 2026-01-22
 
 ### Fixed (Healed)

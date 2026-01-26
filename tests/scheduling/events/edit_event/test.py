@@ -56,22 +56,19 @@ def test_edit_event(page: Page, context: dict) -> None:
     max_attendance_field = outer_iframe.get_by_role('spinbutton', name='Max attendance *')
     max_attendance_field.click()
     max_attendance_field.fill('12')  # fill is OK for number spinbutton
-    page.wait_for_timeout(500)  # Allow value to be set
-    
+    page.wait_for_timeout(500)  # Brief settle after spinbutton (allowed)
+
     # Step 4: Click Save
     print("  Step 4: Clicking Save...")
     save_btn = outer_iframe.get_by_role('button', name='Save')
     save_btn.click()
     # Wait for dialog to close
     dialog.wait_for(state='hidden', timeout=10000)
-    
+
     # Step 5: Verify Changes are Reflected
     print("  Step 5: Verifying changes are reflected...")
-    # Wait for page to update
-    page.wait_for_timeout(2000)  # Allow page to refresh
-
-    # Verify max attendance is updated (UI shows "0/12 Registered" in main event detail, often in outer iframe)
     registered_text = outer_iframe.get_by_text(re.compile(r'\d+\s*/\s*12(\s+Registered)?', re.IGNORECASE))
+    registered_text.wait_for(state='visible', timeout=10000)
     expect(registered_text).to_be_visible()
     
     print(f"  [OK] Event edited successfully")

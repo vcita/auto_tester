@@ -7,12 +7,13 @@ Provides REST API endpoints and Server-Sent Events for real-time test updates.
 import asyncio
 import json
 import threading
+import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from queue import Queue, Empty
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
@@ -52,8 +53,9 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
         version="1.0.0"
     )
     
-    # Store paths in app state
+    # Store paths in app state (project_root = parent of tests_root for config.yaml)
     app.state.tests_root = tests_root
+    app.state.project_root = tests_root.parent
     app.state.snapshots_dir = snapshots_dir
     app.state.heal_requests_dir = heal_requests_dir
     
@@ -202,6 +204,48 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
             "id": request_id,
             "content": heal_file.read_text(encoding="utf-8")
         }
+
+    @app.get("/api/setup")
+    async def get_setup():
+        """Get current target config for Switch setup (password masked)."""
+        config_path = app.state.project_root / "config.yaml"
+        if not config_path.exists():
+            return {"base_url": "", "username": "", "password_masked": True}
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        target = config.get("target") or {}
+        auth = target.get("auth") or {}
+        return {
+            "base_url": target.get("base_url") or "",
+            "username": auth.get("username") or "",
+            "password_masked": True,
+        }
+
+    @app.post("/api/setup")
+    async def post_setup(body: Dict[str, Any] = Body(default=None)):
+        """Update config.yaml target (merge provided keys; omit to keep current)."""
+        config_path = app.state.project_root / "config.yaml"
+        if not config_path.exists():
+            raise HTTPException(status_code=404, detail="config.yaml not found")
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        if "target" not in config:
+            config["target"] = {}
+        if "auth" not in config["target"]:
+            config["target"]["auth"] = {}
+        target = config["target"]
+        auth = target["auth"]
+        body = body or {}
+        if body.get("base_url") is not None:
+            target["base_url"] = body["base_url"]
+        target.pop("login_url", None)  # Login URL = base_url + "/login"
+        if body.get("username") is not None:
+            auth["username"] = body["username"]
+        if body.get("password") is not None and body.get("password") != "":
+            auth["password"] = body["password"]
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        return await get_setup()
     
     @app.get("/api/screenshots")
     async def get_screenshots():

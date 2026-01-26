@@ -39,16 +39,35 @@ class RunStorage:
         self.index_dir = tests_root.parent / self.INDEX_DIR_NAME
         self.current_run_id: Optional[str] = None
         self._current_categories: List[str] = []
+        self._run_config: Optional[Dict] = None
+
+    @staticmethod
+    def _sanitize_config(config: Optional[Dict]) -> Optional[Dict]:
+        """Return target config safe for logs (no plaintext password)."""
+        if not config:
+            return None
+        target = config.get("target") if isinstance(config.get("target"), dict) else config
+        if not target:
+            return None
+        auth = target.get("auth") if isinstance(target.get("auth"), dict) else {}
+        return {
+            "target": {
+                "base_url": target.get("base_url"),
+                "auth": {"username": auth.get("username")} if auth else None,
+            }
+        }
     
-    def start_run(self) -> str:
+    def start_run(self, config: Optional[Dict] = None) -> str:
         """
         Generate and set the current run_id (timestamp-based).
-        
+        Optionally store config for inclusion in run.json and runs_index (password omitted).
+
         Returns:
             The generated run_id (format: YYYYMMDD_HHMMSS)
         """
         self.current_run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._current_categories = []
+        self._run_config = self._sanitize_config(config)
         return self.current_run_id
     
     def get_category_runs_dir(self, category: str) -> Path:
@@ -173,11 +192,13 @@ class RunStorage:
         if category not in self._current_categories:
             self._current_categories.append(category)
         
-        # Save run.json
+        # Save run.json (include config snapshot for this run; no password)
         run_json_path = run_dir / "run.json"
         run_data = result.to_dict()
         run_data["run_id"] = self.current_run_id
         run_data["saved_at"] = datetime.now().isoformat()
+        if self._run_config is not None:
+            run_data["config"] = self._run_config
         run_json_path.write_text(json.dumps(run_data, indent=2), encoding="utf-8")
         
         # Move video if provided
@@ -300,6 +321,8 @@ class RunStorage:
             "duration_ms": run_result.duration_ms,
             "failed_tests": failed_tests,
         }
+        if self._run_config is not None:
+            index_data["config"] = self._run_config
         
         index_path.write_text(json.dumps(index_data, indent=2), encoding="utf-8")
         

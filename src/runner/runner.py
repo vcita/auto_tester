@@ -5,6 +5,7 @@ Coordinates test execution across categories, managing browser lifecycle,
 context, and emitting events for real-time updates.
 """
 
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -54,6 +55,7 @@ class TestRunner:
         record_video: bool = True,
         keep_open: bool = False,
         until_test: Optional[str] = None,
+        config: Optional[dict] = None,
     ):
         """
         Initialize the test runner.
@@ -65,6 +67,7 @@ class TestRunner:
             record_video: Whether to record video of test execution (default: True)
             keep_open: Whether to keep browser open on failure for debugging (default: False)
             until_test: Stop before executing this test and keep browser open (for MCP debugging)
+            config: Full config dict (e.g. from config.yaml); target subtree is stored in run logs and heal requests
         """
         self.tests_root = Path(tests_root)
         self.headless = headless
@@ -72,6 +75,7 @@ class TestRunner:
         self.record_video = record_video
         self.keep_open = keep_open
         self.until_test = until_test
+        self.run_config = (config or {}).get("target") if config else None
         
         # Components
         self.events = EventEmitter()
@@ -113,8 +117,8 @@ class TestRunner:
         
         result = RunResult(started_at=datetime.now())
         
-        # Start a new run in storage
-        run_id = self.storage.start_run()
+        # Start a new run in storage (pass config for run.json and runs_index)
+        run_id = self.storage.start_run(config={"target": self.run_config} if self.run_config else None)
         
         # Count total tests
         total_tests = sum(len(c.tests) for c in categories)
@@ -173,8 +177,8 @@ class TestRunner:
         # Use until_test parameter if provided, otherwise use instance variable
         until_test_name = until_test or self.until_test
         
-        # Start a new run in storage
-        run_id = self.storage.start_run()
+        # Start a new run in storage (pass config for run.json and runs_index)
+        run_id = self.storage.start_run(config={"target": self.run_config} if self.run_config else None)
         
         # Emit run started (single category)
         self.events.emit(RunnerEvent.RUN_STARTED, {
@@ -224,7 +228,9 @@ class TestRunner:
             category_name=category.name,
             category_path=category.path,
         )
-        
+        # Track subcategory run dirs we save to (so we can copy parent video there)
+        self._saved_subcategory_paths = []
+
         # Emit category started
         self.events.emit(RunnerEvent.CATEGORY_STARTED, {
             "category": category.name,
@@ -237,6 +243,15 @@ class TestRunner:
         
         # Create fresh context for this category
         context = self.context_manager.create_fresh()
+        if self.run_config:
+            if self.run_config.get("base_url"):
+                context["base_url"] = self.run_config["base_url"]
+            auth = self.run_config.get("auth")
+            if isinstance(auth, dict):
+                if auth.get("username"):
+                    context["username"] = auth["username"]
+                if auth.get("password"):
+                    context["password"] = auth["password"]
         
         # Start browser for this category
         self.events.emit(RunnerEvent.BROWSER_STARTING, {"category": category.name})
@@ -495,7 +510,14 @@ class TestRunner:
                         # The browser process will continue running
                 
                 # Process video and save to storage
+                # Wait briefly for video file to appear (Playwright may finalize async on some systems)
                 final_video_path = None
+                if video_path:
+                    import time as _time
+                    for _ in range(30):  # up to ~3 seconds
+                        if Path(video_path).exists():
+                            break
+                        _time.sleep(0.1)
                 if video_path and Path(video_path).exists():
                     # Temporarily rename video with category name for identification
                     temp_video_path = Path(video_path).parent / f"{category.name}_{self.storage.current_run_id}.webm"
@@ -517,7 +539,18 @@ class TestRunner:
             result=result,
             video_path=final_video_path,
         )
-        
+
+        # Copy parent video into each subcategory run dir so video is visible there too
+        if final_video_path is not None and getattr(self, "_saved_subcategory_paths", None):
+            parent_video = self.storage.get_current_run_dir(category.name) / "video.webm"
+            if parent_video.exists():
+                for subcat_path in self._saved_subcategory_paths:
+                    subcat_run_dir = self.storage.get_current_run_dir(subcat_path)
+                    subcat_run_dir.mkdir(parents=True, exist_ok=True)
+                    dest_video = subcat_run_dir / "video.webm"
+                    if dest_video != parent_video:
+                        shutil.copy2(str(parent_video), str(dest_video))
+
         # Save context for debugging
         self.context_manager.save_to_file(f"{category.name}_context.json")
         
@@ -628,6 +661,7 @@ class TestRunner:
                 result=result,
                 category_name=category_name,
                 context=context,
+                config=self.run_config,
             )
             
             # Copy heal request to storage
@@ -959,9 +993,10 @@ class TestRunner:
         )
         
         # Save subcategory result (this creates run.json in subcategory's _runs directory)
-        # Don't pass video_path - subcategory shares parent's video
+        # Don't pass video_path - subcategory shares parent's video (copied after parent save)
         self.storage.save_category_result(
             category=category_path,
             result=subcategory_result,
             video_path=None,
         )
+        self._saved_subcategory_paths.append(category_path)

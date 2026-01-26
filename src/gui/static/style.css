@@ -677,6 +677,46 @@ body {
     overflow: auto;
 }
 
+.setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 420px;
+}
+.setup-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9rem;
+}
+.setup-form input {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+}
+.setup-note {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+}
+.setup-derived {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 4px 0;
+}
+.setup-derived code { font-size: 0.9em; }
+.setup-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+.setup-message {
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+.setup-message.success { color: var(--color-success, green); }
+.setup-message.error { color: var(--color-error, #c00); }
+
 /* Loading */
 .loading {
     display: flex;

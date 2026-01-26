@@ -1,5 +1,37 @@
 # Schedule Event Changelog
 
+## 2026-01-25 - Healed (Step 4 service combobox option timeout)
+**Phase**: script.md, test.py
+**Author**: Cursor AI (heal)
+**Reason**: Schedule Event failed waiting for service option to be visible after typing in combobox
+**Error**: `TimeoutError: Locator.wait_for: Timeout 10000ms exceeded` on `get_by_role("option").filter(has_text="Event Test Workshop ...").first` to be visible
+
+**Root Cause**: MCP showed listbox and role="option" elements exist and filter works. The timeout was likely due to (1) async filter re-render after typing, or (2) API lag when the service was just created in _setup. No selector bug; need to re-assert listbox after typing and allow longer for the option to appear.
+
+**Fix Applied**: After press_sequentially, re-assert listbox visible (handles re-render); increase option wait timeout from 10s to 15s; select the filtered option directly (all_options.first.click()) instead of re-querying all options and looping.
+
+**Changes**:
+- test.py Step 4: listbox.wait_for(state='visible', timeout=5000) after typing; all_options.first.wait_for(state='visible', timeout=15000); use all_options.first for click, remove loop.
+- script.md Step 4: same VERIFIED PLAYWRIGHT CODE updates; HEALED note.
+
+**Verified Approach**: MCP: opened Calendar, New → Group event, clicked combobox; listbox showed options with role=option. Typed "Event Test Workshop"; get_by_role('option').filter(hasText: ...).count() === 19, first visible. Fix adds listbox re-wait and 15s timeout.
+
+## 2026-01-25 - Healed (Step 5 date picker menu locator)
+**Phase**: script.md, test.py
+**Author**: Cursor AI (heal)
+**Reason**: Schedule Event failed waiting for date picker menu to be hidden after selecting day
+**Error**: `TimeoutError: Locator.wait_for: Timeout 5000ms exceeded` on `get_by_role("menu").first.wait_for(state='hidden')`
+
+**Root Cause**: `get_by_role('menu')` in the iframe matches the scheduler's events container (`<div role="menu" smart-id="allDayEventsContainer" class="smart-scheduler-events-container">`) first. That element stays visible; the date picker is a different menu. Waiting for `.first` to be hidden meant waiting for the wrong element.
+
+**Fix Applied**: Stop using generic menu locator. Wait for date picker to open by waiting for tomorrow's day button to be visible; after clicking the day, wait for that same day button to become hidden (picker closed).
+
+**Changes**:
+- test.py Step 5: wait for `tomorrow_date_btn.first.wait_for(state='visible')` then `day_btn.click()` then `day_btn.wait_for(state='hidden')`; removed date_picker_menu.
+- script.md Step 5: VERIFIED PLAYWRIGHT CODE updated to same pattern; added HEALED note.
+
+**Verified Approach**: Root cause from heal request call log (locator resolved to allDayEventsContainer). Fix avoids any role=menu for this step.
+
 ## 2026-01-25 - Healed (Step 9 outcome verification selector)
 **Phase**: script.md, test.py
 **Author**: Cursor AI (heal)

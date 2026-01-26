@@ -18,7 +18,7 @@ Saves to context:
 - `logged_in_user`: The email that was used to login
 
 ## Steps
-1. Navigate to vcita login page (https://www.vcita.com/login)
+1. Navigate to login page (base_url + "/login" from config)
 2. Wait for security check to complete (if present)
 3. Enter email in the Email field
 4. Enter password in the Password field
@@ -27,7 +27,7 @@ Saves to context:
 7. Verify successful login (dashboard visible)
 
 ## Success Criteria
-- URL is https://app.vcita.com/app/dashboard
+- URL is base_url + "/app/dashboard"
 - Page title contains "Dashboard"
 - Dashboard elements are visible (Quick Actions, Calendar, etc.)
 

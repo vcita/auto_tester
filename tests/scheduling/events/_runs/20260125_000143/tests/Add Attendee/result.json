@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Add Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 9070,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-25T00:03:26.609688"
+}

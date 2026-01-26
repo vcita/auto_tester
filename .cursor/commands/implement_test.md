@@ -9,9 +9,9 @@ Follow the rules in .cursor/rules/build.mdc to implement this test.
 ## IMPORTANT: Always Use URLs from config.yaml
 
 When accessing vcita during MCP exploration:
-- **Login URL**: Use `https://www.vcita.com/login` (from config.yaml target.login_url)
-- **NEVER** use `app.vcita.com/login` - it triggers Cloudflare blocks
-- **Credentials**: Use values from config.yaml target.auth section
+- **Login URL**: Use **base_url + "/login"** from config.yaml (target.base_url). Never hardcode the host.
+- **Credentials**: Use values from config.yaml target.auth section.
+- **New test user**: Run `python main.py create_user` to create a new user in vcita and update config.
 
 ---
 
@@ -20,7 +20,7 @@ When accessing vcita during MCP exploration:
 Follow .cursor/rules/phase1_steps.mdc
 
 - Check tests/_functions/_functions.yaml for existing functions to reuse
-- Research the feature at support.vcita.com
+- Research the feature at the vcita support / knowledge center
 - Write human-readable steps describing WHAT to do
 
 ## PHASE 2: Create script.md via MCP Exploration
@@ -64,7 +64,7 @@ Follow .cursor/rules/phase3_code.mdc
 ### Navigation Rules (CRITICAL):
 
 **The ONLY allowed direct navigation is:**
-- ✅ Login page: `https://www.vcita.com/login` (entry point, rarely used - only in setup/login functions)
+- ✅ Login page: **base_url + "/login"** from config (entry point, rarely used - only in setup/login functions)
 - ✅ Public marketing pages (entry points)
 
 **NEVER allowed in regular tests:**
@@ -92,10 +92,10 @@ Follow .cursor/rules/phase3_code.mdc
    grep -n "page\.reload\|page\.refresh" tests/{category}/{test_name}/test.py
    
    # Search for page.goto to internal URLs (exclude login)
-   grep -n "page\.goto" tests/{category}/{test_name}/test.py | grep -v "login\|www.vcita.com/login"
+   grep -n "page\.goto" tests/{category}/{test_name}/test.py | grep -v "login"
    ```
    - [ ] No `page.reload()` or `page.refresh()` calls (except if explicitly documented as product bug workaround)
-   - [ ] No `page.goto()` to internal URLs (only login page `https://www.vcita.com/login` is acceptable)
+   - [ ] No `page.goto()` to internal URLs (only login page, i.e. base_url + "/login" from config, is acceptable)
    - [ ] All navigation uses UI elements (clicks, menus, buttons)
    - [ ] If previous test should leave browser in correct state, test verifies state instead of navigating
 
@@ -105,7 +105,7 @@ Follow .cursor/rules/phase3_code.mdc
    grep -n "page\.reload\|page\.refresh" tests/{category}/{test_name}/script.md
    
    # Search for page.goto to internal URLs
-   grep -n "page\.goto" tests/{category}/{test_name}/script.md | grep -v "login\|www.vcita.com/login"
+   grep -n "page\.goto" tests/{category}/{test_name}/script.md | grep -v "login"
    ```
    - [ ] VERIFIED PLAYWRIGHT CODE blocks don't contain `page.reload()` or `page.goto()` to internal URLs
    - [ ] Navigation steps use UI elements, not direct URLs
@@ -146,7 +146,7 @@ page.wait_for_timeout(2000)  # Wait for backend sync
 
 **❌ WRONG:**
 ```python
-page.goto("https://app.vcita.com/app/dashboard")
+page.goto("<some_host>/app/dashboard")  # never hardcode host; use UI navigation or base_url from config
 ```
 
 **✅ RIGHT:**
@@ -161,7 +161,7 @@ if "/app/dashboard" not in page.url:
 
 **❌ WRONG:**
 ```python
-page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+page.goto(f"{base_url}/app/clients/{matter_id}")  # base_url from config/context
 ```
 
 **✅ RIGHT:**

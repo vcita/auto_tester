@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 37068,
+  "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_role(\"dialog\") to be hidden\n    33 \u00d7 locator resolved to visible <md-dialog role=\"dialog\" tabindex=\"-1\" aria-label=\"Service info ...\" aria-describedby=\"dialogContent_94\" class=\"new-service-dialog _md md-transition-in\">\u2026</md-dialog>\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260125_224006\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-25T22:41:24.142425"
+}

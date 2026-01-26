@@ -7,6 +7,8 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
+from tests._functions._config import get_base_url
+
 
 def fn_create_service(page: Page, context: dict, **params) -> None:
     """
@@ -27,10 +29,11 @@ def fn_create_service(page: Page, context: dict, **params) -> None:
         name = f"Test Service {timestamp}"
     
     # Step 1: Navigate to Settings
+    base_url = get_base_url(context, params)
     print("  Step 1: Navigating to Settings...")
-    # First ensure we're on a vcita page and sidebar is loaded
-    if "vcita.com" not in page.url:
-        page.goto("https://app.vcita.com/app/dashboard")
+    # First ensure we're on app and sidebar is loaded
+    if not (base_url in page.url and "/app/" in page.url):
+        page.goto(f"{base_url}/app/dashboard")
         page.wait_for_load_state("domcontentloaded")
     
     # Wait for sidebar to be available

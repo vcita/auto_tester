@@ -239,14 +239,18 @@ price_field.fill("25")  # fill is OK for number spinbutton
 
 **CHOSEN**: `iframe.get_by_role("button", name="Create")` - Unique and semantic.
 
-**VERIFIED PLAYWRIGHT CODE**:
+**VERIFIED PLAYWRIGHT CODE** (updated: validate creation — wait for dialog to close, then verify service in list):
 ```python
+create_dialog = iframe.get_by_role("dialog")
 create_btn = iframe.get_by_role("button", name="Create")
 create_btn.click()
+# Validate creation flow: wait for create dialog to close (fails if Create failed)
+create_dialog.wait_for(state="hidden", timeout=15000)
 ```
 
 - **How verified**: Clicked in MCP, group event service created
-- **Wait for**: Dialog closes or event times dialog appears
+- **Wait for**: Create dialog closes (then Step 10 handles optional event times dialog)
+- **Validation**: After Step 10, setup asserts the new service name appears on the Services page (so Schedule Event can find it)
 
 ### Step 10: Handle Event Times Dialog (Conditional)
 - **Action**: Click (if dialog appears)
@@ -285,34 +289,27 @@ page.wait_for_timeout(500)  # Brief settle time for dialogs to close
 - **Wait for**: Dialog closes (or timeout if dialog doesn't appear)
 - **Fallback locators**: `iframe.get_by_text("I'll do it later")`
 
-### Step 11: Get Group Event Service ID
-- **Action**: Extract from URL after navigating to service
-- **Target**: Service ID from URL
+### Step 11: Save Group Event Service Name
+- **Action**: Save name to context (after validating service appears in list)
+- **Target**: Context key event_group_service_name
 
-**Note**: To get the service ID, we need to find the service in the list and click it to open the advanced edit page, then extract the ID from the URL. However, this requires scrolling through the endless scroll list. For setup purposes, we can save just the name and get the ID later when needed, or we can navigate to the service now.
+**Validation (after Step 10)**: Before saving, setup verifies the new service appears on the Services page: `iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=10000)`. If not found, setup fails with a clear error so we don't assume creation succeeded.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Option 1: Save name only (simpler for setup)
-# The service name is already saved in group_event_name variable
-# We'll get the ID later when we need it in the tests
+# After event times dialog handling: verify service is in the list
+try:
+    iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=10000)
+except Exception as e:
+    raise AssertionError(
+        f"Setup could not confirm group event service was created: '{group_event_name}' not found on Services page. "
+        "Create dialog closed but service may not have been saved. Check run video/screenshot."
+    ) from e
 
-# Option 2: Navigate to service to get ID (more complete)
-# This requires scrolling through the services list to find the new service
-# Following the pattern from create_group_event test:
-# 1. Navigate back to Settings main page
-# 2. Navigate back to Services
-# 3. Scroll to find the service
-# 4. Click on it
-# 5. Extract ID from URL
-
-# For setup, we'll use Option 1 (simpler) and save the name
-# Tests can find the service by name when needed
 context["event_group_service_name"] = group_event_name
-# ID will be retrieved when needed in tests
 ```
 
-- **How verified**: Service name is available, ID can be retrieved later
+- **How verified**: Service name is in list and saved to context
 - **Save to context**: event_group_service_name
 
 ### Step 12: Create Test Client

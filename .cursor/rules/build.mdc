@@ -115,7 +115,7 @@ Playwright MCP is configured in `.cursor/mcp.json`:
 **BEFORE exploring or writing any test**, consult the vcita Knowledge Center to understand the feature:
 
 ### How to Research:
-1. **Search online** for the relevant vcita help article (site:support.vcita.com)
+1. **Search online** for the relevant vcita help article (e.g. vcita support / knowledge center)
 2. **Identify the standard user flow** documented by vcita
 3. **Note required vs optional fields** in forms
 4. **Understand success criteria** from the documentation
@@ -129,35 +129,37 @@ Playwright MCP is configured in `.cursor/mcp.json`:
 ### Example Research:
 ```
 For "Add New Client" test:
-1. Search: "vcita add client site:support.vcita.com"
+1. Search: "vcita add client" in the vcita support site
 2. Find article: "Add Clients and Contacts in vcita"
 3. Learn: Click Clients → New Contact → Fill details → Save
 4. Note: A "contact" becomes a "client" after first transaction
 ```
 
-### Knowledge Center URL:
-https://support.vcita.com/hc/en-us
+### Knowledge Center:
+Use the vcita support / knowledge center for feature documentation.
 
-## CRITICAL: Use URLs from config.yaml
+## CRITICAL: Use base_url from config.yaml
 
-**ALWAYS use URLs defined in `config.yaml` when accessing vcita.**
+**ALWAYS use base_url from `config.yaml` (target.base_url) when building URLs for vcita. Login URL = base_url + "/login".**
 
-### Required URLs from config:
-- **Login**: Use `target.login_url` (https://www.vcita.com/login) - NOT app.vcita.com/login
-- **Base URL**: Use `target.base_url` for URL verification patterns
+**To prepare a new test account:** Run `python main.py create_user` to create a new user in vcita (signup + onboarding) and update config.yaml; the system is then ready to run tests.
+
+### Required:
+- **Login**: Use **base_url + "/login"** (from target.base_url). Never hardcode the host.
+- **App pages**: Use **base_url** for any URL verification or navigation (e.g. base_url + "/app/dashboard").
 
 ### Why:
-- `www.vcita.com/login` avoids Cloudflare security checks that block automation
-- `app.vcita.com/login` triggers Cloudflare challenges requiring manual intervention
-- Consistent URL usage ensures tests work reliably
+- Single source of truth: one base_url in config; login and app URLs are derived.
+- Consistent URL usage ensures tests work across environments.
 
-### In MCP exploration:
+### In MCP exploration and test code:
 ```python
-# WRONG - triggers Cloudflare
-page.goto("https://app.vcita.com/login")
+# WRONG - hardcoded host
+page.goto("<any_host>/login")
 
-# RIGHT - uses configured login URL
-page.goto("https://www.vcita.com/login")
+# RIGHT - use base_url from config/context (e.g. get_base_url(context) in test code)
+login_url = base_url + "/login"  # base_url from config
+page.goto(login_url)
 ```
 
 ## CRITICAL: Real User Actions Only
@@ -300,18 +302,18 @@ If Quick Actions modal doesn't work:
 
 ### Only Exception:
 Direct navigation is ONLY allowed to the application's main entry points that users would bookmark or type:
-- Login page: `https://www.vcita.com/login`
+- Login page: **base_url + "/login"** (from config)
 - Public marketing pages
 
 ### Example:
 ```
-WRONG (shortcut):     page.goto("https://www.vcita.com/users/logout")
+WRONG (shortcut):     page.goto(base_url + "/users/logout")
 RIGHT (user action):  Click avatar button -> Click "Logout" menu item
 
-WRONG (shortcut):     page.goto("https://app.vcita.com/app/calendar")  
+WRONG (shortcut):     page.goto(base_url + "/app/calendar")
 RIGHT (user action):  Click "Calendar" in sidebar navigation
 
-WRONG (shortcut):     page.goto(f"https://app.vcita.com/app/clients/{id}")
+WRONG (shortcut):     page.goto(f"{base_url}/app/clients/{id}")
 RIGHT (sequential):   Verify URL already contains the ID (from previous test)
 RIGHT (user action):  Search for record name, click it in results
 ```
@@ -322,7 +324,7 @@ Tests in a sequence share browser state. Each test's end state becomes the next 
 **Pattern for sequential tests:**
 ```python
 # WRONG - unconditionally navigates via URL
-page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+page.goto(f"{base_url}/app/clients/{matter_id}")
 
 # RIGHT - verifies expected state from previous test
 if matter_id not in page.url:

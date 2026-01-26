@@ -22,7 +22,7 @@ Clears from context:
 5. Verify login form is visible
 
 ## Success Criteria
-- URL contains "vcita.com/login"
+- URL contains "/login" (login page, from base_url)
 - Page title is "Login to vcita"
 - Login form is visible (Email field, Password field, Login button)
 

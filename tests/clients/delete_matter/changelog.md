@@ -1,5 +1,24 @@
 # Changelog - Delete Matter
 
+## 2026-01-26 - Healed (Selection indicator text varies by vertical)
+
+**Phase**: script.md, test.py  
+**Author**: Cursor AI (heal)  
+**Reason**: Timeout waiting for selection indicator after selecting row  
+**Error**: `TimeoutError: Locator.wait_for: Timeout 5000ms exceeded. waiting for get_by_text(re.compile(r"1 SELECTED OF \d+ PROPERTIES")) to be visible`
+
+**Root Cause**: The test expected the selection indicator text "1 SELECTED OF X PROPERTIES" (Home Services terminology). When the account/vertical uses "Clients" (e.g. non–Home Services), the UI shows "1 SELECTED OF X CLIENTS". The regex required "PROPERTIES", so it never matched and the step timed out. Verified with MCP: on a Clients list, after selecting a row the bar showed "1 SELECTED OF 2 CLIENTS".
+
+**Fix Applied**: Use a regex that matches any entity label: `r"1 SELECTED OF \d+"` instead of `r"1 SELECTED OF \d+ PROPERTIES"`. The test only needs to confirm that one item is selected; the entity name (PROPERTIES, CLIENTS, PATIENTS, etc.) is vertical-specific.
+
+**Changes**:
+- script.md: Step 4 wait-for text documented as "1 SELECTED OF X [ENTITY]" (ENTITY varies by vertical).
+- test.py: selection_indicator regex changed to `r"1 SELECTED OF \d+"`; added HEALED comment.
+
+**Verified Approach**: MCP: navigated to Clients list, selected a row; selection bar showed "1 SELECTED OF 2 CLIENTS". New regex matches that. No `page.reload()` or `page.goto()` used.
+
+---
+
 ## 2026-01-25 - Healed (Search before locating row)
 
 **Phase**: script.md, steps.md, test.py  

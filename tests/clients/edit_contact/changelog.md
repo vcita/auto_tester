@@ -1,5 +1,13 @@
 # Edit Contact Test - Changelog
 
+## 2026-01-26 - Healed (Datepicker blocking Referred by click)
+- **Error**: `TimeoutError: Locator.click: Timeout 30000ms exceeded` waiting for "Referred by" textbox click.
+- **Why it passed before**: The test was built (2026-01-21) and run with the previous account (e.g. itzik+autotest@vcita.com from env/setup default). After switching to **create_user** and running with the **new user** (itzik+autotest.<timestamp>@vcita.com, Home Services / Landscaper), the Edit contact dialog for that vertical has a **Birthday** field whose position in the form’s **tab order** is right after Address. So the same test code (Tab after Address to “dismiss autocomplete”) now focused Birthday and opened the datepicker, which then blocked the Referred by click. So the regression was caused by **account/vertical change**, not a product change.
+- **Root cause** (from heal request + MCP): After editing Address, test used Tab to dismiss autocomplete. Tab moved focus to Birthday (date field), which opened the MD datepicker overlay; that overlay intercepted pointer events so the click on "Referred by" never reached the field. (Later attempts: Escape or scroll_into_view still failed—element detached or not visible.)
+- **Fix (protocol, no arbitrary waits)**: Do not use Tab. Click the dialog title "Edit contact info" to dismiss address autocomplete and avoid focusing Birthday; then click "Referred by" and fill. No `wait_for_timeout`.
+- **Files updated**: test.py, script.md.
+- **Validated**: Clients category re-run; Edit Contact passed (13.8s).
+
 ## 2026-01-21 - Initial Build
 **Phase**: All files (steps.md, script.md, test.py, changelog.md)
 **Author**: Cursor AI (exploration with Playwright MCP)

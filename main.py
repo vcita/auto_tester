@@ -153,10 +153,11 @@ def cmd_run(args):
     try:
         # Create runner
         runner = TestRunner(
-            tests_root, 
-            headless=headless, 
-            keep_open=keep_open, 
+            tests_root,
+            headless=headless,
+            keep_open=keep_open,
             until_test=until_test,
+            config=config,
         )
         
         # Attach CLI reporter for real-time output
@@ -389,6 +390,106 @@ def cmd_stress_test(args):
         sys.exit(1)
 
 
+def cmd_create_user(args):
+    """Create a new user in vcita (signup + onboarding) and update config.yaml with that account. System is then ready to run tests."""
+    import os
+    import time
+    config_path = Path(__file__).parent / "config.yaml"
+    if not config_path.exists():
+        console.print("[red]config.yaml not found[/red]")
+        sys.exit(1)
+    config = load_config()
+    if "target" not in config:
+        config["target"] = {}
+    if "auth" not in config["target"]:
+        config["target"]["auth"] = {}
+    target = config["target"]
+
+    email = getattr(args, "email", None) or f"itzik+autotest.{int(time.time())}@vcita.com"
+    if getattr(args, "email", None) is None:
+        console.print(f"[dim]Generated email: {email}[/dim]")
+    password = getattr(args, "password", None) or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    base_url = getattr(args, "base_url", None) or target.get("base_url") or "https://app.vcita.com"
+    if getattr(args, "base_url", None) is not None:
+        target["base_url"] = args.base_url
+
+    console.print("[cyan]Creating user in vcita (signup + onboarding)...[/cyan]")
+    console.print(f"  email: {email}")
+    console.print("  (Browser will open; complete any CAPTCHA if prompted.)")
+    ok = _run_create_user_then_update_config(
+        config_path=config_path,
+        config=config,
+        email=email,
+        password=password,
+        base_url=base_url.rstrip("/"),
+    )
+    if not ok:
+        sys.exit(1)
+
+
+def _run_create_user_then_update_config(config_path: Path, config: dict, email: str, password: str, base_url: str) -> bool:
+    """Launch browser, run create_user flow, then update config with the new account. Returns True on success."""
+    from playwright.sync_api import sync_playwright
+
+    target = config.get("target") or {}
+    target.setdefault("auth", {})
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=False,
+            channel="chrome",
+            args=["--disable-blink-features=AutomationControlled"],
+        )
+        bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
+        custom_user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 " + bypass_string
+        )
+        bw_context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            locale="en-US",
+            timezone_id="America/New_York",
+            user_agent=custom_user_agent,
+        )
+        bw_context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        """)
+        page = bw_context.new_page()
+        run_context = {"base_url": base_url.rstrip("/")}
+
+        try:
+            from tests._functions.create_user.test import fn_create_user
+            import os
+            phone = os.environ.get("VCITA_TEST_PHONE", "0526111116")
+            fn_create_user(
+                page,
+                run_context,
+                email=email,
+                password=password,
+                phone=phone,
+            )
+        except Exception as e:
+            console.print(f"[red]Create user failed: {e}[/red]")
+            import traceback
+            console.print(traceback.format_exc())
+            return False
+        finally:
+            browser.close()
+
+    # Success: update config with the new account
+    target["auth"]["username"] = email
+    target["auth"]["password"] = password
+    target.pop("login_url", None)
+    with open(config_path, "w") as f:
+        import yaml
+        yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    console.print("[green]User created and setup updated.[/green]")
+    console.print(f"  base_url: {target.get('base_url', '')}")
+    console.print(f"  email: {email}")
+    console.print("[dim]Config saved. You can run tests with the new user.[/dim]")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="vcita Test Agent - AI-driven browser testing"
@@ -397,10 +498,28 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Run command - execute tests
-    run_parser = subparsers.add_parser("run", help="Run tests")
+    run_parser = subparsers.add_parser("run", help="Run tests. Use --create-user to create a new user first, then run.")
     run_parser.add_argument(
         "--category", "-c",
-        help="Run only tests in this category (category is the atomic test unit)"
+        help="Run only tests in this category (omit to run all categories)"
+    )
+    run_parser.add_argument(
+        "--create-user",
+        dest="create_user",
+        action="store_true",
+        help="Create a new user in vcita (signup + onboarding), update config, then run tests in one go"
+    )
+    run_parser.add_argument(
+        "--create-user-email",
+        dest="create_user_email",
+        default=None,
+        help="Email for new user when using --create-user (default: itzik+autotest.<timestamp>@vcita.com)"
+    )
+    run_parser.add_argument(
+        "--create-user-password",
+        dest="create_user_password",
+        default=None,
+        help="Password for new user when using --create-user (default: VCITA_TEST_PASSWORD or vcita123)"
     )
     run_parser.add_argument(
         "--headless",
@@ -464,6 +583,12 @@ def main():
         help="Port to listen on (default: 8080)"
     )
     
+    # Create user command - create a new user in vcita and update config so tests run with that account
+    create_user_parser = subparsers.add_parser("create_user", help="Create a new user in vcita (signup + onboarding) and update config.yaml. Opens browser.")
+    create_user_parser.add_argument("--email", default=None, help="Account email (default: itzik+autotest.<timestamp>@vcita.com)")
+    create_user_parser.add_argument("--password", default=None, help="Password (default: env VCITA_TEST_PASSWORD or vcita123)")
+    create_user_parser.add_argument("--base-url", dest="base_url", default=None, help="Base URL (default: from config; login URL = base_url + '/login')")
+
     # Stress test command - run categories multiple times
     groom_parser = subparsers.add_parser("groom_heal_requests", help="Groom heal requests: update statuses and clean up old ones")
     
@@ -504,6 +629,7 @@ def main():
         "status": cmd_status,
         "init": cmd_init,
         "gui": cmd_gui,
+        "create_user": cmd_create_user,
         "stress_test": cmd_stress_test,
         "groom_heal_requests": cmd_groom_heal_requests,
     }

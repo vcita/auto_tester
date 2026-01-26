@@ -28,6 +28,7 @@ function initializeElements() {
         runsRefresh: document.getElementById('runs-refresh'),
         btnRunSelected: document.getElementById('btn-run-selected'),
         btnRunAll: document.getElementById('btn-run-all'),
+        btnSwitchSetup: document.getElementById('btn-switch-setup'),
         btnRefresh: document.getElementById('btn-refresh'),
         statusIndicator: document.getElementById('status-indicator'),
         modal: document.getElementById('modal'),
@@ -109,6 +110,32 @@ async function fetchHealRequestContent(id) {
     } catch (error) {
         console.error('Failed to fetch heal request:', error);
         return null;
+    }
+}
+
+async function fetchSetup() {
+    try {
+        const response = await fetch('/api/setup');
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch setup:', error);
+        return null;
+    }
+}
+
+async function postSetup(body) {
+    try {
+        const response = await fetch('/api/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error(response.statusText || 'Failed to update setup');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to post setup:', error);
+        throw error;
     }
 }
 
@@ -1038,6 +1065,53 @@ async function showHealRequest(id) {
     }
 }
 
+async function showSetupModal() {
+    const setup = await fetchSetup();
+    const baseUrl = (setup && setup.base_url) || '';
+    const username = (setup && setup.username) || '';
+    const loginUrlDerived = baseUrl ? (baseUrl.replace(/\/+$/, '') + '/login') : '';
+    const content = `
+        <h2>Switch setup</h2>
+        <p class="setup-note">Current target (password hidden). Login URL is Base URL + <code>/login</code>. Edit and click Create setup to save.</p>
+        <form id="setup-form" class="setup-form">
+            <label>Base URL <input type="text" id="setup-base-url" value="${escapeHtml(baseUrl)}" placeholder="https://app.vcita.com"></label>
+            ${loginUrlDerived ? `<p class="setup-derived">Login URL: <code>${escapeHtml(loginUrlDerived)}</code></p>` : ''}
+            <label>Email / username <input type="text" id="setup-username" value="${escapeHtml(username)}" placeholder="user@example.com"></label>
+            <label>Password <input type="password" id="setup-password" value="" placeholder="Leave empty to keep current"></label>
+            <div class="setup-actions">
+                <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                <button type="submit" id="setup-submit" class="btn btn-primary">Create setup</button>
+            </div>
+        </form>
+        <div id="setup-message" class="setup-message"></div>
+    `;
+    showModal(content);
+    const form = elements.modalBody.querySelector('#setup-form');
+    const msgEl = elements.modalBody.querySelector('#setup-message');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                base_url: elements.modalBody.querySelector('#setup-base-url').value.trim() || null,
+                username: elements.modalBody.querySelector('#setup-username').value.trim() || null,
+                password: elements.modalBody.querySelector('#setup-password').value || null
+            };
+            if (!body.username) body.username = null;
+            if (body.password === '') body.password = null;
+            try {
+                await postSetup(body);
+                if (msgEl) msgEl.textContent = 'Setup saved.';
+                if (msgEl) msgEl.className = 'setup-message success';
+                setTimeout(hideModal, 800);
+            } catch (err) {
+                if (msgEl) { msgEl.textContent = err.message || 'Failed to save.'; msgEl.className = 'setup-message error'; }
+            }
+        });
+    }
+    const cancelBtn = elements.modalBody.querySelector('.setup-actions .modal-close');
+    if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+}
+
 // ==================== Helper Functions ====================
 
 function escapeHtml(text) {
@@ -1180,6 +1254,9 @@ function setupEventHandlers() {
         }
     });
 
+    if (elements.btnSwitchSetup) {
+        elements.btnSwitchSetup.addEventListener('click', showSetupModal);
+    }
     elements.btnRefresh.addEventListener('click', async () => {
         await loadCategories();
     });

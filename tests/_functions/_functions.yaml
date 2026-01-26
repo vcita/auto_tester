@@ -74,6 +74,40 @@ functions:
       - name: created_client_email
         description: Email of the client
 
+  - id: create_user
+    name: Create User (and onboard)
+    description: Create a new vcita user via signup, dismiss one-time setup dialogs, and validate no dialog on second login. Use onboarding_only=true to only run dismiss+validate for an existing new user.
+    parameters:
+      - name: email
+        type: string
+        required: true
+        description: New user email
+      - name: password
+        type: string
+        required: false
+        description: Password (default vcita123)
+      - name: name
+        type: string
+        required: false
+        description: Your Name or Business Name (default Test User {timestamp})
+      - name: base_url
+        type: string
+        required: false
+        description: Target base URL (from config/context); login URL = base_url + "/login"
+      - name: onboarding_only
+        type: boolean
+        required: false
+        description: If true, skip signup and only login + dismiss dialogs + validate
+      - name: phone
+        type: string
+        required: false
+        description: Phone for first-time Welcome dialog (server-validated). Default VCITA_TEST_PHONE or 5550100
+    returns:
+      - name: created_user_email
+        description: The email used
+      - name: created_user_ready
+        description: True when validation passed
+
   - id: delete_client
     name: Delete Client
     description: Delete a client (matter/property) by name for test teardown

@@ -91,7 +91,7 @@ dialog.wait_for(state='visible', timeout=15000)
 
 **CHOSEN**: `inner_iframe.get_by_role("combobox")` - Unique combobox in dialog.
 
-**VERIFIED PLAYWRIGHT CODE**:
+**VERIFIED PLAYWRIGHT CODE** (HEALED 2026-01-25: wait for option without typing first; new service often in "Recently scheduled"; 30s for API):
 ```python
 # Click combobox to open
 service_combobox = inner_iframe.get_by_role('combobox')
@@ -105,18 +105,15 @@ service_name = context.get("event_group_service_name")
 if not service_name:
     raise ValueError("No group event service name in context. Run _setup first.")
 
-# Type service name to filter
+# Type to trigger search (new service may only appear via search). Do not re-wait for listbox after typing.
 search_field = inner_iframe.get_by_role('textbox', name='Select service')
 search_field.click()
 page.wait_for_timeout(100)
 search_field.press_sequentially(service_name, delay=30)
-page.wait_for_timeout(500)  # Allow search to filter
-
-# Select the service option (filtered list should show matching service)
-service_option = inner_iframe.get_by_role('option').filter(has_text=service_name).first()
-service_option.wait_for(state='visible', timeout=10000)
+# Wait for option only (45s for search/API). No listbox re-wait - listbox may close while typing.
+service_option = inner_iframe.get_by_role('option').filter(has_text=service_name).first
+service_option.wait_for(state='visible', timeout=45000)
 service_option.click()
-page.wait_for_timeout(1000)  # Allow selection to register
 ```
 
 - **How verified**: Clicked combobox, typed service name, selected option in MCP
@@ -136,29 +133,27 @@ page.wait_for_timeout(1000)  # Allow selection to register
 
 **CHOSEN**: `inner_iframe.get_by_role("button", name="Start date:").first()` - First instance is the clickable button.
 
-**VERIFIED PLAYWRIGHT CODE**:
+**VERIFIED PLAYWRIGHT CODE** (HEALED 2026-01-25: do not use get_by_role('menu') — it matches scheduler's allDayEventsContainer which never hides; use day button visibility instead):
 ```python
 from datetime import datetime, timedelta
 
-# Calculate tomorrow's date
 tomorrow = datetime.now() + timedelta(days=1)
 tomorrow_day = tomorrow.day
 
-# Click start date button
 start_date_btn = inner_iframe.get_by_role('button', name='Start date:').first()
 start_date_btn.click()
-# Wait for date picker to appear
-date_picker = outer_iframe.get_by_role('menu')
-date_picker.wait_for(state='visible', timeout=5000)
-
-# Click tomorrow's date
-tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day)).nth(1)
-tomorrow_date_btn.click()
-page.wait_for_timeout(500)  # Allow date to be set
+# Wait for date picker by waiting for tomorrow's day button to appear (picker open)
+tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day))
+if tomorrow_date_btn.count() == 0:
+    tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
+tomorrow_date_btn.first.wait_for(state='visible', timeout=8000)
+day_btn = tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1)
+day_btn.click()
+day_btn.wait_for(state='hidden', timeout=5000)
 ```
 
-- **How verified**: Clicked date button, selected tomorrow's date in MCP
-- **Wait for**: Date picker closes, start date shows tomorrow
+- **How verified**: Healed: get_by_role('menu').first matched allDayEventsContainer; wait for day button visible then hidden.
+- **Wait for**: Date picker opens (day button visible), then closes (day button hidden after click).
 - **Fallback locators**: `inner_iframe.get_by_text(str(tomorrow_day))`
 
 ### Step 6: Verify End Date is Set (Auto-updated)

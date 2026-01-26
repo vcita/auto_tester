@@ -8,6 +8,8 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
+from tests._functions._config import get_base_url
+
 
 def fn_create_client(page: Page, context: dict, **params) -> None:
     """
@@ -33,8 +35,9 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     full_name = f"{first_name} {last_name}"
     
     # Step 1: Navigate to Dashboard
+    base_url = get_base_url(context, params)
     print("  Step 1: Navigating to dashboard...")
-    page.goto("https://app.vcita.com/app/dashboard")
+    page.goto(f"{base_url}/app/dashboard")
     page.wait_for_load_state("domcontentloaded")
     # Wait for page to fully load by checking for Quick actions panel
     page.wait_for_timeout(2000)  # Initial load time

@@ -12,10 +12,10 @@ Cancel a scheduled group event instance.
 1. Open the scheduled event
 2. Click "Cancel" or "Cancel event" button
 3. Confirm cancellation if prompted
-4. Verify event is marked as cancelled or removed from calendar
+4. Verify event is marked as CANCELLED (e.g. in Event List)
 5. Clear event context variables
 
 ## Expected Result
 - Event is cancelled successfully
-- Event is marked as cancelled or removed from active calendar
+- Event is shown as CANCELLED in Event List (or removed from active calendar)
 - Context variables are cleared (scheduled_event_id, scheduled_event_time, event_attendee_id)

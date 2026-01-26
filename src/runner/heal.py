@@ -45,6 +45,7 @@ class HealRequestGenerator:
         category_name: str,
         context: Dict[str, Any],
         additional_info: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Path:
         """
         Generate a heal request file for a failed test.
@@ -54,6 +55,7 @@ class HealRequestGenerator:
             category_name: Name of the category
             context: Current context state
             additional_info: Any additional information to include
+            config: Optional target config (base_url, username; no password). Login URL = base_url + "/login".
             
         Returns:
             Path to the generated heal request file
@@ -61,10 +63,12 @@ class HealRequestGenerator:
         self.heal_requests_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{result.test_name}_{timestamp}.md"
+        # Keep filename flat: no slashes (subcategory/test_name could be "Events/Schedule Event")
+        safe_name = result.test_name.replace("/", "-")
+        filename = f"{safe_name}_{timestamp}.md"
         file_path = self.heal_requests_dir / filename
         
-        content = self._build_content(result, category_name, context, additional_info)
+        content = self._build_content(result, category_name, context, additional_info, config)
         
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
@@ -77,6 +81,7 @@ class HealRequestGenerator:
         category_name: str,
         context: Dict[str, Any],
         additional_info: Optional[str],
+        config: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Build the markdown content for the heal request."""
         
@@ -93,6 +98,21 @@ class HealRequestGenerator:
             "## What Failed",
             "",
         ]
+
+        # Config/setup used for this run (no password)
+        if config:
+            base_url = config.get("base_url") if isinstance(config, dict) else None
+            auth = config.get("auth") if isinstance(config, dict) else {}
+            username = auth.get("username") if isinstance(auth, dict) else None
+            login_url = (base_url or "").rstrip("/") + "/login" if base_url else ""
+            lines.extend([
+                "## Config",
+                "",
+                f"- **base_url**: `{base_url or ''}`",
+                f"- **login_url** (derived): `{login_url}`",
+                f"- **username**: `{username or ''}`",
+                "",
+            ])
         
         # Error explanation
         if result.error:

@@ -140,13 +140,15 @@ address_field.press_sequentially(edit_data["address"], delay=30)
 ```
 
 - **How verified**: Field value changed to "EDITED: 123 Updated Street, New City" in MCP
-- **Note**: Address field has Google Places autocomplete - clicking next field dismisses dropdown
+- **Note**: Address field has Google Places autocomplete.
+- **HEALED 2026-01-26**: Do not use Tab (focuses Birthday, opens datepicker, intercepts Referred by). Click dialog title "Edit contact info" to dismiss autocomplete; then click Referred by. No arbitrary waits.
 - **Value**: Generated value, e.g., "EDITED: {number} Updated Street, New City"
 - **Fallback locators**: Input within address section
 
 ### Step 6: Edit Referred By Field
-- **Action**: Clear and fill new referred by value (also dismisses address autocomplete)
+- **Action**: Clear and fill new referred by value
 - **Target**: "Referred by" textbox
+- **Note**: Before clicking, any open datepicker (e.g. from Birthday) must be dismissed (Escape) or the click will be intercepted.
 
 **LOCATOR DECISION:**
 

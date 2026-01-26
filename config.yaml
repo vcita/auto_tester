@@ -1,56 +1,35 @@
-# vcita Test Agent Configuration
-
-# Application settings
 app:
-  name: "vcita Test Agent"
-  version: "1.0.0"
-  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-
-# Browser settings
+  name: vcita Test Agent
+  version: 1.0.0
+  log_level: INFO
 browser:
-  type: "chromium"  # chromium, firefox, webkit
-  headless: false   # Set to true for CI/cloud environments
-  slow_mo: 100      # Milliseconds between actions (helps with debugging)
-  timeout: 30000    # Default timeout in milliseconds
+  type: chromium
+  headless: false
+  slow_mo: 100
+  timeout: 30000
   viewport:
     width: 1280
     height: 720
-
-# Test execution settings
 execution:
-  continuous: true           # Run tests in infinite loop
-  parallel_tests: 1          # Number of tests to run in parallel
-  retry_on_failure: 2        # Number of retries before marking as failed
-  delay_between_runs: 60     # Seconds between test cycle runs
+  continuous: true
+  parallel_tests: 1
+  retry_on_failure: 2
+  delay_between_runs: 60
   screenshot_on_failure: true
   trace_on_failure: true
-
-# AI/Exploration settings
 exploration:
-  max_steps: 50              # Maximum steps before giving up
-  wait_after_action: 1000    # Milliseconds to wait after each action
-  screenshot_each_step: true # Capture screenshot at every step
-
-# Self-healing settings
+  max_steps: 50
+  wait_after_action: 1000
+  screenshot_each_step: true
 healing:
   enabled: true
-  max_heal_attempts: 3       # Max attempts to self-heal a test
+  max_heal_attempts: 3
   re_explore_on_failure: true
-
-# Note: Database and file logging are not currently implemented
-# Run results are stored in tests/{category}/_runs/ directories
-# Screenshots are stored with run results in _runs/{run_id}/tests/{test_name}/
-
-# Test organization
 tests:
-  root_path: "tests"         # Root folder for test categories
-  category_file: "_category.yaml"
-
-# Target application (vcita)
+  root_path: tests
+  category_file: _category.yaml
 target:
-  base_url: "https://app.vcita.com"
-  login_url: "https://www.vcita.com/login"  # Use this for login - avoids Cloudflare issues
-  # Add authentication details as needed
+  base_url: https://www.vcita.com
   auth:
-    username: "itzik+autotest@vcita.com"
-    password: "vcita123"
+    username: itzik+autotest.1769433641@vcita.com
+    password: vcita123

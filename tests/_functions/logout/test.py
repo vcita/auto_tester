@@ -24,10 +24,10 @@ def fn_logout(page: Page, context: dict, **params) -> None:
     3. Wait for redirect to login page
     """
     # Step 1: Click User Avatar Button
-    # The avatar shows user initials (e.g., "AU" for "Autotest")
-    # It's a button with exactly 2 uppercase letters
-    user_avatar = page.get_by_role("button", name=re.compile(r"^[A-Z]{2}$")).first
-    user_avatar.click()
+    # The avatar shows initials and possibly name (e.g. "AU", "AU Autotest", "AD AutoTest Discovery")
+    # Use data-qa so we can force click when angular iframe overlay intercepts pointer events
+    user_avatar = page.locator('[data-qa="VcWideTopMenuBar-account"]').first
+    user_avatar.click(force=True)
     
     # Step 2: Wait for Menu to Appear
     menu = page.get_by_role("menu")
@@ -40,8 +40,7 @@ def fn_logout(page: Page, context: dict, **params) -> None:
     logout_item.click()
     
     # Step 4: Wait for Login Page
-    # The page will redirect to the login page after logout
-    # URL pattern: https://www.vcita.com/login?sso=true
+    # The page will redirect to the login page after logout (base_url + "/login", e.g. .../login?sso=true)
     page.wait_for_url("**/login**", timeout=15000)
     
     # Step 5: Handle Cloudflare if present

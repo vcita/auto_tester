@@ -18,14 +18,14 @@ def setup_clients(page: Page, context: dict) -> None:
     
     Logs in the user before running client-related tests.
     
-    Credentials are read from environment variables or use defaults.
+    Credentials: context (from config, injected by runner), then env VCITA_TEST_*, else defaults.
     
     Saves to context:
     - logged_in_user: The email that was logged in (from login function)
     """
-    # Get credentials from environment or use defaults
-    username = os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-    password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    # Prefer config (injected by runner into context), then env, then defaults
+    username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
+    password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
     
     # Call the login function
     fn_login(page, context, username=username, password=password)

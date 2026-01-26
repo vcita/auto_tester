@@ -17,7 +17,7 @@
 
 ### Step 1: Navigate to Login Page
 - **Action**: Navigate
-- **Target**: https://www.vcita.com/login
+- **Target**: base_url + "/login" (from config/context)
 - **Wait for**: Page to load (networkidle)
 - **Note**: Cloudflare security check may appear
 
@@ -75,7 +75,7 @@ context["logged_in_user"] = username
 
 The login page uses a nested structure:
 ```
-Main page (www.vcita.com/login)
+Main page (base_url + "/login")
 └── iframe#vue_iframe
     └── Login form
         ├── "Log In to Your Account" heading

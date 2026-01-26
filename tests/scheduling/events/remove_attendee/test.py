@@ -29,19 +29,14 @@ def test_remove_attendee(page: Page, context: dict) -> None:
         # Navigate to Calendar menu first
         calendar_menu = page.get_by_text("Calendar", exact=True)
         calendar_menu.click()
-        page.wait_for_timeout(500)  # Allow menu to expand
-        
-        # Click Event List sub-item
         event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
         event_list_item.wait_for(state='visible', timeout=10000)
         event_list_item.click()
         page.wait_for_url("**/app/event-list**", timeout=10000)
-        page.wait_for_timeout(2000)  # Allow event list to load
-        
-        # Find the event with the attendee (look for "1 / 10 Registered" or similar)
         page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
         outer_iframe = page.frame_locator('iframe[title="angularjs"]')
         inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+        inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=15000)
         
         # Get service name and event ID from context to find the right event
         service_name = context.get("event_group_service_name", "")
@@ -65,8 +60,8 @@ def test_remove_attendee(page: Page, context: dict) -> None:
         
         # Click the first matching event (should be the most recent one)
         event_rows.first.click()
-        page.wait_for_timeout(2000)  # Allow event to open
-        
+        page.wait_for_url("**/app/events/**", timeout=10000)
+
         # Check if we're on event detail page or preview panel
         # If preview panel, we might need to click "View" or the event name to open full page
         if "/app/events/" not in page.url:
@@ -82,8 +77,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
         
         # Ensure we're on the full event detail page
         page.wait_for_url("**/app/events/**", timeout=10000)
-        page.wait_for_timeout(2000)  # Allow event detail page to fully load
-    
+
     # Step 2: Navigate to Attendees Tab
     print("  Step 2: Navigating to Attendees tab...")
     # Ensure we're on the full event detail page, not just preview
@@ -96,8 +90,8 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     
     # Wait for tab bar to be ready (inner iframe may load after navigation)
     inner_iframe.get_by_role('tab').first.wait_for(state='visible', timeout=15000)
-    page.wait_for_timeout(500)
-    
+    page.wait_for_timeout(300)  # Brief settle (allowed)
+
     # Click Attendees: try button name (e.g. "Attendees (0)" or "Attendees (1)"), then tab, then text
     attendees_btn = inner_iframe.get_by_role('button', name=re.compile(r'Attendees\s*\(\d+\)', re.IGNORECASE))
     if attendees_btn.count() > 0:
@@ -122,8 +116,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                 raise ValueError("Attendees tab not found")
             by_text.first.scroll_into_view_if_needed(timeout=5000)
             by_text.first.click(force=True, timeout=5000)
-    page.wait_for_timeout(500)  # Allow tab content to load
-    
+
     # Step 3: Find Attendee in List
     print("  Step 3: Finding attendee in list...")
     # Get client name from context
@@ -134,17 +127,12 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # Wait for attendees list to load - wait for the tab content
     # Wait for the attendees list to actually appear
     try:
-        # Wait for either "Not paid" or "Paid" section to appear (indicates list loaded)
-        # Use filter(has_text) instead of get_by_text with exact=False
         inner_iframe.locator('*').filter(has_text="Not paid").first.wait_for(state='visible', timeout=10000)
-        page.wait_for_timeout(2000)  # Additional wait for list items to render
-    except:
+    except Exception:
         try:
             inner_iframe.locator('*').filter(has_text="Paid").first.wait_for(state='visible', timeout=10000)
-            page.wait_for_timeout(2000)
-        except:
-            # If neither section appears, wait a bit more and continue
-            page.wait_for_timeout(3000)
+        except Exception:
+            pass  # Continue to look for attendee
     
     # Re-establish iframe references to ensure they're fresh
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
@@ -153,7 +141,6 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     
     # Find the attendee in the list - get_by_text works reliably (verified in MCP)
     attendee_item = inner_iframe.get_by_text(client_name)
-    page.wait_for_timeout(2000)  # Allow list to render
     if attendee_item.count() == 0:
         raise ValueError(
             f"No attendee '{client_name}' in list. Add Attendee may not have completed "
@@ -167,8 +154,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # IMPORTANT: Buttons are only visible when hovering over the attendee name
     # First, hover over the attendee name to reveal the buttons
     attendee_item.hover()
-    page.wait_for_timeout(1500)  # Wait for buttons to appear after hover
-    
+
     # Find the 3 dots menu button near the attendee
     # Based on MCP exploration: The 3-dots button is in the same container as the attendee
     # The attendee text is at level 0, parent container (attendance-item) is at level 2
@@ -220,14 +206,15 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # Click the 3 dots menu button
     # Use evaluate to force-click and scroll into view (handles visibility issues)
     # Based on MCP: button is visible after hover, but use evaluate for reliability
+    menu_btn.wait_for(state='visible', timeout=5000)
     menu_btn.evaluate("""
         (el) => {
             el.scrollIntoView({ behavior: 'instant', block: 'center' });
             el.click();
         }
     """)
-    page.wait_for_timeout(2000)  # Wait for menu to appear
-    
+    inner_iframe.get_by_text('Cancel registration').first.wait_for(state='visible', timeout=5000)
+
     # Step 4a: Click "Cancel Registration" option in the menu
     print("  Step 4a: Clicking Cancel Registration option...")
     # Look for the menu that appeared - it might be in the iframe or in the document
@@ -235,8 +222,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # This ensures they're fresh and not stale
     print("  [DEBUG] Re-establishing iframe references...")
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
-    # Wait a bit for iframe content to be ready
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(300)  # Brief settle (allowed)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     print("  [DEBUG] Iframe references established")
@@ -394,39 +380,30 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # We found the cancel option, now click it
     # IMPORTANT: first is a property, not a method - use .first.click() not .first().click()
     cancel_option.first.click()
-    page.wait_for_timeout(2000)  # Wait for confirmation dialog to appear
-    
+
     # Step 5: Submit Confirmation Dialog
     print("  Step 5: Submitting confirmation dialog...")
-    # Based on MCP: After clicking "Cancel registration", a dialog appears with "Submit" button
-    # The dialog is in the outer iframe (not inner)
-    page.wait_for_timeout(1000)  # Wait for dialog to appear
-    
-    # Look for Submit button in outer iframe first (where dialog appears)
+    # Dialog with "Submit" appears after Cancel registration (outer iframe)
     confirmation_clicked = False
     try:
         submit_btn = outer_iframe.get_by_role('button', name='Submit')
-        if submit_btn.count() > 0:
-            submit_btn.first.wait_for(state='visible', timeout=5000)
-            submit_btn.first.click()
-            confirmation_clicked = True
-            page.wait_for_timeout(2000)
-    except:
+        submit_btn.first.wait_for(state='visible', timeout=5000)
+        submit_btn.first.click()
+        confirmation_clicked = True
+        outer_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
+    except Exception:
         pass
-    
-    # Also try in main page
+
     if not confirmation_clicked:
         try:
             submit_btn = page.get_by_role('button', name='Submit')
-            if submit_btn.count() > 0:
-                submit_btn.first.wait_for(state='visible', timeout=5000)
-                submit_btn.first.click()
-                confirmation_clicked = True
-                page.wait_for_timeout(2000)
-        except:
+            submit_btn.first.wait_for(state='visible', timeout=5000)
+            submit_btn.first.click()
+            confirmation_clicked = True
+            outer_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
+        except Exception:
             pass
-    
-    # Fallback: try alternative button names
+
     if not confirmation_clicked:
         for confirm_text in ['Confirm', 'Yes', 'Remove', 'Delete', 'OK']:
             try:
@@ -435,15 +412,20 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                     confirm_btn.first.wait_for(state='visible', timeout=2000)
                     confirm_btn.first.click()
                     confirmation_clicked = True
-                    page.wait_for_timeout(2000)
+                    outer_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
                     break
-            except:
+            except Exception:
                 continue
-    
+
     # Step 6: Verify Attendee Removed
     print("  Step 6: Verifying attendee was removed...")
-    # Wait for list to update after removal
-    page.wait_for_timeout(3000)  # Allow list to refresh
+    attendees_tab = inner_iframe.get_by_role('tab', name=re.compile(r'Attendees'))
+    for _ in range(12):
+        attendees_tab.first.wait_for(state='visible', timeout=5000)
+        text = attendees_tab.first.text_content()
+        if text and '(0)' in text:
+            break
+        page.wait_for_timeout(500)
     
     # IMPORTANT: We validate removal by checking BOTH:
     # 1. The attendees count is 0 (attendee no longer counted as active)
@@ -451,7 +433,6 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # Both conditions must be true for removal to be confirmed
     
     # Step 6a: Verify attendees count is 0
-    attendees_tab = inner_iframe.get_by_role('tab', name=re.compile(r'Attendees'))
     attendees_count_text = attendees_tab.first.text_content()
     count_match = re.search(r'\((\d+)\)', attendees_count_text or "")
     attendees_count = int(count_match.group(1)) if count_match else -1
@@ -492,8 +473,9 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     
     # Re-check count if needed (in case UI is still updating)
     if not count_is_zero:
-        page.wait_for_timeout(2000)
-        attendees_count_text = attendees_tab.first.text_content()
+        for _ in range(6):
+            page.wait_for_timeout(500)
+            attendees_count_text = attendees_tab.first.text_content()
         count_match = re.search(r'\((\d+)\)', attendees_count_text or "")
         attendees_count = int(count_match.group(1)) if count_match else -1
         count_is_zero = attendees_count == 0

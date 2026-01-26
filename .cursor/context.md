@@ -206,11 +206,23 @@ The web GUI provides:
 
 ## Credentials & Configuration
 
-Test account: `itzik+autotest@vcita.com`
-Password: Stored in `config.yaml` (not in git)
+Test account and password come from **config.yaml** (target.auth; password not in git).
 
-Login URL: `https://www.vcita.com/login`
-App URL: `https://app.vcita.com/app/`
+To **create a new user** and set it as the test account (signup + onboarding, then config updated):
+```bash
+python main.py create_user
+```
+Optional: `--email`, `--password`, `--base-url`. Default email: `itzik+autotest.<timestamp>@vcita.com`.
+
+**One run (create user + run tests):** Create a new user then run all categories or a specific category:
+```bash
+python main.py run --create-user
+python main.py run --create-user --category clients
+```
+Optional: `--create-user-email`, `--create-user-password`.
+
+Login URL: **base_url + "/login"** (from config.yaml target.base_url)
+App URL: **base_url + "/app/"**
 
 ---
 

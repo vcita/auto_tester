@@ -32,8 +32,8 @@ def setup_events(page: Page, context: dict) -> None:
     # Step 0: Login if not already logged in
     if "logged_in_user" not in context:
         print("  Setup Step 0: Logging in...")
-        username = os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-        password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+        username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
+        password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
         fn_login(page, context, username=username, password=password)
     
     # Step 1: Navigate to Settings
@@ -103,9 +103,12 @@ def setup_events(page: Page, context: dict) -> None:
     
     # Step 9: Click Create
     print("  Setup Step 9: Clicking Create...")
+    create_dialog = iframe.get_by_role("dialog")
     create_btn = iframe.get_by_role("button", name="Create")
     create_btn.click()
-    
+    # Validate creation flow: wait for the create dialog to close (fails if Create failed or validation error)
+    create_dialog.wait_for(state="hidden", timeout=15000)
+
     # Step 10: Handle Event Times Dialog (Conditional)
     print("  Setup Step 10: Checking for event times dialog...")
     later_btn = iframe.get_by_role("button", name="I'll do it later")
@@ -115,14 +118,22 @@ def setup_events(page: Page, context: dict) -> None:
         later_btn.wait_for(state="visible", timeout=3000)
         print("  Setup Step 10a: Event times dialog appeared - dismissing...")
         later_btn.click()
-        page.wait_for_timeout(500)  # Brief settle time
-    except:
+        iframe.get_by_role("dialog").wait_for(state="hidden", timeout=5000)
+    except Exception:
         # Dialog didn't appear - this is OK, continue
         print("  Setup Step 10a: Event times dialog did not appear - continuing...")
-    
-    # Wait for any remaining dialogs to close
-    page.wait_for_timeout(500)  # Brief settle time for dialogs to close
-    
+
+    page.wait_for_timeout(300)  # Brief settle after dialog close (allowed)
+
+    # Validate service actually appears on Services page (so Schedule Event can find it in dropdown)
+    try:
+        iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=10000)
+    except Exception as e:
+        raise AssertionError(
+            f"Setup could not confirm group event service was created: '{group_event_name}' not found on Services page. "
+            "Create dialog closed but service may not have been saved. Check run video/screenshot."
+        ) from e
+
     # Step 11: Save Group Event Service Name
     print("  Setup Step 11: Saving group event service name...")
     context["event_group_service_name"] = group_event_name

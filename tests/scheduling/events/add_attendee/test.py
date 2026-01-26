@@ -47,32 +47,28 @@ def test_add_attendee(page: Page, context: dict) -> None:
     # Search for client
     search_field = outer_iframe.get_by_role('textbox', name='Search by name, email or tag')
     search_field.click()
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(client_name, delay=30)
-    page.wait_for_timeout(2500)  # Allow search to filter results and list to update
 
     # Step 4: Select Client from Results
     print("  Step 4: Selecting client from results...")
     dialog = outer_iframe.get_by_role('dialog')
-    # Prefer semantic: button with client name inside dialog
-    client_locator = dialog.get_by_role('button').filter(has_text=client_name)
-    if client_locator.count() == 0:
-        # Fallback: any element with client name in dialog (list rows may not be buttons)
-        client_locator = dialog.get_by_text(client_name, exact=False)
-    if client_locator.count() == 0:
+    # HEALED: Wait for search results to show client (newly created client may take a moment to appear in list).
+    client_locator = dialog.get_by_text(client_name, exact=False)
+    try:
+        client_locator.first.wait_for(state='visible', timeout=15000)
+    except Exception:
         client_email = context.get("event_client_email")
         if client_email:
-            print(f"  Trying to find client by email: {client_email}")
-            client_locator = dialog.get_by_role('button').filter(has_text=client_email)
-            if client_locator.count() == 0:
-                client_locator = dialog.get_by_text(client_email, exact=False)
-    if client_locator.count() == 0:
-        raise ValueError(f"Client '{client_name}' not found in search results.")
-
-    client_locator.first.wait_for(state='visible', timeout=10000)
+            print(f"  Client by name not found, trying by email: {client_email}")
+            client_locator = dialog.get_by_text(client_email, exact=False)
+            client_locator.first.wait_for(state='visible', timeout=10000)
+        else:
+            raise ValueError(f"Client '{client_name}' not found in search results.")
     client_locator.first.click()
-    page.wait_for_timeout(500)  # Allow selection to register
-    
+    continue_btn = outer_iframe.get_by_role('button', name='Continue')
+    continue_btn.wait_for(state='visible', timeout=5000)
+
     # Step 5: Click Continue to Register
     print("  Step 5: Clicking Continue to register client...")
     continue_btn = outer_iframe.get_by_role('button', name='Continue')
@@ -86,8 +82,7 @@ def test_add_attendee(page: Page, context: dict) -> None:
     # Wait for dialog to close: event page returns when Register Clients is visible again
     register_btn = outer_iframe.get_by_role('button', name='Register Clients')
     register_btn.wait_for(state='visible', timeout=15000)
-    page.wait_for_timeout(1000)  # Allow attendees list to update
-    
+
     # Step 6: Verify Client Added to Attendees
     print("  Step 6: Verifying client was added to attendees...")
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')

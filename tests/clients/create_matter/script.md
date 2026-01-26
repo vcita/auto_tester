@@ -9,8 +9,9 @@
 - None (uses randomly generated test data)
 
 ## Initial State
-- User must be logged in
-- URL: https://app.vcita.com/app/dashboard
+- User must be logged in (setup logs in and leaves browser on dashboard)
+- Browser is on **app.vcita.com/app/dashboard** (login redirects to app subdomain)
+- **Do NOT** navigate to dashboard via `page.goto(base_url + "/app/dashboard")`: base_url is www.vcita.com and www.vcita.com/app/dashboard shows "This page is unavailable". Use UI navigation only if not already on dashboard.
 
 ## Test Data Generation
 ```python
@@ -32,6 +33,11 @@ referred_by = random.choice(["Google Search", "Facebook", "Friend Referral", "We
 ```
 
 ## Actions
+
+### Step 0: Ensure on dashboard (no direct URL navigation)
+- **Rule**: Do not use `page.goto(base_url + "/app/dashboard")` - www.vcita.com/app/dashboard is unavailable.
+- **Action**: If `/app/dashboard` not in `page.url`, click sidebar "Dashboard" and `page.wait_for_url("**/app/dashboard**")`. Then wait for "Quick actions" panel.
+- **VERIFIED**: `if "/app/dashboard" not in page.url: page.get_by_text("Dashboard", exact=True).click(); page.wait_for_url("**/app/dashboard**", timeout=15000)`
 
 ### Step 1: Click "Add property" in Quick actions panel
 - **Action**: Click

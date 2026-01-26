@@ -5,6 +5,8 @@
 
 from playwright.sync_api import Page, expect
 
+from tests._functions._config import get_base_url
+
 
 def fn_delete_client(page: Page, context: dict, **params) -> None:
     """
@@ -34,10 +36,11 @@ def fn_delete_client(page: Page, context: dict, **params) -> None:
         raise ValueError("Client name is required for deletion")
     
     # Step 1: Navigate to Properties List
+    base_url = get_base_url(context, params)
     print("  Step 1: Navigating to Properties list...")
-    # Ensure we're on a vcita page first
-    if "vcita.com" not in page.url:
-        page.goto("https://app.vcita.com/app/dashboard")
+    # Ensure we're on app first
+    if not (base_url in page.url and "/app/" in page.url):
+        page.goto(f"{base_url}/app/dashboard")
         page.wait_for_load_state("domcontentloaded")
     
     properties_menu = page.get_by_text('Properties').first

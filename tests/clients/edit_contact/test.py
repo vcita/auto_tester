@@ -111,16 +111,14 @@ def test_edit_contact(page: Page, context: dict) -> None:
     page.keyboard.press("Control+a")  # Select all
     address_field.press_sequentially(edit_data["address"], delay=30)
     
-    # HEALED 2026-01-22: Dismiss Google Places autocomplete dropdown
-    # The autocomplete dropdown intercepts clicks on other fields
-    # Press Tab to move to next field and dismiss autocomplete
-    address_field.press("Tab")
-    page.wait_for_timeout(500)  # Wait for dropdown to close
+    # HEALED 2026-01-26 (protocol): Tab focuses Birthday and opens MD datepicker, which intercepts clicks on Referred by.
+    # Do not use Tab or arbitrary waits. Click dialog title to dismiss address autocomplete and avoid focusing Birthday;
+    # then click Referred by.
+    outer_iframe.locator("text=Edit contact info").click()
     
     # ========== STEP 6: Edit Referred By Field ==========
     
     print(f"  Step 6: Editing Referred by to '{edit_data['referred_by']}'...")
-    # VERIFIED PLAYWRIGHT CODE from MCP:
     referred_field = outer_iframe.get_by_role("textbox", name="Referred by")
     referred_field.click()
     page.keyboard.press("Control+a")  # Select all

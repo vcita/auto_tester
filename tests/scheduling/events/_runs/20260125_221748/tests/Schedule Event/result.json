@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 33703,
+  "error": "TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"option\").filter(has_text=\"Event Test Workshop 1769372292\").first to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260125_221748\\tests\\Schedule Event\\screenshot.png",
+  "saved_at": "2026-01-25T22:19:19.506931"
+}

@@ -15,11 +15,10 @@ Schedule a group event instance by selecting a date and time for an existing gro
 4. Select the group event service (from context)
 5. Choose a date and time (tomorrow, next available slot)
 6. Click "Schedule event" or "Save"
-7. Verify event appears in calendar
+7. Verify event was created (e.g. appears in Event List)
 
 ## Expected Result
 - Event instance is scheduled successfully
-- Event appears in calendar at the selected date/time
+- Event appears in Event List (or calendar) at the selected date/time
 - Context contains:
-  - scheduled_event_id: ID of the scheduled event instance
-  - scheduled_event_time: Date/time of the scheduled event
+  - scheduled_event_time: Date/time of the scheduled event (scheduled_event_id is set by View Event test)

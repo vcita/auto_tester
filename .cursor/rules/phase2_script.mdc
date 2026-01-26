@@ -328,6 +328,8 @@ name_field.press_sequentially(name)
 
 ## CRITICAL: Wait Strategy
 
+**No arbitrary time waits.** Always wait for a concrete event (element visible/hidden, URL, list loaded, etc.) with a timeout. Never assume "wait X seconds" is enough.
+
 **NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element or condition.
 
 ### During MCP Exploration

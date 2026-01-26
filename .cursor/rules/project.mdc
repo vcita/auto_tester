@@ -145,19 +145,19 @@ Tests must simulate how a real, average user interacts with the application:
 
 ### Example - Logout:
 ```
-WRONG: Navigate to https://www.vcita.com/users/logout
+WRONG: Navigate to base_url + "/users/logout" (or any direct logout URL)
 RIGHT: Click user avatar -> Click "Logout" in dropdown menu
 ```
 
 ### Exception - Entry Points:
 The ONLY acceptable direct navigation is to the application's main entry point:
-- Login page: `https://www.vcita.com/login`
+- Login page: **base_url + "/login"** (from config.yaml target.base_url)
 - Public pages that users would bookmark or type directly
 
 ### Example - Navigating to a specific record:
 ```
-WRONG: page.goto(f"https://app.vcita.com/app/clients/{id}")
-RIGHT: 
+WRONG: page.goto(f"{base_url}/app/clients/{id}")
+RIGHT:
   - If running after a test that left browser on that page: verify URL contains the ID
   - If need to navigate there: search for the record name, click it in results
 ```
@@ -171,7 +171,7 @@ Tests in a sequence share browser state. The previous test's end state is the cu
 Example pattern for sequential tests:
 ```python
 # WRONG - unconditionally navigates
-page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+page.goto(f"{base_url}/app/clients/{matter_id}")
 
 # RIGHT - verifies expected state from previous test
 if matter_id not in page.url:

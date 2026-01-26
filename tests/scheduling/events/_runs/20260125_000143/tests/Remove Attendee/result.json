@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Remove Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 7413,
+  "error": "ValueError: Menu did not appear after clicking 3 dots button",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260125_000143\\tests\\Remove Attendee\\screenshot.png",
+  "saved_at": "2026-01-25T00:03:34.263118"
+}

@@ -9,9 +9,9 @@ Follow the rules in `.cursor/rules/heal.mdc` to heal this test.
 ## IMPORTANT: Always Use URLs from config.yaml
 
 When accessing vcita during MCP exploration:
-- **Login URL**: Use `https://www.vcita.com/login` (from config.yaml target.login_url)
-- **NEVER** use `app.vcita.com/login` - it triggers Cloudflare blocks
-- **Credentials**: Use values from config.yaml target.auth section
+- **Login URL**: Use **base_url + "/login"** from config.yaml (target.base_url). Never hardcode the host.
+- **Credentials**: Use values from config.yaml target.auth section.
+- **New test user**: Run `python main.py create_user` to create a new user in vcita and update config.
 
 ---
 
@@ -219,7 +219,7 @@ Based on MCP observations, determine the issue type.
 ### Navigation Rules (CRITICAL):
 
 **The ONLY allowed direct navigation is:**
-- ✅ Login page: `https://www.vcita.com/login` (entry point, rarely used)
+- ✅ Login page: **base_url + "/login"** from config (entry point, rarely used)
 - ✅ Public marketing pages (entry points)
 
 **NEVER allowed:**
@@ -275,7 +275,7 @@ page.wait_for_timeout(2000)  # Wait for backend sync
 
 **❌ WRONG:**
 ```python
-page.goto("https://app.vcita.com/app/dashboard")
+page.goto(f"{base_url}/app/dashboard")  # base_url from config/context
 ```
 
 **✅ RIGHT:**
@@ -290,7 +290,7 @@ if "/app/dashboard" not in page.url:
 
 **❌ WRONG:**
 ```python
-page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
+page.goto(f"{base_url}/app/clients/{matter_id}")  # base_url from config/context
 ```
 
 **✅ RIGHT:**

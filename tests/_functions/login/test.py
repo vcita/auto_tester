@@ -6,6 +6,8 @@
 import re
 from playwright.sync_api import Page, expect
 
+from tests._functions._config import get_base_url
+
 
 def fn_login(page: Page, context: dict, **params) -> None:
     """
@@ -21,6 +23,7 @@ def fn_login(page: Page, context: dict, **params) -> None:
     Notes:
     - Cloudflare may show a security check that requires manual solving
     - reCAPTCHA may appear and require manual solving
+    - Login URL is base_url + "/login" from context or config (see get_base_url).
     """
     username = params.get("username")
     password = params.get("password")
@@ -28,12 +31,14 @@ def fn_login(page: Page, context: dict, **params) -> None:
     if not username or not password:
         raise ValueError("username and password are required parameters")
     
+    base_url = get_base_url(context, params)
+    login_url = base_url + "/login"
+    
     # Step 1: Navigate to Login Page with retry for context destruction
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # Use www.vcita.com/login (from config.yaml) - avoids Cloudflare blocks
-            page.goto("https://www.vcita.com/login", wait_until="commit")
+            page.goto(login_url, wait_until="commit")
             
             # Wait for page to load - either login form appears or we get redirected
             page.wait_for_load_state("domcontentloaded")

@@ -15,14 +15,14 @@ def setup_scheduling(page: Page, context: dict) -> None:
     
     Logs in and navigates to Settings > Services page.
     
-    Credentials are read from environment variables or use defaults.
+    Credentials: context (from config, injected by runner), then env VCITA_TEST_*, else defaults.
     
     Saves to context:
     - logged_in_user: The username that was logged in
     """
-    # Get credentials from environment or use defaults
-    username = os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-    password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    # Prefer config (injected by runner into context), then env, then defaults
+    username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
+    password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
     
     # Step 1: Login
     print("  Step 1: Logging in...")

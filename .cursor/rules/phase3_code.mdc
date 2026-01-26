@@ -207,6 +207,8 @@ page.keyboard.type("text to type")
 
 ### CRITICAL: Wait Strategy
 
+**No arbitrary time waits.** Always wait for a concrete event (element state, URL, list loaded, etc.) with a timeout. Never assume "wait X seconds" is enough—use `locator.wait_for(state=...)`, `page.wait_for_url(...)`, or similar so the test proceeds as soon as the condition is met (or fails after the timeout).
+
 **NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element.
 
 #### Wait Patterns

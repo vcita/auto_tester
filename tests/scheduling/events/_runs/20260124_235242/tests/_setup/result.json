@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 55226,
+  "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://app.vcita.com/app/dashboard\", waiting until \"load\"\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260124_235242\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-24T23:54:43.637873"
+}

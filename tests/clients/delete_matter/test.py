@@ -59,8 +59,9 @@ def test_delete_matter(page: Page, context: dict) -> None:
     checkbox_btn = matter_row.get_by_role("button").first
     checkbox_btn.click()
     
-    # Verify selection indicator appears
-    selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+ PROPERTIES"))
+    # Verify selection indicator appears (entity label varies by vertical: PROPERTIES, CLIENTS, PATIENTS)
+    # HEALED: Was r"1 SELECTED OF \d+ PROPERTIES" - failed when vertical uses "CLIENTS" (e.g. non–Home Services)
+    selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+"))
     selection_indicator.wait_for(state="visible", timeout=5000)
     
     # ========== PART 3: Delete the Matter ==========

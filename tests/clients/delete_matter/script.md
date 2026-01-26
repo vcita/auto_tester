@@ -40,7 +40,7 @@
 - **Action**: Click the checkbox button in the matter's row
 - **Locator**: `page.get_by_role("row", name=context["created_matter_name"]).get_by_role("button").first`
 - **Note**: The checkbox is wrapped in a button element due to UI framework
-- **Wait for**: Selection indicator to show "1 SELECTED OF X PROPERTIES"
+- **Wait for**: Selection indicator to show "1 SELECTED OF X [ENTITY]" (ENTITY varies by vertical: PROPERTIES, CLIENTS, PATIENTS, etc.)
 - **Expected**: Bulk action buttons appear (Invite via Email, Message, Add tags, Change status, More)
 
 ### Part 3: Delete the Matter

@@ -59,24 +59,19 @@ def test_view_event(page: Page, context: dict) -> None:
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     
-    # Navigate to the event date - click day in mini calendar (complementary + exact=True to avoid "January 2026")
-    date_btn = inner_iframe.get_by_role('complementary').first.get_by_role('button', name=str(event_day), exact=True)
-    date_btn.click()
-    page.wait_for_timeout(1000)  # Allow calendar to navigate to that date
-    
-    # Step 3: Find Event in Calendar Grid
-    print("  Step 3: Finding event in calendar...")
     # Get service name from context
     service_name = context.get("event_group_service_name")
     if not service_name:
         raise ValueError("No event_group_service_name in context. Run _setup first.")
-    
-    # Wait for calendar to load
-    page.wait_for_timeout(2000)  # Allow calendar to fully render
-    
-    # Find the event in the calendar grid
+
+    # Navigate to the event date - click day in mini calendar (complementary + exact=True to avoid "January 2026")
+    date_btn = inner_iframe.get_by_role('complementary').first.get_by_role('button', name=str(event_day), exact=True)
+    date_btn.click()
+
+    # Step 3: Find Event in Calendar Grid (wait for calendar to show event for that date)
+    print("  Step 3: Finding event in calendar...")
     event_menuitem = inner_iframe.get_by_role('menuitem').filter(has_text=service_name)
-    event_menuitem.wait_for(state='visible', timeout=10000)
+    event_menuitem.wait_for(state='visible', timeout=15000)
     
     # Step 4: Click Event to Open Details
     print("  Step 4: Clicking event to open details...")

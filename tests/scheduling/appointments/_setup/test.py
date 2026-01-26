@@ -34,8 +34,8 @@ def setup_appointments(page: Page, context: dict) -> None:
     # Step 0: Login if not already logged in
     if "logged_in_user" not in context:
         print("  Setup Step 0: Logging in...")
-        username = os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-        password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+        username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
+        password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
         fn_login(page, context, username=username, password=password)
     
     # Step 1: Create Test Service

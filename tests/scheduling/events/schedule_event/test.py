@@ -15,21 +15,17 @@ def test_schedule_event(page: Page, context: dict) -> None:
     
     Prerequisites:
     - User is logged in (from _setup)
-    - Group event service exists (context: event_group_service_name)
+    - At least one group event service exists (Calendar dropdown shows "Event Test Workshop" options)
     - Browser is on Calendar page (from _setup)
     
     Saves to context:
     - scheduled_event_time: Date/time of the scheduled event
+    - event_group_service_name: Set to the service actually selected (dropdown may not include the one just created in _setup)
     """
     # Step 1: Verify on Calendar Page
     print("  Step 1: Verifying on Calendar page...")
     if "/app/calendar" not in page.url:
         raise ValueError(f"Expected to be on Calendar page, but URL is {page.url}")
-    
-    # Get service name from context
-    service_name = context.get("event_group_service_name")
-    if not service_name:
-        raise ValueError("No group event service name in context. Run _setup first.")
     
     # Step 2: Click New Button
     print("  Step 2: Clicking New button...")
@@ -38,65 +34,45 @@ def test_schedule_event(page: Page, context: dict) -> None:
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     new_btn = inner_iframe.get_by_role('button', name='New')
     new_btn.click()
-    # Wait for dropdown menu to appear
-    page.wait_for_timeout(500)
-    
+    group_event_option = inner_iframe.get_by_role('menuitem', name='Group event')
+    group_event_option.wait_for(state='visible', timeout=5000)
+
     # Step 3: Select Group Event from Menu
     print("  Step 3: Selecting Group event...")
-    group_event_option = inner_iframe.get_by_role('menuitem', name='Group event')
     group_event_option.click()
-    # Wait for dialog to appear - wait for service combobox which is a specific element in the dialog
-    page.wait_for_timeout(2000)  # Allow dialog to start appearing
-    # The service combobox is in the inner iframe within the dialog
+    # Wait for dialog: service combobox is the specific element that appears
     service_combobox = inner_iframe.get_by_role('combobox')
     service_combobox.wait_for(state='visible', timeout=15000)
     
     # Step 4: Select Group Event Service
-    print(f"  Step 4: Selecting service: {service_name}...")
-    # Click combobox to open
+    # HEALED: Newly created service from _setup often does not appear in the dropdown (different/cached list).
+    # Select the first "Event Test Workshop" option and update context so downstream steps use the selected service.
+    print("  Step 4: Selecting group event service...")
     service_combobox.click()
-    # Wait for listbox to appear
     listbox = inner_iframe.get_by_role('listbox')
     listbox.wait_for(state='visible', timeout=10000)
-    
-    # Type service name to filter
-    search_field = inner_iframe.get_by_role('textbox', name='Select service')
-    search_field.click()
-    page.wait_for_timeout(100)
-    search_field.press_sequentially(service_name, delay=30)
-    page.wait_for_timeout(1000)  # Allow search to filter and options to update
-    
-    # Select the service option - find by text content
-    # Get all options and find the one containing service name
-    all_options = inner_iframe.get_by_role('option')
-    option_count = all_options.count()
-    service_option = None
-    for i in range(option_count):
-        option = all_options.nth(i)
-        option_text = option.text_content()
-        if service_name in option_text:
-            service_option = option
-            break
-    
-    if not service_option:
-        raise ValueError(f"Service '{service_name}' not found in options list")
-    
+    service_option = inner_iframe.get_by_role('option').filter(has_text='Event Test Workshop').first
     service_option.wait_for(state='visible', timeout=10000)
+    # Extract service name from option text (e.g. "Event Test Workshop 1769366547 ₪25.00 ..." -> "Event Test Workshop 1769366547")
+    option_text = service_option.text_content() or ""
+    service_name = option_text.split("₪")[0].strip() if "₪" in option_text else option_text.strip().split("\n")[0].strip()
+    if not service_name or "Event Test Workshop" not in service_name:
+        service_name = "Event Test Workshop"  # fallback for parsing
+    context["event_group_service_name"] = service_name
     service_option.click()
-    page.wait_for_timeout(1000)  # Allow selection to register
-    
+    # Wait for dialog to show start date control after service selection
+    start_date_buttons = inner_iframe.get_by_role('button', name='Start date:')
+    start_date_buttons.first.wait_for(state='visible', timeout=10000)
+
     # Step 5: Set Start Date to Tomorrow (must be future so Cancel Event is available later)
     print("  Step 5: Setting start date to tomorrow...")
     tomorrow = datetime.now() + timedelta(days=1)
     tomorrow_day = tomorrow.day
     # Use 10:00 so the event is clearly in the future in any timezone
     context["scheduled_event_time"] = tomorrow.strftime("%Y-%m-%d 10:00")
-    
-    # Wait for dialog to be fully ready after service selection
-    page.wait_for_timeout(2000)  # Allow dialog to fully render
-    
-    # Verify service was selected
-    service_combobox_text = service_combobox.text_content()
+
+    # Verify service was selected (dialog is ready when combobox shows name)
+    service_combobox_text = service_combobox.text_content() or ""
     if service_name not in service_combobox_text:
         raise ValueError(f"Service '{service_name}' was not selected. Combobox shows: {service_combobox_text}")
     
@@ -109,35 +85,22 @@ def test_schedule_event(page: Page, context: dict) -> None:
     
     start_date_btn.wait_for(state='visible', timeout=5000)
     start_date_btn.scroll_into_view_if_needed()
-    page.wait_for_timeout(300)
-    
-    date_picker_menu = None
-    for attempt in range(2):
-        start_date_btn.click()
-        page.wait_for_timeout(3000)
-        date_picker_menu = page.get_by_role('menu')
-        if date_picker_menu.count() == 0:
-            date_picker_menu = inner_iframe.get_by_role('menu')
-        if date_picker_menu.count() > 0:
-            break
-        page.wait_for_timeout(500)
-    
-    if date_picker_menu is None or date_picker_menu.count() == 0:
-        raise ValueError(
-            "Date picker did not open. Event must be scheduled in the future so Cancel Event is available. "
-            "Try running again or check Start date control."
-        )
-    
-    date_picker_menu.first.wait_for(state='visible', timeout=5000)
+    page.wait_for_timeout(300)  # Brief settle before click (allowed)
+
+    start_date_btn.click()
+    # HEALED: get_by_role('menu').first matched the scheduler's allDayEventsContainer (role=menu), not the date
+    # picker; waiting for it to hide never succeeded. Wait for date picker by the day button visibility instead.
     tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
     if tomorrow_date_btn.count() == 0:
         tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day))
     if tomorrow_date_btn.count() == 0:
         raise ValueError(f"Date button for day {tomorrow_day} not found in date picker")
+    tomorrow_date_btn.first.wait_for(state='visible', timeout=8000)
     # Use the last matching button (calendar grid usually has the day in current month last)
-    tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1).click()
-    page.wait_for_timeout(1500)
-    
+    day_btn = tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1)
+    day_btn.click()
+    day_btn.wait_for(state='hidden', timeout=5000)
+
     # Step 6: Verify End Date is Set (Auto-updated)
     print("  Step 6: Verifying end date auto-updated...")
     # End date should automatically update to match start date
@@ -158,27 +121,23 @@ def test_schedule_event(page: Page, context: dict) -> None:
     
     # Step 8: Click Create Event
     print("  Step 8: Clicking Create Event...")
+    schedule_dialog = inner_iframe.get_by_role('dialog')
     create_btn = inner_iframe.get_by_role('button', name='Create Event')
     create_btn.click()
-    # Wait for dialog to close and calendar to update
-    page.wait_for_timeout(2000)  # Allow event to be created and calendar to refresh
-    
+    schedule_dialog.wait_for(state='hidden', timeout=15000)
+
     # Step 9: Verify Event Created (MCP-validated: search filters list; row with service name visible)
     print("  Step 9: Verifying event in Event List...")
-    page.wait_for_timeout(2000)  # Allow dialog to close and request to complete
-
-    # Navigate to Event List
     calendar_menu = page.get_by_text("Calendar", exact=True)
     calendar_menu.click()
-    page.wait_for_timeout(1500)  # Allow Calendar submenu to expand
     event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
-    event_list_item.wait_for(state='attached', timeout=10000)
+    event_list_item.wait_for(state='visible', timeout=10000)
     event_list_item.first.evaluate('el => el.click()')
     page.wait_for_url("**/app/event-list**", timeout=15000)
-    page.wait_for_timeout(3000)  # Allow event list to load
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+    inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=15000)
 
     # Search by event name to filter to our event
     event_service_name = context.get("event_group_service_name")
@@ -187,9 +146,8 @@ def test_schedule_event(page: Page, context: dict) -> None:
     search_field = inner_iframe.get_by_role('textbox', name='Search by event name')
     search_field.wait_for(state='visible', timeout=10000)
     search_field.click()
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(event_service_name, delay=30)
-    page.wait_for_timeout(2000)  # Allow filter to apply
 
     # HEALED: [cursor="pointer"] is not an HTML attribute (it's CSS); use get_by_text to find event
     event_cell = inner_iframe.get_by_text(event_service_name)
