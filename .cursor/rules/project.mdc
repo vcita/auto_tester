@@ -116,6 +116,33 @@ Plus `changelog.md` that logs all changes.
 6. **Reusability** - Common actions go in `_functions/`
 7. **DRY (Don't Repeat Yourself)** - Never duplicate logic, always reuse or extract
 8. **Real user actions only** - NEVER use direct URLs, API calls, or shortcuts that a normal user wouldn't know
+9. **Matter entity agnosticism** - The matter entity name varies by vertical (clients, properties, patients, students, pets, etc.). Tests must not hardcode a single entity label; use regex, positional selectors, or documented alternatives so tests work across verticals.
+
+## Matter Entity Name Agnosticism (CRITICAL)
+
+vcita uses different **matter entity** labels per business vertical. The same concept is called:
+- **Properties** (e.g. Home Services, Landscaper)
+- **Clients** (e.g. generic / professional services)
+- **Patients** (Healthcare)
+- **Students** (Education)
+- **Pets** (Pet services)
+- and others
+
+**Tests must be agnostic to the entity name** so they pass regardless of which vertical (and thus which label) is in use.
+
+### DO:
+- Use **regex** for UI text that varies: e.g. `re.compile(r"1 SELECTED OF \d+")` (not `r"1 SELECTED OF \d+ PROPERTIES"`), `re.compile(r"Delete .+\?")` for confirmation dialogs, `re.compile(r".+ deleted")` for success toasts.
+- Use **positional or role-based** selectors where the label varies: e.g. sidebar matter list via `.menu-items-group > div:nth-child(4)` instead of `get_by_text("Properties")`.
+- Use **menuitem filter with regex** for "Delete &lt;entity&gt;": e.g. `get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))`.
+- For "Add &lt;entity&gt;" in Quick Actions, use a regex that accepts known labels: e.g. `get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE))`.
+- Document in script.md that a given locator is entity-agnostic and which labels it covers.
+
+### DO NOT:
+- Hardcode "Properties", "Clients", "Delete properties?", "Properties deleted", "Add property", "Delete property" (or any single entity label) in locators or assertions when the UI text varies by vertical.
+- Assume the sidebar or dialogs will always show one specific entity name.
+
+### Form labels
+Form field labels (e.g. "Property address", "Property type") can also vary by vertical. Where exploration shows variation, prefer `get_by_role` with a flexible name, or try multiple labels (regex or fallbacks) and document in script.md.
 
 ## Real User Actions Rule (CRITICAL)
 

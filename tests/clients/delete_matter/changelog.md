@@ -1,5 +1,14 @@
 # Changelog - Delete Matter
 
+## 2026-01-26 - Matter entity agnosticism (dialogs)
+
+**Phase**: script.md, test.py  
+**Author**: Cursor AI (rules/validate_tests)  
+**Reason**: Tests must work across verticals; confirmation and success dialog titles vary ("Delete properties?" vs "Delete clients?", "Properties deleted" vs "Clients deleted").  
+**Fix Applied**: Use regex for dialog titles: `get_by_text(re.compile(r"Delete .+\?", re.IGNORECASE))` and `get_by_text(re.compile(r".+ deleted", re.IGNORECASE))`. script.md updated to document entity-agnostic locators and optional Step 10 count pattern.
+
+---
+
 ## 2026-01-26 - Healed (Selection indicator text varies by vertical)
 
 **Phase**: script.md, test.py  

@@ -16,26 +16,23 @@
 
 ## Actions
 
-### Step 1: Navigate to Properties List
+### Step 1: Navigate to Matter List
 
 - **Action**: Click
-- **Target**: Properties menu item in sidebar
+- **Target**: Matter list menu item in sidebar (label varies: "Properties", "Clients", "Patients", "Students", "Pets")
 
-**LOCATOR DECISION:**
+**Entity-agnostic**: Use sidebar position (same as delete_matter) so the test works for any vertical. Do NOT use `get_by_text('Properties')` — that fails when the vertical uses "Clients" or "Patients".
 
-| Option | Pros | Cons |
-|--------|------|------|
-| `page.get_by_text('Properties').first()` | Simple text match | May need `.first()` for disambiguation |
-
-**CHOSEN**: `page.get_by_text('Properties').first()` - Direct and verified.
+**CHOSEN**: `page.locator(".menu-items-group > div:nth-child(4)")` - Position-based, entity-agnostic.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.get_by_text('Properties').first().click()
+matter_list_nav = page.locator(".menu-items-group > div:nth-child(4)")
+matter_list_nav.wait_for(state="visible", timeout=10000)
+matter_list_nav.click()
 page.wait_for_url("**/app/clients", timeout=10000)
 ```
 
-- **How verified**: Clicked in MCP, navigated to Properties list
 - **Wait for**: URL contains "/app/clients"
 
 ### Step 2: Search for Client
@@ -115,28 +112,23 @@ menu.wait_for(state='visible', timeout=5000)
 - **How verified**: Clicked in MCP, dropdown menu appeared
 - **Wait for**: Menu becomes visible
 
-### Step 5: Select Delete Property
+### Step 5: Select Delete &lt;entity&gt;
 
 - **Action**: Click
-- **Target**: "Delete property" menu item
+- **Target**: "Delete property" / "Delete client" / "Delete patient" menu item (text varies by vertical)
 
-**LOCATOR DECISION:**
+**Entity-agnostic**: Menuitem name is "Delete property", "Delete client", "Delete patient", etc. Use filter with regex.
 
-| Option | Pros | Cons |
-|--------|------|------|
-| `iframe.get_by_role('menuitem', name='Delete property')` | Semantic, unique | None |
-
-**CHOSEN**: `iframe.get_by_role('menuitem', name='Delete property')` - Semantic.
+**CHOSEN**: `iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE)).first`
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-delete_option = iframe.get_by_role('menuitem', name='Delete property')
-delete_option.click()
+delete_option = iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))
+delete_option.first.click()
 dialog = iframe.get_by_role('dialog')
 dialog.wait_for(state='visible', timeout=5000)
 ```
 
-- **How verified**: Clicked in MCP, confirmation dialog appeared
 - **Wait for**: Dialog becomes visible
 
 ### Step 6: Confirm Deletion

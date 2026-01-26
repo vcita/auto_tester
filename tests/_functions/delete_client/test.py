@@ -3,6 +3,7 @@
 # Source: tests/_functions/delete_client/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
+import re
 from playwright.sync_api import Page, expect
 
 from tests._functions._config import get_base_url
@@ -35,17 +36,18 @@ def fn_delete_client(page: Page, context: dict, **params) -> None:
     if not name:
         raise ValueError("Client name is required for deletion")
     
-    # Step 1: Navigate to Properties List
+    # Step 1: Navigate to matter list (Properties/Clients/Patients - sidebar label varies by vertical)
+    # Entity-agnostic: use same sidebar position as delete_matter (.menu-items-group > div:nth-child(4))
     base_url = get_base_url(context, params)
-    print("  Step 1: Navigating to Properties list...")
+    print("  Step 1: Navigating to matter list...")
     # Ensure we're on app first
     if not (base_url in page.url and "/app/" in page.url):
         page.goto(f"{base_url}/app/dashboard")
         page.wait_for_load_state("domcontentloaded")
     
-    properties_menu = page.get_by_text('Properties').first
-    properties_menu.wait_for(state='visible', timeout=10000)
-    properties_menu.click()
+    matter_list_nav = page.locator(".menu-items-group > div:nth-child(4)")
+    matter_list_nav.wait_for(state="visible", timeout=10000)
+    matter_list_nav.click()
     page.wait_for_url("**/app/clients", timeout=10000)
     
     # Wait for the page to load
@@ -76,10 +78,10 @@ def fn_delete_client(page: Page, context: dict, **params) -> None:
     menu = iframe.get_by_role('menu')
     menu.wait_for(state='visible', timeout=5000)
     
-    # Step 5: Select Delete Property
-    print("  Step 5: Clicking Delete property...")
-    delete_option = iframe.get_by_role('menuitem', name='Delete property')
-    delete_option.click()
+    # Step 5: Select Delete <entity> (menuitem text varies: "Delete property", "Delete client", "Delete patient", etc.)
+    print("  Step 5: Clicking Delete matter...")
+    delete_option = iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))
+    delete_option.first.click()
     dialog = iframe.get_by_role('dialog')
     dialog.wait_for(state='visible', timeout=5000)
     

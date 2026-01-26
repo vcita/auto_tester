@@ -81,15 +81,15 @@ def test_create_matter(page: Page, context: dict) -> None:
     # Wait for panel content to fully render (async loading)
     page.wait_for_timeout(3000)
     
-    print("  Step 3: Clicking Add property...")
-    # Try clicking the text element directly first
-    add_property_text = page.get_by_text("Add property", exact=True)
-    add_property_text.wait_for(state="visible", timeout=10000)
+    print("  Step 3: Clicking Add matter...")
+    # Entity-agnostic: Quick Action label varies ("Add property", "Add client", "Add patient", etc.)
+    add_matter_text = page.get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE))
+    add_matter_text.wait_for(state="visible", timeout=10000)
     
     # Scroll into view and click
-    add_property_text.scroll_into_view_if_needed()
+    add_matter_text.scroll_into_view_if_needed()
     page.wait_for_timeout(500)
-    add_property_text.click()
+    add_matter_text.click()
     
     print("  Step 4: Waiting for property form...")
     # The form opens in a frame - wait for it to appear

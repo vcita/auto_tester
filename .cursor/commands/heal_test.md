@@ -118,6 +118,8 @@ See `.cursor/rules/heal.mdc` section "3. Step-by-Step Debugging with MCP (REQUIR
 
 **See `.cursor/rules/heal.mdc` section "3.5. Key UI Interaction Patterns (CRITICAL)" for detailed examples and code patterns.**
 
+**Matter entity agnosticism**: When fixing selectors that refer to the matter entity (e.g. "Properties", "Delete properties?", "1 SELECTED OF X PROPERTIES"), use entity-agnostic patterns (regex or positional selectors) so the test works across verticals. See `.cursor/rules/project.mdc` § Matter Entity Name Agnosticism.
+
 ---
 
 ## STEP 3: Classify the Issue

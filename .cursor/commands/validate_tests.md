@@ -94,6 +94,14 @@ Use these rule files as the **definition of what to validate**. Perform each che
 - **Check**: For tests that pass context (e.g. schedule_event → view_event), ensure steps.md and test docstring match saved/consumed context.
 - **Report**: Pass/Fail with short note; can be “N/A” for tests with no context chain.
 
+### 2.8 Matter entity name agnosticism
+
+**Source**: `.cursor/rules/project.mdc` (§ Matter Entity Name Agnosticism)
+
+- **Rule**: The matter entity name varies by vertical (clients, properties, patients, students, pets, etc.). Tests must NOT hardcode a single entity label in locators or assertions. Use regex, positional selectors, or documented alternatives so tests work across verticals.
+- **Check**: In each resolved test (and related _functions), grep for hardcoded entity-specific strings: literals like "Properties", "Delete properties?", "Properties deleted", "Add property", "Delete property" (menuitem), or the pattern "1 SELECTED OF \d+ PROPERTIES" as the only match. Allowed: positional selectors, regex that accept multiple labels (e.g. r"1 SELECTED OF \d+", r"Delete .+\?", r"^Add (property|client|patient|student|pet)s?$"), and doc comments. Docstrings that mention "Properties"/"Clients" as examples are OK; the check targets locators and assertions.
+- **Report**: Pass if no forbidden hardcoded entity-only locators; Fail with file:line and offending string.
+
 ---
 
 ## 3. Report format
@@ -115,9 +123,10 @@ Produce a single validation report.
    | 5. steps.md Expected Result | ✅ Pass / ❌ Fail | … |
    | 6. Wait strategy (no arbitrary waits) | ✅ Pass / ❌ Fail | … |
    | 7. Context / prerequisites consistency | ✅ Pass / ❌ Fail / N/A | … |
+   | 8. Matter entity name agnosticism | ✅ Pass / ❌ Fail | … |
 
 3. **Per-rule sections**  
-   For each rule (1–7), add a section with:
+   For each rule (1–8), add a section with:
    - Rule (one sentence) and source (rule file).
    - Check performed (what you grepped/read).
    - Result: Pass or Fail.

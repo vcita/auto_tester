@@ -55,7 +55,7 @@
 - **Action**: Click "Delete" from the dropdown menu
 - **Locator**: `page.locator('div').filter(hasText=re.compile(r"^Delete$")).nth(1)` or `page.get_by_text("Delete", exact=True)`
 - **Wait for**: Confirmation dialog to appear
-- **Expected**: Dialog with title "Delete properties?" and message about canceling upcoming payments
+- **Expected**: Dialog with title "Delete <entity>?" (entity varies: properties, clients, patients, students, pets, etc.). Use `get_by_text(re.compile(r"Delete .+\?", re.IGNORECASE))` to be entity-agnostic.
 
 #### Step 7: Confirm Deletion
 - **Action**: Click "Delete" button in confirmation dialog
@@ -65,8 +65,8 @@
 
 #### Step 8: Acknowledge Success Dialog
 - **Action**: Click "OK" button in success dialog
-- **Dialog title**: "Properties deleted"
-- **Dialog message**: "Please allow a couple of seconds for the list to update. If you still see deleted properties - please refresh the page."
+- **Dialog title**: "<Entity> deleted" (e.g. "Properties deleted", "Clients deleted"). Use `get_by_text(re.compile(r".+ deleted", re.IGNORECASE))` to be entity-agnostic.
+- **Dialog message**: Message about list update (wording varies by vertical)
 - **Locator**: `page.get_by_role("button", name="OK")`
 - **Wait for**: Dialog to close, table to refresh
 
@@ -103,10 +103,9 @@
 - Checkbox is wrapped in a button element (click the button, not the checkbox directly)
 - After selecting, bulk action buttons appear above the table
 - "More" button contains: Remove tags, Merge, Delete (under MANAGE), Share document, Internal document (under ENGAGE)
-- **Confirmation dialog**: "Delete properties?" with message about canceling upcoming payments
-- **Success dialog**: "Properties deleted" with message to wait for list update
+- **Confirmation dialog**: "Delete <entity>?" (entity varies by vertical). Success dialog: "<Entity> deleted". Use regex for entity-agnostic tests.
 - After clicking OK, the row is immediately removed from the table
-- Table count updates automatically (e.g., "3 PROPERTIES" → "2 PROPERTIES")
+- Table count updates automatically (label varies: PROPERTIES, CLIENTS, PATIENTS, etc.)
 - Tab count updates automatically (e.g., "All 3" → "All 2")
 
 ## Locator Summary

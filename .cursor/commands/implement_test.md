@@ -41,6 +41,7 @@ Follow .cursor/rules/phase2_script.mdc
 4. **Check for confirmation dialogs after menu actions**: After clicking menu items, a confirmation dialog may appear in a different iframe context; handle it explicitly.
 5. **Use evaluate() for reliable clicking**: If Playwright's click() fails on visible elements, use `element.evaluate()` with `scrollIntoView()` and `click()` for more reliable interaction.
 6. **CRITICAL: Don't update test code until MCP flow succeeds**: Complete the entire flow step-by-step with MCP before updating script.md or test.py. Only code after the flow works in MCP. This ensures you understand the actual UI behavior and have verified the approach works end-to-end.
+7. **Matter entity agnosticism**: Do not hardcode matter entity labels (e.g. "Properties", "Clients", "Add property", "Delete properties?"). Use regex or positional selectors so tests work across verticals (clients, properties, patients, students, pets). See `.cursor/rules/project.mdc` § Matter Entity Name Agnosticism.
 
 **See `.cursor/rules/build.mdc` section "Key UI Interaction Patterns (CRITICAL)" for detailed examples and code patterns.**
 

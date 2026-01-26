@@ -77,16 +77,17 @@ def test_delete_matter(page: Page, context: dict) -> None:
     # Step 6: Click Delete option in the dropdown
     delete_option.click()
     
-    # Wait for confirmation dialog to appear
-    dialog_title = page.get_by_text("Delete properties?")
+    # Wait for confirmation dialog (title varies by vertical: "Delete properties?", "Delete clients?", etc.)
+    # Entity-agnostic: match "Delete <entity>?" so test works across clients, properties, patients, students, pets
+    dialog_title = page.get_by_text(re.compile(r"Delete .+\?", re.IGNORECASE))
     dialog_title.wait_for(state="visible", timeout=5000)
     
     # Step 7: Confirm deletion by clicking Delete in the dialog
     confirm_delete_btn = page.get_by_role("button", name="Delete")
     confirm_delete_btn.click()
     
-    # Wait for success dialog to appear
-    success_dialog_title = page.get_by_text("Properties deleted")
+    # Wait for success dialog (title varies: "Properties deleted", "Clients deleted", etc.)
+    success_dialog_title = page.get_by_text(re.compile(r".+ deleted", re.IGNORECASE))
     success_dialog_title.wait_for(state="visible", timeout=10000)
     
     # Step 8: Acknowledge success dialog
