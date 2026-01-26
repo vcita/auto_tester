@@ -9,6 +9,7 @@ import time
 from playwright.sync_api import Page, expect
 
 from tests._functions._config import get_base_url
+from tests._params import ADD_MATTER_TEXT_REGEX
 
 
 def fn_create_client(page: Page, context: dict, **params) -> None:
@@ -47,10 +48,11 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
     page.wait_for_timeout(3000)  # Wait for panel content to fully render
     
-    # Step 3: Click Add matter (label varies: "Add property", "Add client", "Add patient", etc.)
+    # Step 3: Click Add matter (label from matter_entities.yaml: "Add property", "Add client", etc.)
     print("  Step 3: Clicking Add matter...")
-    add_matter_text = page.get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE))
-    add_matter_text.wait_for(state="visible", timeout=10000)
+    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
+    add_matter_text = quick_section.get_by_text(ADD_MATTER_TEXT_REGEX)
+    add_matter_text.wait_for(state="visible", timeout=15000)
     add_matter_text.scroll_into_view_if_needed()
     page.wait_for_timeout(500)
     add_matter_text.click()

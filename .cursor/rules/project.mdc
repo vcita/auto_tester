@@ -134,7 +134,7 @@ vcita uses different **matter entity** labels per business vertical. The same co
 - Use **regex** for UI text that varies: e.g. `re.compile(r"1 SELECTED OF \d+")` (not `r"1 SELECTED OF \d+ PROPERTIES"`), `re.compile(r"Delete .+\?")` for confirmation dialogs, `re.compile(r".+ deleted")` for success toasts.
 - Use **positional or role-based** selectors where the label varies: e.g. sidebar matter list via `.menu-items-group > div:nth-child(4)` instead of `get_by_text("Properties")`.
 - Use **menuitem filter with regex** for "Delete &lt;entity&gt;": e.g. `get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))`.
-- For "Add &lt;entity&gt;" in Quick Actions, use a regex that accepts known labels: e.g. `get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE))`.
+- For "Add &lt;entity&gt;" in Quick Actions, use the shared pattern from **`tests/_params`**: `from tests._params import ADD_MATTER_TEXT_REGEX` then `get_by_text(ADD_MATTER_TEXT_REGEX)` (optionally scoped to the Quick actions panel). The list of entity names lives in **`tests/_params/matter_entities.yaml`**; add new verticals there instead of editing multiple tests.
 - Document in script.md that a given locator is entity-agnostic and which labels it covers.
 
 ### DO NOT:

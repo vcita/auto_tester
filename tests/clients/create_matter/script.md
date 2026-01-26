@@ -39,15 +39,15 @@ referred_by = random.choice(["Google Search", "Facebook", "Friend Referral", "We
 - **Action**: If `/app/dashboard` not in `page.url`, click sidebar "Dashboard" and `page.wait_for_url("**/app/dashboard**")`. Then wait for "Quick actions" panel.
 - **VERIFIED**: `if "/app/dashboard" not in page.url: page.get_by_text("Dashboard", exact=True).click(); page.wait_for_url("**/app/dashboard**", timeout=15000)`
 
-### Step 1: Click "Add property" in Quick actions panel
+### Step 1: Click "Add [entity]" in Quick actions panel
 - **Action**: Click
-- **Target**: "Add property" in the Quick actions panel on the right side of the dashboard
+- **Target**: First "Add property" / "Add client" / "Add patient" etc. in the Quick actions panel on the right side of the dashboard
 - **Element hints**:
-  - `get_by_text("Add property", exact=True)` - The element is a div with class `VcSmallQuickAction--title`
-  - Located in the "Quick actions" panel on the right side of the dashboard
-  - NOT a link or button - use text selector
-- **Wait for**: Property creation form/dialog to appear (inside iframe)
-- **Note**: HEALED 2026-01-22 - UI changed. The Quick Actions button in the sidebar no longer opens a dropdown menu. "Add property" is now directly visible in a static Quick actions panel on the right side.
+  - Scope to panel: `page.get_by_text("Quick actions", exact=True).locator("..")` then within it
+  - Entity-agnostic: `get_by_text(re.compile(r"Add\s+(property|client|patient|student|pet)s?", re.IGNORECASE))` (substring match, no ^/$)
+  - Located in the "Quick actions" panel so we don't match a duplicate elsewhere; wait 15s for visible
+- **Wait for**: Matter creation form/dialog to appear (inside iframe)
+- **Note**: HEALED 2026-01-26 - Scoped locator to Quick actions panel and loosened regex so the button is found reliably across verticals and async loading. HEALED 2026-01-22 - "Add property" is in a static Quick actions panel on the right side.
 
 ### Step 2: Click "Show more" to expand contact fields
 - **Action**: Click

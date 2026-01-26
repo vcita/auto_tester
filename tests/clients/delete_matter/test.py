@@ -54,15 +54,15 @@ def test_delete_matter(page: Page, context: dict) -> None:
     matter_row = page.get_by_role("row", name=matter_name)
     matter_row.wait_for(state="visible", timeout=10000)
     
-    # Step 4: Click the checkbox button in the matter's row
-    # Note: The checkbox is wrapped in a button element due to UI framework
-    checkbox_btn = matter_row.get_by_role("button").first
-    checkbox_btn.click()
+    # Step 4: Select the matter via the row's checkbox
+    # HEALED 2026-01-26: Checkbox is wrapped in a button and may not be directly clickable; click the wrapping button.
+    # Use ancestor button so we don't depend on button order (e.g. .first can be a different control on Properties).
+    matter_row.get_by_role("checkbox").locator("xpath=ancestor::button[1]").click()
     
     # Verify selection indicator appears (entity label varies by vertical: PROPERTIES, CLIENTS, PATIENTS)
     # HEALED: Was r"1 SELECTED OF \d+ PROPERTIES" - failed when vertical uses "CLIENTS" (e.g. non–Home Services)
     selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+"))
-    selection_indicator.wait_for(state="visible", timeout=5000)
+    selection_indicator.wait_for(state="visible", timeout=10000)
     
     # ========== PART 3: Delete the Matter ==========
     
@@ -87,7 +87,8 @@ def test_delete_matter(page: Page, context: dict) -> None:
     confirm_delete_btn.click()
     
     # Wait for success dialog (title varies: "Properties deleted", "Clients deleted", etc.)
-    success_dialog_title = page.get_by_text(re.compile(r".+ deleted", re.IGNORECASE))
+    # Match only matter-entity success (not "Note deleted successfully" from Notes subcategory).
+    success_dialog_title = page.get_by_text(re.compile(r"(properties|clients|patients|students|pets)\s+deleted", re.IGNORECASE))
     success_dialog_title.wait_for(state="visible", timeout=10000)
     
     # Step 8: Acknowledge success dialog

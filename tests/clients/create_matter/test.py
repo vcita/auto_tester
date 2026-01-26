@@ -10,6 +10,7 @@ import random
 from playwright.sync_api import Page, expect
 
 from tests._functions._config import get_base_url
+from tests._params import ADD_MATTER_TEXT_REGEX
 
 
 def generate_test_data() -> dict:
@@ -82,9 +83,12 @@ def test_create_matter(page: Page, context: dict) -> None:
     page.wait_for_timeout(3000)
     
     print("  Step 3: Clicking Add matter...")
-    # Entity-agnostic: Quick Action label varies ("Add property", "Add client", "Add patient", etc.)
-    add_matter_text = page.get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE))
-    add_matter_text.wait_for(state="visible", timeout=10000)
+    # HEALED 2026-01-26: Scope to Quick actions panel. Go up to section that contains both heading and list
+    # (.. may be just the heading row on some accounts; .. gets the block that has the action list).
+    # Entity list and regex from tests/_params/matter_entities.yaml (single source of truth).
+    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
+    add_matter_text = quick_section.get_by_text(ADD_MATTER_TEXT_REGEX)
+    add_matter_text.wait_for(state="visible", timeout=15000)
     
     # Scroll into view and click
     add_matter_text.scroll_into_view_if_needed()

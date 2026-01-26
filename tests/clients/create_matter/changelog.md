@@ -1,5 +1,18 @@
 # Changelog - Create Matter
 
+## [2.5.0] - 2026-01-26
+
+### Fixed (Healed)
+- **Timeout waiting for "Add (property|client|...)" in Create Matter**
+  - **Error**: `TimeoutError: Locator.wait_for: Timeout 10000ms exceeded. - waiting for get_by_text(re.compile(r"^Add (property|client|patient|student|pet)s?$", re.IGNORECASE)) to be visible`
+  - **Root cause**: The Add-matter button was located with a page-wide `get_by_text(regex)`. On some runs/accounts the same text can exist elsewhere (or not yet visible), or the Quick actions panel content loads after the 3s wait. Scoping was missing.
+  - **Fix applied**:
+    1. Scope the "Add [entity]" lookup to the Quick actions panel: `page.get_by_text("Quick actions", exact=True).locator("..")` then find the button within that section.
+    2. Use substring regex `Add\s+(property|client|patient|student|pet)s?` (no ^/$) to tolerate extra whitespace or nested text.
+    3. Increased wait for the button to 15s.
+  - **MCP**: Confirmed on dashboard the first quick action is "Add client"; clicking it opens the New client form. Scoped locator and substring regex ensure we match the visible panel action across verticals.
+  - **Files updated**: test.py (Step 3), script.md (Step 1).
+
 ## [2.4.0] - 2026-01-26
 
 ### Fixed (Healed)

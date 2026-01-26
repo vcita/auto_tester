@@ -1,0 +1,9 @@
+# Matter entity names by vcita vertical.
+# Used to build entity-agnostic locators (e.g. "Add property", "Add client", "Delete clients?").
+# Add new entity names here when supporting another vertical; tests use these via tests._params.
+matter_entity_names:
+  - property
+  - client
+  - patient
+  - student
+  - pet

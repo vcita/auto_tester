@@ -1,5 +1,21 @@
 # Changelog - Delete Matter
 
+## 2026-01-26 - Healed (Checkbox button selector; selection indicator timeout)
+
+**Phase**: script.md, test.py  
+**Author**: Cursor AI (heal_test)  
+**Reason**: Timeout waiting for selection indicator after clicking row "checkbox"  
+**Error**: `TimeoutError: Locator.wait_for: Timeout 5000ms exceeded. waiting for get_by_text(re.compile(r"1 SELECTED OF \d+")) to be visible`
+
+**Root Cause**: The test used `matter_row.get_by_role("button").first` to click the checkbox. On some layouts (e.g. Home Services / Properties) the first button in the row may be a different control (e.g. row actions), so the wrong element was clicked and the selection bar never appeared. MCP on Clients list confirmed clicking the button that contains the checkbox shows "1 SELECTED OF 2 CLIENTS".
+
+**Fix Applied**: (1) Click the checkbox’s wrapping button via `matter_row.get_by_role("checkbox").locator("xpath=ancestor::button[1]").click()` so we don’t depend on button order. (2) Selection indicator wait increased to 10s. (3) Success dialog: use regex `(properties|clients|patients|students|pets)\s+deleted` (with re.IGNORECASE) so we don’t match "Note deleted successfully". (4) No separate scroll to avoid detached element.
+
+**Changes**: test.py (Step 4 ancestor button; success dialog regex; selection timeout 10s), script.md (Step 4 locator and wait note).  
+**Verified Approach**: MCP: Clients list, click checkbox’s ancestor button → "1 SELECTED OF 2 CLIENTS". Category re-run: all 7 tests passed. No `page.reload()` or `page.goto()` used.
+
+---
+
 ## 2026-01-26 - Matter entity agnosticism (dialogs)
 
 **Phase**: script.md, test.py  

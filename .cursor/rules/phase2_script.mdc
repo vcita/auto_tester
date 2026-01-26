@@ -53,7 +53,7 @@ Before documenting a step, you MUST evaluate locator options:
    - Position-based (last resort, document why)
 4. **Validate in MCP** before documenting
 5. **Document the decision** including rationale
-6. **Matter entity agnosticism**: If the element text is the matter entity label (e.g. "Properties", "Clients", "Add property", "Delete properties?", "1 SELECTED OF X PROPERTIES"), do NOT hardcode one label. Use regex (e.g. `r"1 SELECTED OF \d+"`, `r"Delete .+\?"`, `r"^Add (property|client|patient|student|pet)s?$"`) or positional/role-based selectors so the test works across verticals. See `.cursor/rules/project.mdc` § Matter Entity Name Agnosticism.
+6. **Matter entity agnosticism**: If the element text is the matter entity label (e.g. "Properties", "Clients", "Add property", "Delete properties?", "1 SELECTED OF X PROPERTIES"), do NOT hardcode one label. Use regex (e.g. `r"1 SELECTED OF \d+"`, `r"Delete .+\?"`) or positional/role-based selectors. For "Add &lt;entity&gt;" use **`tests._params.ADD_MATTER_TEXT_REGEX`** (entity list in **`tests/_params/matter_entities.yaml`**). See `.cursor/rules/project.mdc` § Matter Entity Name Agnosticism.
 
 ## CRITICAL: Text Input Method
 

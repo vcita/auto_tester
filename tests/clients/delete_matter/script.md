@@ -37,10 +37,10 @@
 - **Expected**: Row should be visible in the table (after search)
 
 #### Step 4: Select the Matter Checkbox
-- **Action**: Click the checkbox button in the matter's row
-- **Locator**: `page.get_by_role("row", name=context["created_matter_name"]).get_by_role("button").first`
+- **Action**: Click the checkbox's wrapping button in the matter's row
+- **Locator**: `matter_row.get_by_role("checkbox").locator("xpath=ancestor::button[1]").click()` — use the ancestor button so we don't depend on button order (e.g. row may have other buttons first).
 - **Note**: The checkbox is wrapped in a button element due to UI framework
-- **Wait for**: Selection indicator to show "1 SELECTED OF X [ENTITY]" (ENTITY varies by vertical: PROPERTIES, CLIENTS, PATIENTS, etc.)
+- **Wait for**: Selection indicator to show "1 SELECTED OF X [ENTITY]" (ENTITY varies by vertical: PROPERTIES, CLIENTS, PATIENTS, etc.); wait up to 10s.
 - **Expected**: Bulk action buttons appear (Invite via Email, Message, Add tags, Change status, More)
 
 ### Part 3: Delete the Matter
@@ -65,7 +65,7 @@
 
 #### Step 8: Acknowledge Success Dialog
 - **Action**: Click "OK" button in success dialog
-- **Dialog title**: "<Entity> deleted" (e.g. "Properties deleted", "Clients deleted"). Use `get_by_text(re.compile(r".+ deleted", re.IGNORECASE))` to be entity-agnostic.
+- **Dialog title**: "<Entity> deleted" (e.g. "Properties deleted", "Clients deleted"). Use `get_by_text(re.compile(r"(properties|clients|patients|students|pets)\s+deleted", re.IGNORECASE))` so we don't match "Note deleted successfully" (Notes subcategory).
 - **Dialog message**: Message about list update (wording varies by vertical)
 - **Locator**: `page.get_by_role("button", name="OK")`
 - **Wait for**: Dialog to close, table to refresh
