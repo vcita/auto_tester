@@ -10,14 +10,15 @@ import random
 from playwright.sync_api import Page, expect
 
 from tests._functions._config import get_base_url
-from tests._params import ADD_MATTER_TEXT_REGEX
+from tests._params import ADD_MATTER_TEXT_REGEX, MATTER_ENTITY_NAMES
 
 
 def generate_test_data() -> dict:
-    """Generate comprehensive random test data for matter creation."""
+    """Generate comprehensive random test data for matter creation.
+    Uses short suffix (6 digits) so displayed name fits in table without ellipsis."""
     timestamp = int(time.time())
     first_name = random.choice(["Test", "John", "Jane", "Alex", "Sam"])
-    last_name = f"Matter{timestamp}"
+    last_name = f"Matter{timestamp % 1000000}"
     email = f"test_{timestamp}@vcita-test.com"
     # Phone number without special characters (the field strips them)
     phone = f"555{random.randint(1000000, 9999999)}"
@@ -73,14 +74,18 @@ def test_create_matter(page: Page, context: dict) -> None:
         dashboard_link.click()
         page.wait_for_url("**/app/dashboard**", timeout=15000)
     page.wait_for_load_state("domcontentloaded")
+    # HEALED 2026-01-27: Wait for Quick actions panel to be visible instead of arbitrary timeout
+    # This ensures vue_iframe_layout and panel are ready
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
 
     print("  Step 2: Waiting for Quick actions panel...")
     # HEALED 2026-01-22: UI changed - Quick Actions button no longer opens dropdown
     # "Add property" is now directly visible in the Quick actions panel on the right side
     # Must wait for the panel to fully load (async)
     page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
-    # Wait for panel content to fully render (async loading)
-    page.wait_for_timeout(3000)
+    # Wait for panel content (Add matter button) to be visible instead of arbitrary timeout
+    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
+    quick_section.get_by_text(ADD_MATTER_TEXT_REGEX).wait_for(state="visible", timeout=15000)
     
     print("  Step 3: Clicking Add matter...")
     # HEALED 2026-01-26: Scope to Quick actions panel. Go up to section that contains both heading and list
@@ -96,23 +101,56 @@ def test_create_matter(page: Page, context: dict) -> None:
     add_matter_text.click()
     
     print("  Step 4: Waiting for property form...")
-    # The form opens in a frame - wait for it to appear
-    # Try multiple times to find the form frame (it may take time to load)
-    form_frame = None
-    max_attempts = 10
-    for attempt in range(max_attempts):
-        page.wait_for_timeout(500)
+    # HEALED 2026-01-27: Form can load in angular-iframe or vue_iframe_layout; vue sometimes stays on
+    # .../vue/#/pending?... and form appears late. Increased to 5s initial + 40×1s poll (45s total).
+    # HEALED 2026-01-27 (retry): If form still not found, click Add matter once more and poll again (first click may not have opened form).
+    def _find_form_frame():
+        f = None
         for frame in page.frames:
             try:
                 if frame.locator('text=First Name').count() > 0:
-                    form_frame = frame
+                    f = frame
                     break
-            except:
+            except Exception:
                 pass
+        return f
+
+    # HEALED 2026-01-27: Wait for any frame to potentially have "First Name" or for vue_iframe to not be on pending
+    # Check if vue_iframe_layout exists and is not on pending route
+    vue_frame_ready = False
+    for frame in page.frames:
+        if frame.name == 'vue_iframe_layout':
+            if '/pending' not in frame.url:
+                vue_frame_ready = True
+                break
+    # If vue frame is ready, start polling immediately; otherwise brief initial wait
+    if not vue_frame_ready:
+        page.wait_for_timeout(2000)  # Brief wait for vue to potentially navigate off pending
+    
+    form_frame = None
+    max_attempts = 40
+    for attempt in range(max_attempts):
+        form_frame = _find_form_frame()
         if form_frame:
             break
+        # Brief wait between checks (polling interval)
+        page.wait_for_timeout(500)  # Brief polling interval (allowed)
         print(f"    Attempt {attempt + 1}/{max_attempts}: Form not found yet...")
-    
+
+    if not form_frame:
+        print("    Retrying: clicking Add matter again and waiting for form...")
+        add_matter_text.scroll_into_view_if_needed()
+        page.wait_for_timeout(300)  # Brief settle before click (allowed)
+        add_matter_text.click()
+        # Brief wait for click to register, then start polling
+        page.wait_for_timeout(2000)  # Brief wait for form to potentially appear
+        for attempt in range(20):
+            form_frame = _find_form_frame()
+            if form_frame:
+                break
+            page.wait_for_timeout(500)  # Brief polling interval (allowed)
+            print(f"    Retry attempt {attempt + 1}/20: Form not found yet...")
+
     if not form_frame:
         # Debug: print all frames
         print("  DEBUG: Available frames:")
@@ -175,20 +213,45 @@ def test_create_matter(page: Page, context: dict) -> None:
     
     # ========== PART 3: Fill Matter Details ==========
     print("  Step 8: Filling property details...")
-    # Fill Matter Address (Property address in this vertical)
-    # Has Google Places autocomplete
-    matter_address_field = form_frame.get_by_role("textbox", name="Property address")
+    # Fill Matter Address (entity-agnostic: "Property address", "Client address", etc.)
+    # HEALED 2026-01-27: Use entity-agnostic pattern for form labels that vary by vertical.
+    # Try common entity names + " address" to find the field.
+    matter_address_field = None
+    for entity in MATTER_ENTITY_NAMES:
+        try:
+            field = form_frame.get_by_role("textbox", name=f"{entity.capitalize()} address")
+            if field.count() > 0:
+                matter_address_field = field
+                break
+        except:
+            pass
+    if not matter_address_field:
+        # Fallback: try regex pattern matching any entity + " address"
+        entity_pattern = "|".join([e.capitalize() for e in MATTER_ENTITY_NAMES])
+        matter_address_field = form_frame.get_by_role("textbox", name=re.compile(rf"({entity_pattern}) address", re.IGNORECASE))
     matter_address_field.click()
     matter_address_field.press_sequentially(test_data["matter_address"], delay=30)
     
-    # Fill Help Request (also dismisses Property address autocomplete)
+    # Fill Help Request (also dismisses address autocomplete)
     help_field = form_frame.get_by_role("textbox", name="How can we help you?")
     help_field.click()  # Dismisses any autocomplete dropdown
     help_field.press_sequentially(test_data["help_request"], delay=20)
     
-    # Select Matter Type from dropdown
-    print(f"  Step 9: Selecting Property type: {test_data['matter_type']}...")
-    matter_type_dropdown = form_frame.get_by_role("listbox", name="Property type")
+    # Select Matter Type from dropdown (entity-agnostic: "Property type", "Client type", etc.)
+    print(f"  Step 9: Selecting matter type: {test_data['matter_type']}...")
+    matter_type_dropdown = None
+    for entity in MATTER_ENTITY_NAMES:
+        try:
+            dropdown = form_frame.get_by_role("listbox", name=f"{entity.capitalize()} type")
+            if dropdown.count() > 0:
+                matter_type_dropdown = dropdown
+                break
+        except:
+            pass
+    if not matter_type_dropdown:
+        # Fallback: try regex pattern matching any entity + " type"
+        entity_pattern = "|".join([e.capitalize() for e in MATTER_ENTITY_NAMES])
+        matter_type_dropdown = form_frame.get_by_role("listbox", name=re.compile(rf"({entity_pattern}) type", re.IGNORECASE))
     matter_type_dropdown.click()
     # Wait for dropdown options to appear
     option = form_frame.get_by_role("option", name=test_data["matter_type"])

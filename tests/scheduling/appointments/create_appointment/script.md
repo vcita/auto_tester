@@ -197,6 +197,37 @@ page.wait_for_timeout(2000)  # Allow service picker to close and appointment for
 - **How verified**: Clicked in MCP, appointment form appeared with date/time options
 - **Wait for**: Appointment form visible with service selected
 
+### Step 8b: Fill required Address (when present) – HEALED 2026-01-26
+
+- **Action**: If the New Appointment dialog shows a required "Address" field under Location (e.g. when "My business address" is selected), fill it so Schedule can submit.
+- **Target**: Address textbox in the appointment form
+
+**Note**: Without this, the form does not submit and Step 10 times out waiting for the appointment in the calendar.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+try:
+    address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
+    address_field.wait_for(state='visible', timeout=2000)
+    address_field.fill('123 Test Street')
+    page.wait_for_timeout(300)
+except Exception:
+    try:
+        inner_iframe.get_by_placeholder(re.compile(r'Address', re.IGNORECASE)).first.fill('123 Test Street')
+        page.wait_for_timeout(300)
+    except Exception:
+        pass
+# HEALED 2026-01-26: Dismiss Google Places autocomplete by blurring (Tab). Escape closes the whole modal.
+page.keyboard.press('Tab')
+page.wait_for_timeout(600)
+try:
+    pac = page.locator('.pac-container')
+    if pac.count() > 0:
+        pac.first.wait_for(state='hidden', timeout=2000)
+except Exception:
+    pass
+```
+
 ### Step 9: Click Schedule Appointment
 
 - **Action**: Click
@@ -213,12 +244,13 @@ page.wait_for_timeout(2000)  # Allow service picker to close and appointment for
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
-schedule_btn.click()
+schedule_btn.wait_for(state='visible', timeout=10000)
+schedule_btn.click(force=True)
 # Wait for calendar to update
 page.wait_for_timeout(3000)
 ```
 
-- **How verified**: Clicked in MCP, appointment was created
+- **How verified**: Tab dismisses pac-container without closing modal; force=True avoids overlay intercept.
 - **Wait for**: Calendar updates with new appointment
 
 ### Step 10: Verify Appointment in Calendar (Actual Data Verification)

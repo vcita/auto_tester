@@ -69,8 +69,9 @@ def test_view_event(page: Page, context: dict) -> None:
     date_btn.click()
 
     # Step 3: Find Event in Calendar Grid (wait for calendar to show event for that date)
+    # Use .first so we match exactly one when multiple menuitems have the same service name (e.g. multi-slot).
     print("  Step 3: Finding event in calendar...")
-    event_menuitem = inner_iframe.get_by_role('menuitem').filter(has_text=service_name)
+    event_menuitem = inner_iframe.get_by_role('menuitem').filter(has_text=service_name).first
     event_menuitem.wait_for(state='visible', timeout=15000)
     
     # Step 4: Click Event to Open Details

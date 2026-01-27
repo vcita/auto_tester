@@ -1,5 +1,25 @@
 # Create Service - Changelog
 
+## 2026-01-27 - Healed (Navigate to Services when not on page)
+**Phase**: test.py
+**Author**: Cursor AI (heal)
+**Reason**: Test fails when run after Events subcategory: browser is on event-list, not Services
+**Error**: `ValueError: Expected to be on Services page, but URL is https://app.vcita.com/app/event-list`
+
+**Root Cause**:
+Scheduling runs subcategories in order; Events runs before Services (per discovery order). Events/Cancel Event leaves the browser on event-list. Services/Create Service assumed it would start on Services page (from category _setup), but that was only true when Services ran first.
+
+**Fix Applied**:
+If not on `/app/settings/services`, navigate via UI: click Settings → wait for settings URL → in angular iframe click "Define the services your" button → wait for services URL. Same pattern as scheduling _setup. No navigation rule violation (UI only).
+
+**Changes**:
+- test.py Step 1: Replace strict ValueError with conditional navigation (Step 1a) when URL is not Services.
+- Uses same selectors as _setup: `page.get_by_text("Settings")`, iframe `get_by_role("button", name="Define the services your")`.
+
+**Verified Approach**: Full suite run — Services/Create Service passed; Step 1a ran ("Not on Services page - navigating via Settings...").
+
+---
+
 ## 2026-01-23 22:45:00 - Healed (Locator Fix - get_by_text instead of filter)
 **Phase**: script.md, test.py
 **Author**: Cursor AI (heal)

@@ -1,5 +1,49 @@
 # Changelog - Delete Matter
 
+## 2026-01-27 - Healed (Delete option not role=menuitem)
+
+**Phase**: test.py, script.md  
+**Reason**: Timeout waiting for `get_by_role("menuitem", name="Delete")` in More dropdown.  
+**Error**: `TimeoutError: Locator.wait_for: Timeout 8000ms exceeded. waiting for get_by_role("menuitem", name="Delete") to be visible`
+
+**Root Cause**: MCP exploration (same account as failed test) showed the More dropdown uses generic/span elements for options; none have role="menuitem". The "Delete" label is in a SPAN with no role. So the semantic menuitem locator never matched.
+
+**Fix Applied**: Use `page.get_by_role("menu").get_by_text("Delete")` — scope to the menu (role=menu is present) then match the "Delete" text. Verified in MCP: click opens confirmation dialog.
+
+**Changes**: test.py Step 6, script.md Step 6 and Locator Summary.
+
+## 2026-01-27 - Healed (row name truncated with ellipsis)
+
+**Phase**: test.py, script.md  
+**Reason**: Selection indicator never appeared; root cause was row not found because the client/property name in the table is displayed with ellipsis ("..."), so `get_by_role("row", name=matter_name)` did not match.  
+**Fix Applied**: Locate the matter row by name prefix (first 30 characters): `page.get_by_role("row").filter(has_text=name_prefix).first`. Use the same `name_prefix` when verifying the row is gone after deletion.
+
+**Changes**: test.py (row lookup and Step 9 verification). script.md (Step 3 locator).
+
+## 2026-01-27 - Healed (More button detached from DOM)
+
+**Phase**: test.py, script.md  
+**Reason**: Timeout clicking "More" after selecting row; Playwright reported "element was detached from the DOM, retrying".  
+**Error**: `TimeoutError: Locator.click: Timeout 30000ms exceeded. waiting for get_by_role("button", name="More", exact=True) ... element was detached from the DOM, retrying`
+
+**Root Cause**: The bulk action bar (with Invite via Email, Message, More, etc.) can re-render after the selection indicator appears, so the More button element is replaced and the first click attempt sees a detached node. Observed on new/create_user accounts (e.g. 2 properties in list); last successful run used a different account.
+
+**Fix Applied**: (1) After the selection indicator is visible, wait 1.5s for the bar to stabilize. (2) Click More in a retry loop: up to 3 attempts, 12s timeout each, re-resolving the locator each time so we click the current button instance.
+
+**Changes**: test.py (1.5s wait after selection; retry loop for More click). script.md (Step 5 action and locator note).  
+**Verified**: Category re-run to validate.
+
+## 2026-01-26 - Healed (Delete dropdown option locator)
+**Phase**: test.py, script.md  
+**Reason**: Timeout waiting for Delete option in More dropdown  
+**Error**: `TimeoutError: Locator.wait_for: Timeout 5000ms exceeded. waiting for locator("div").filter(has_text=re.compile(r"^Delete$")).nth(1) to be visible`
+
+**Root Cause**: The test used `page.locator('div').filter(has_text=re.compile(r"^Delete$")).nth(1)`; the dropdown structure can vary (e.g. only one "Delete", or different DOM order) so nth(1) was not visible.
+
+**Fix Applied**: Use semantic locator `page.get_by_role("menuitem", name="Delete")` and wait 8s. No reliance on div order.
+
+**Changes**: test.py Step 6, script.md Locator Summary and Step 6.
+
 ## 2026-01-26 - Healed (Checkbox button selector; selection indicator timeout)
 
 **Phase**: script.md, test.py  

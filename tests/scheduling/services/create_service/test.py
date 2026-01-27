@@ -25,11 +25,20 @@ def test_create_service(page: Page, context: dict) -> None:
     - created_service_price: Price of the service
     """
     
-    # Step 1: Verify on Services page
+    # Step 1: Verify on Services page (navigate via UI if not - e.g. after Events subcategory we're on event-list)
     print("  Step 1: Verifying on Services page...")
     if "/app/settings/services" not in page.url:
-        raise ValueError(f"Expected to be on Services page, but URL is {page.url}")
-    
+        # HEALED 2026-01-27: Scheduling runs Events then Services; after Events we're on event-list. Navigate via UI.
+        print("  Step 1a: Not on Services page - navigating via Settings...")
+        page.get_by_text("Settings").click()
+        page.wait_for_url("**/app/settings**", timeout=10000)
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+        iframe = page.frame_locator('iframe[title="angularjs"]')
+        services_button = iframe.get_by_role("button", name="Define the services your")
+        services_button.wait_for(state="visible", timeout=10000)
+        services_button.click()
+        page.wait_for_url("**/app/settings/services**", timeout=10000)
+
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     
@@ -92,7 +101,7 @@ def test_create_service(page: Page, context: dict) -> None:
     price_field = iframe.get_by_role("spinbutton", name="Service price *")
     price_field.wait_for(state="visible", timeout=5000)
     price_field.click()
-    price_field.fill("50")
+    price_field.fill("50")  # fill is OK for number spinbutton
     
     # Step 9: Click Create
     print("  Step 9: Clicking Create...")
@@ -103,31 +112,31 @@ def test_create_service(page: Page, context: dict) -> None:
     # Wait for dialog to close (indicates creation completed)
     dialog.wait_for(state="hidden", timeout=15000)
     
-    # HEALED: Wait longer after creation to allow service to sync to backend
-    # The service needs time to be saved and available in the list
-    page.wait_for_timeout(3000)  # Wait for service to be saved to backend
+    # HEALED 2026-01-27: Wait for dialog to close (indicates creation completed) instead of arbitrary timeout
+    # The dialog closing is the event that indicates the service was saved
+    dialog.wait_for(state="hidden", timeout=15000)
     
-    # Step 10: Refresh Services List (Workaround for UI Bug)
+    # Step 10: Refresh Services List (Navigate away and back via UI)
     print("  Step 10: Refreshing services list...")
-    # BUG WORKAROUND: After service creation, the list doesn't refresh automatically
-    # Reload the page to force a refresh - more reliable than navigation
-    page.reload(wait_until="domcontentloaded")
-    
-    # Wait for Services page to load after reload
-    page.wait_for_url("**/app/settings/services", timeout=10000)
-    
-    # Re-acquire iframe reference after reload
-    angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=10000)
+    # HEALED 2026-01-27: Replaced page.reload() with UI navigation to comply with navigation rules.
+    # After service creation, navigate away and back to Services to refresh the list.
+    # Navigate to Settings main page
+    page.get_by_text("Settings", exact=True).click()
+    page.wait_for_url("**/app/settings", timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')
+    # Navigate back to Services
+    services_button = iframe.get_by_role("button", name="Define the services your")
+    services_button.wait_for(state="visible", timeout=10000)
+    services_button.click()
+    page.wait_for_url("**/app/settings/services", timeout=10000)
     
     # Wait for Services heading to confirm page loaded
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
     services_heading.wait_for(state="visible", timeout=10000)
     
-    # HEALED: Wait longer after reload to allow service to sync to the list
-    # Services may take a moment to appear in the list after page reload
-    page.wait_for_timeout(2000)  # Additional wait for service to appear in list
+    # Wait for "My Services" text to confirm list section loaded
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
     
     # Step 11: Verify Service Created and Open Advanced Edit
     print("  Step 11: Verifying service was created...")
@@ -178,17 +187,19 @@ def test_create_service(page: Page, context: dict) -> None:
                 
                 # Scroll the last service into view to trigger loading more
                 last_service.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)  # Wait for new items to load
+                # Wait for new items to potentially load - check if service count increased
+                # Use brief wait then check if we found the service (event-based check in loop)
+                page.wait_for_timeout(300)  # Brief settle (allowed) - then check service in next iteration
             else:
                 # No services found yet, scroll to "Add" button to trigger initial load
                 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
                 add_button.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle (allowed)
         except Exception as e:
             # If anything fails, scroll to Add button
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed)
     
     # NOW search for the specific service (all items should be loaded)
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work

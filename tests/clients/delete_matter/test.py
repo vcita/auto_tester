@@ -49,32 +49,49 @@ def test_delete_matter(page: Page, context: dict) -> None:
     # Step 2: Search for the matter so it appears on the first page (list is paginated)
     # HEALED: Without search, the matter may be on page 2+ (e.g. 116 properties, 6 pages) and row lookup times out
     searchbox = page.get_by_role("searchbox", name="Search by name, email, or phone number")
-    searchbox.fill(matter_name)
-    # Wait for list to filter and matter row to be visible
-    matter_row = page.get_by_role("row", name=matter_name)
+    searchbox.click()
+    searchbox.press_sequentially(matter_name, delay=30)
+    # HEALED 2026-01-27: Row accessible name can be truncated with ellipsis ("...") in the UI, so exact
+    # name match fails. Match row by prefix (first 30 chars) or by containing the name prefix.
+    name_prefix = matter_name[: min(30, len(matter_name))]
+    matter_row = page.get_by_role("row").filter(has_text=name_prefix).first
     matter_row.wait_for(state="visible", timeout=10000)
     
     # Step 4: Select the matter via the row's checkbox
     # HEALED 2026-01-26: Checkbox is wrapped in a button and may not be directly clickable; click the wrapping button.
     # Use ancestor button so we don't depend on button order (e.g. .first can be a different control on Properties).
-    matter_row.get_by_role("checkbox").locator("xpath=ancestor::button[1]").click()
-    
+    checkbox_btn = matter_row.get_by_role("checkbox").locator("xpath=ancestor::button[1]")
+    checkbox_btn.scroll_into_view_if_needed(timeout=5000)
+    page.wait_for_timeout(200)  # Brief settle before click (allowed)
+    checkbox_btn.click(force=True)
+    # Wait for selection indicator to appear instead of arbitrary timeout
+
     # Verify selection indicator appears (entity label varies by vertical: PROPERTIES, CLIENTS, PATIENTS)
     # HEALED: Was r"1 SELECTED OF \d+ PROPERTIES" - failed when vertical uses "CLIENTS" (e.g. non–Home Services)
     selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+"))
-    selection_indicator.wait_for(state="visible", timeout=10000)
-    
+    selection_indicator.wait_for(state="visible", timeout=15000)
+
+    # HEALED 2026-01-27: Bulk action bar (with More) can re-render after selection; element may detach on first click.
+    # Wait for "More" button to be visible and stable instead of arbitrary timeout.
+    page.get_by_role("button", name="More", exact=True).wait_for(state="visible", timeout=10000)
+    page.wait_for_timeout(300)  # Brief settle for bar to stabilize (allowed)
+
     # ========== PART 3: Delete the Matter ==========
-    
-    # Step 5: Click the More button
-    more_btn = page.get_by_role("button", name="More", exact=True)
-    more_btn.click()
-    
-    # Wait for dropdown menu to appear
-    delete_option = page.locator('div').filter(has_text=re.compile(r"^Delete$")).nth(1)
-    delete_option.wait_for(state="visible", timeout=5000)
+
+    # Step 5: Click the More button (retry on detached element; bar may re-render)
+    for attempt in range(3):
+        try:
+            page.get_by_role("button", name="More", exact=True).click(timeout=12000)
+            break
+        except Exception as e:
+            if attempt == 2:
+                raise
+            page.wait_for_timeout(500)
     
     # Step 6: Click Delete option in the dropdown
+    # HEALED 2026-01-27: Dropdown items are not role="menuitem" (they're generic/span). Use menu + text.
+    delete_option = page.get_by_role("menu").get_by_text("Delete")
+    delete_option.wait_for(state="visible", timeout=8000)
     delete_option.click()
     
     # Wait for confirmation dialog (title varies by vertical: "Delete properties?", "Delete clients?", etc.)
@@ -101,10 +118,10 @@ def test_delete_matter(page: Page, context: dict) -> None:
     
     # ========== PART 4: Verify Deletion (USER PERSPECTIVE) ==========
     # CRITICAL: We verify the ACTUAL RESULT, not just the success message
-    
+
     # Step 9: Verify the matter is ACTUALLY no longer in the list
-    # This is the PRIMARY validation - the user would check if the item is gone
-    matter_row_after = page.get_by_role("row", name=matter_name)
+    # Use same prefix match as row lookup (names may be truncated with ellipsis in UI)
+    matter_row_after = page.get_by_role("row").filter(has_text=name_prefix)
     expect(matter_row_after).to_have_count(0, timeout=10000)
     
     # Step 10: Clear context data

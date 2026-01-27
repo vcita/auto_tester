@@ -11,6 +11,7 @@ Verify that a user can create a new matter using the Quick Actions menu with com
 
 ## Prerequisites
 - User must be logged in (Call: login function)
+- **Account must have completed first-time setup** (no "Welcome to vcita!" onboarding dialog). If you see that dialog when debugging, the account is not ready for tests.
 - User should be on the dashboard
 
 ## Steps
@@ -59,7 +60,7 @@ Verify that a user can create a new matter using the Quick Actions menu with com
 ## Test Data
 Uses randomly generated data:
 - First Name: Random from ["Test", "John", "Jane", "Alex", "Sam"]
-- Last Name: "Matter" + timestamp
+- Last Name: "Matter" + (timestamp % 1000000) — short suffix to avoid ellipsis in clients table
 - Email: test_{timestamp}@vcita-test.com
 - Phone: 1-555-{random 7 digits}
 - Address: {random number} Test Street, Test City, TC {zip}

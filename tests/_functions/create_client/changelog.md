@@ -1,5 +1,17 @@
 # Create Client Function - Changelog
 
+## 2026-01-26 - Healed (Navigate to dashboard via UI)
+
+**Phase**: test.py
+**Author**: Cursor AI (heal_test)
+**Reason**: Appointments/_setup failed after create_service: timeout waiting for get_by_text("Quick actions", exact=True). create_client used page.goto(base_url + "/app/dashboard"), which can load a wrong or empty page (e.g. base_url is www; app is on app.vcita.com).
+
+**Fix Applied**: Navigate to dashboard via UI: if not already on /app/dashboard, click sidebar "Dashboard" and wait for URL; then wait for Quick actions. Aligns with create_matter and avoids page.goto to internal URLs.
+
+**Changes**: test.py Step 1 only.
+
+---
+
 ## 2026-01-23 - Initial Build
 
 **Phase**: All files

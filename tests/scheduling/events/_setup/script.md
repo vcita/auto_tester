@@ -4,8 +4,8 @@
 Prepare the system for event scheduling tests by creating a group event service and a test client, then navigate to Calendar.
 
 ## Initial State
-- User may or may not be logged in
-- Browser may be on any page
+- **Assumes parent (Scheduling) setup has already run**: browser is on Settings > Services page.
+- User is logged in (login runs in parent or Step 0 if needed).
 
 ## Actions
 
@@ -15,57 +15,7 @@ Prepare the system for event scheduling tests by creating a group event service 
 - **Parameters**: None (uses environment variables or config defaults)
 - **Expected return**: logged_in_user saved to context
 
-### Step 1: Navigate to Settings
-- **Action**: Click
-- **Target**: Settings menu item in sidebar
-
-**LOCATOR DECISION:**
-
-| Option | Pros | Cons |
-|--------|------|------|
-| `get_by_text("Settings", exact=True)` | Simple, readable | May match multiple elements |
-| `locator("div").filter({ hasText: /^Settings$/ })` | More specific | Less semantic |
-
-**CHOSEN**: `get_by_text("Settings", exact=True)` - Unique menu item in sidebar.
-
-**VERIFIED PLAYWRIGHT CODE**:
-```python
-settings_menu = page.get_by_text("Settings", exact=True)
-settings_menu.click()
-page.wait_for_url("**/app/settings**", timeout=10000)
-```
-
-- **How verified**: Clicked in MCP, navigated to Settings page
-- **Wait for**: URL contains "/app/settings"
-- **Fallback locators**: `locator("div").filter({ hasText: /^Settings$/ })`
-
-### Step 2: Navigate to Services
-- **Action**: Click
-- **Target**: Services button in Settings page
-
-**LOCATOR DECISION:**
-
-| Option | Pros | Cons |
-|--------|------|------|
-| `iframe.get_by_role("button", name="Define the services your")` | Semantic, accessible | Long name |
-| `iframe.get_by_text("Services")` | Short | May match multiple elements |
-
-**CHOSEN**: `iframe.get_by_role("button", name="Define the services your")` - Unique button with accessible name.
-
-**VERIFIED PLAYWRIGHT CODE**:
-```python
-page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
-iframe = page.frame_locator('iframe[title="angularjs"]')
-services_btn = iframe.get_by_role("button", name="Define the services your")
-services_btn.click()
-page.wait_for_url("**/app/settings/services**", timeout=10000)
-```
-
-- **How verified**: Clicked in MCP, navigated to Services page
-- **Wait for**: URL contains "/app/settings/services"
-- **Fallback locators**: `iframe.get_by_text("Services")`
-
-### Step 3: Open New Service Dropdown
+### Step 1: Open New Service Dropdown
 - **Action**: Click
 - **Target**: "New service" dropdown button
 
@@ -91,7 +41,7 @@ menu.wait_for(state="visible", timeout=5000)
 - **Wait for**: Menu with role="menu" becomes visible
 - **Fallback locators**: `iframe.get_by_role("button").filter(has_text="New service")`
 
-### Step 4: Select Group Event
+### Step 2: Select Group Event
 - **Action**: Click
 - **Target**: "Group event" menu item
 
@@ -117,7 +67,7 @@ dialog.wait_for(state="visible", timeout=10000)
 - **Wait for**: Dialog with role="dialog" becomes visible
 - **Fallback locators**: `iframe.get_by_text("Group event")`
 
-### Step 5: Fill Service Name
+### Step 3: Fill Service Name
 - **Action**: Type
 - **Target**: Service name textbox
 - **Value**: "Event Test Workshop {timestamp}"
@@ -145,7 +95,7 @@ name_field.press_sequentially(group_event_name, delay=30)
 - **Wait for**: Field is focused and ready
 - **Fallback locators**: `iframe.get_by_label("Service name")`
 
-### Step 6: Set Max Attendees
+### Step 4: Set Max Attendees
 - **Action**: Fill
 - **Target**: Max attendees spinbutton
 - **Value**: "10"
@@ -170,7 +120,7 @@ max_attendees_field.fill("10")  # fill is OK for number spinbutton
 - **Wait for**: Value is set
 - **Fallback locators**: `iframe.get_by_label("Max attendees")`
 
-### Step 7: Select Face to Face Location
+### Step 5: Select Face to Face Location
 - **Action**: Click
 - **Target**: "Face to face" location button
 
@@ -197,7 +147,7 @@ address_options.wait_for(state="visible", timeout=5000)
 - **Wait for**: Radiogroup with address options becomes visible
 - **Fallback locators**: `iframe.get_by_text("Face to face")`
 
-### Step 8: Select With Fee and Enter Price
+### Step 6: Select With Fee and Enter Price
 - **Action**: Click then Fill
 - **Target**: "With fee" button, then price spinbutton
 - **Value**: "25"
@@ -226,7 +176,7 @@ price_field.fill("25")  # fill is OK for number spinbutton
 - **Wait for**: Price field becomes visible
 - **Fallback locators**: `iframe.get_by_text("With fee")`
 
-### Step 9: Click Create
+### Step 7: Click Create
 - **Action**: Click
 - **Target**: Create button
 
@@ -239,20 +189,22 @@ price_field.fill("25")  # fill is OK for number spinbutton
 
 **CHOSEN**: `iframe.get_by_role("button", name="Create")` - Unique and semantic.
 
-**VERIFIED PLAYWRIGHT CODE** (updated: validate creation — wait for dialog to close, then verify service in list):
+**VERIFIED PLAYWRIGHT CODE** (updated: wait for create dialog specifically so we don't match the next dialog; then Step 10 handles "I'll do it later"):
 ```python
-create_dialog = iframe.get_by_role("dialog")
+import re
+# Wait for the create (service) dialog specifically; get_by_role("dialog") matches any dialog,
+# so when "Great. Now enter your event dates & times" appears we would never see "hidden".
+create_dialog = iframe.get_by_role("dialog", name=re.compile(r"Service info", re.IGNORECASE))
 create_btn = iframe.get_by_role("button", name="Create")
 create_btn.click()
-# Validate creation flow: wait for create dialog to close (fails if Create failed)
 create_dialog.wait_for(state="hidden", timeout=15000)
 ```
 
 - **How verified**: Clicked in MCP, group event service created
-- **Wait for**: Create dialog closes (then Step 10 handles optional event times dialog)
-- **Validation**: After Step 10, setup asserts the new service name appears on the Services page (so Schedule Event can find it)
+- **Wait for**: Create dialog closes (then Step 8 handles optional event times dialog)
+- **Validation**: After Step 8, setup scrolls the services list (infinite scroll) then asserts the new service name appears (so Schedule Event can find it)
 
-### Step 10: Handle Event Times Dialog (Conditional)
+### Step 8: Handle Event Times Dialog (Conditional)
 - **Action**: Click (if dialog appears)
 - **Target**: "I'll do it later" button
 
@@ -265,54 +217,59 @@ create_dialog.wait_for(state="hidden", timeout=15000)
 
 **CHOSEN**: `iframe.get_by_role("button", name="I'll do it later")` - Unique and semantic.
 
-**VERIFIED PLAYWRIGHT CODE**:
+**VERIFIED PLAYWRIGHT CODE** (HEALED: wait for event-times dialog to close by name):
 ```python
-# This dialog appears only on first group event creation, not always
-# We need to handle both cases: dialog appears OR dialog doesn't appear
 later_btn = iframe.get_by_role("button", name="I'll do it later")
-
-# Wait a short time to see if the dialog appears
 try:
-    later_btn.wait_for(state="visible", timeout=3000)
-    print("  Event times dialog appeared - dismissing...")
+    later_btn.wait_for(state="visible", timeout=5000)
     later_btn.click()
-    page.wait_for_timeout(500)  # Brief settle time
-except:
-    # Dialog didn't appear - this is OK, continue
-    print("  Event times dialog did not appear - continuing...")
-
-# Wait for any remaining dialogs to close
-page.wait_for_timeout(500)  # Brief settle time for dialogs to close
+    iframe.get_by_role("dialog", name=re.compile(r"Great\. Now", re.IGNORECASE)).wait_for(state="hidden", timeout=5000)
+except Exception:
+    pass
 ```
 
 - **How verified**: Clicked in MCP when dialog appeared, dialog dismissed
 - **Wait for**: Dialog closes (or timeout if dialog doesn't appear)
-- **Fallback locators**: `iframe.get_by_text("I'll do it later")`
 
-### Step 11: Save Group Event Service Name
-- **Action**: Save name to context (after validating service appears in list)
-- **Target**: Context key event_group_service_name
-
-**Validation (after Step 10)**: Before saving, setup verifies the new service appears on the Services page: `iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=10000)`. If not found, setup fails with a clear error so we don't assume creation succeeded.
+### Step 8b: Refresh Services List (Navigate Away and Back)
+- **Reason**: Known UI issue – the new service does not appear in the list until we navigate away from Services and back. Same workaround as in create_group_event.
+- **Action**: Click Settings in sidebar (leave Services), then click Services again in iframe to return.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# After event times dialog handling: verify service is in the list
+page.get_by_text("Settings", exact=True).click()
+page.wait_for_url("**/app/settings**", timeout=10000)
+page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=5000)
+iframe.get_by_role("button", name="Define the services your").click()
+page.wait_for_url("**/app/settings/services**", timeout=10000)
+iframe.get_by_role("heading", name="Settings / Services").wait_for(state="visible", timeout=10000)
+page.wait_for_timeout(500)
+```
+
+### Step 9: Save Group Event Service Name
+- **Action**: Save name to context (after validating service appears in list)
+- **Target**: Context key event_group_service_name
+
+**Validation (after Step 8b)**: Scroll the services list to the end (infinite scroll), then verify the new service appears: `iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=20000)`.
+
+**VERIFIED PLAYWRIGHT CODE** (HEALED: after nav-away-and-back, scroll list to end then assert service name):
+```python
+_scroll_services_list_to_end(page)
+page.wait_for_timeout(500)
 try:
-    iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=10000)
+    iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=20000)
 except Exception as e:
     raise AssertionError(
         f"Setup could not confirm group event service was created: '{group_event_name}' not found on Services page. "
         "Create dialog closed but service may not have been saved. Check run video/screenshot."
     ) from e
-
 context["event_group_service_name"] = group_event_name
 ```
 
 - **How verified**: Service name is in list and saved to context
 - **Save to context**: event_group_service_name
 
-### Step 12: Create Test Client
+### Step 10: Create Test Client
 - **Action**: Call function
 - **Function**: create_client
 - **Parameters**:
@@ -342,7 +299,7 @@ context["event_client_email"] = context.get("created_client_email")
 - **Wait for**: Client detail page loads
 - **Save to context**: event_client_id, event_client_name, event_client_email
 
-### Step 13: Navigate to Calendar
+### Step 11: Navigate to Calendar
 - **Action**: Click
 - **Target**: Calendar menu item
 

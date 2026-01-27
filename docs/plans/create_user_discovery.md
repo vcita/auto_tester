@@ -50,9 +50,10 @@
   - **Country code** – listbox `frame.get_by_role('listbox', name=re.compile(r'Country code:'))`. Open and choose e.g. "United States (1)", "United Kingdom (44)", "Israel (972)". Default is Israel (972).
   - **Phone** – `frame.get_by_role('textbox', name='Phone *')`. Server-validated via `validate_phone` API; invalid/unknown numbers return **422** and show "Invalid phone number". Empty shows "This field cannot be empty". Use a number that vcita accepts (param `phone` or env `VCITA_TEST_PHONE`).
   - **Business size** – listbox `frame.get_by_role('listbox', name=re.compile(r'Business size:'))`. Open and select **"I do not have a business"** (or "1 Person", etc.).
-- **Optional**: Website URL (`frame.get_by_role('textbox', name='Website URL')`), Your business address, checkbox "Present my phone number & address to my clients".
+- **Optional**: Website URL (`frame.get_by_role('textbox', name='Website URL')`), **Your business address** – `frame.get_by_role('textbox', name='Your business address')` or `frame.locator('input[name="address"]')` (filled by create_user with param/VCITA_TEST_ADDRESS or "123 Test Street"). Field uses **Google Places autocomplete**; after fill, a dropdown appears – dismiss it with **Escape** before clicking Continue so the dropdown doesn’t block the button. Checkbox "Present my phone number & address to my clients".
+- **Google Places dropdown**: After filling the address field, one **Escape** key closes the dropdown, keeps the typed text, and leaves Continue clickable (MCP-validated).
 - **Dismiss**: No Skip/Later. Fill required fields and click **Continue**: `frame.get_by_role('button', name='Continue')`.
-- **Order**: 1) Business size → "I do not have a business", 2) Country code (if changing), 3) Phone number, 4) Continue.
+- **Order**: 1) Business size → "I do not have a business", 2) Country code (if changing), 3) Phone number, 4) Address (optional; create_user fills it), 5) Continue.
 - **Phone format**: For Israel (972), use **national format with leading 0** (e.g. `0526111116`). Server rejects many test numbers (e.g. US 555, UK 77009); use param `phone` or env `VCITA_TEST_PHONE` with a number vcita accepts.
 
 ### Dialog 2: What does your business do?

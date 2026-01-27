@@ -215,33 +215,31 @@ page.wait_for_timeout(3000)  # Wait for service to be saved to backend
 
 **LOCATOR DECISION:**
 
-The previous approach of navigating away and back may not be reliable. A simple page reload should be more reliable and faster.
+HEALED 2026-01-27: Replaced page.reload() with UI navigation to comply with navigation rules. Navigate away and back to Services via Settings to refresh the list.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# BUG WORKAROUND: After service creation, the list doesn't refresh automatically
-# Reload the page to force a refresh - more reliable than navigation
-page.reload(wait_until="domcontentloaded")
-
-# Wait for Services page to load after reload
-page.wait_for_url("**/app/settings/services", timeout=10000)
-
-# Re-acquire iframe reference after reload
-angular_iframe = page.locator('iframe[title="angularjs"]')
-angular_iframe.wait_for(state="visible", timeout=10000)
+# Navigate to Settings main page
+page.get_by_text("Settings", exact=True).click()
+page.wait_for_url("**/app/settings", timeout=10000)
+page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 iframe = page.frame_locator('iframe[title="angularjs"]')
+# Navigate back to Services
+services_button = iframe.get_by_role("button", name="Define the services your")
+services_button.wait_for(state="visible", timeout=10000)
+services_button.click()
+page.wait_for_url("**/app/settings/services", timeout=10000)
 
 # Wait for Services heading to confirm page loaded
 services_heading = iframe.get_by_role("heading", name="Settings / Services")
 services_heading.wait_for(state="visible", timeout=10000)
 
-# HEALED: Wait longer after reload to allow service to sync to the list
-# Services may take a moment to appear in the list after page reload
-page.wait_for_timeout(2000)  # Additional wait for service to appear in list
+# Wait for "My Services" text to confirm list section loaded
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
 ```
 
-- **How verified**: Page reload is more reliable than navigation for refreshing the list
-- **Wait for**: Services heading becomes visible after reload, then additional 2 second wait for service sync
+- **How verified**: UI navigation via Settings → Services refreshes the list
+- **Wait for**: Services heading and "My Services" text become visible
 
 ---
 
@@ -390,8 +388,20 @@ page.wait_for_timeout(500)  # Brief settle time after save
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Navigate back to services list
-page.goto("https://app.vcita.com/app/settings/services")
+# Click Settings in sidebar to go to Settings main page
+settings_menu = page.get_by_text("Settings", exact=True)
+settings_menu.click()
+page.wait_for_url("**/app/settings", timeout=10000)
+
+# Re-acquire iframe reference after navigation
+angular_iframe = page.locator('iframe[title="angularjs"]')
+angular_iframe.wait_for(state="visible", timeout=10000)
+iframe = page.frame_locator('iframe[title="angularjs"]')
+
+# Click Services button to navigate back to Services page
+services_btn = iframe.get_by_role("button", name="Define the services your")
+services_btn.click()
+page.wait_for_url("**/app/settings/services", timeout=10000)
 
 # Wait for services page to load
 services_heading = iframe.get_by_role("heading", name="Settings / Services")

@@ -13,9 +13,7 @@ description: Tests for scheduling group event instances, managing attendees, and
 tests:
   - id: _setup
     name: Setup
-    status: blocked
-    blocked_reason: "Bug: Group event creation returns 422, 'Please fix the errors below' – backend/product bug (see .cursor/bug_reports/group_event_create_422.md)"
-    blocked_since: "2026-01-25"
+    status: active
     priority: high
     description: Create group event service and test client for event scheduling
   - id: schedule_event

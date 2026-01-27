@@ -3,6 +3,7 @@
 # Source: tests/scheduling/appointments/create_appointment/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
+import re
 from playwright.sync_api import Page, expect
 
 
@@ -67,23 +68,22 @@ def test_create_appointment(page: Page, context: dict) -> None:
     print(f"  Step 5: Searching for client: {client_name}...")
     search_field = outer_iframe.get_by_role('textbox', name='Search by name, email or tag')
     search_field.click()
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(client_name, delay=30)
-    page.wait_for_timeout(500)  # Allow search results to update
+    # Wait for search results to appear instead of arbitrary timeout
+    client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
+    client_option.wait_for(state='visible', timeout=5000)
     
     # Step 6: Select the Client
     print(f"  Step 6: Selecting client...")
     client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
     client_option.wait_for(state='visible', timeout=5000)
     client_option.click()
-    page.wait_for_timeout(1000)  # Allow service panel to load
+    # Wait for service panel to load by waiting for "My Services" label
+    inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=10000)
     
     # Step 7: Wait for Service panel and find service
     print(f"  Step 7: Looking for service: {service_name}...")
-    # Wait for service selection panel to fully load
-    page.wait_for_timeout(2000)
-    # Wait for "My Services" label to confirm the list loaded
-    inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=5000)
     
     # Step 8: Select the Service by clicking on it
     print(f"  Step 8: Selecting service...")
@@ -93,25 +93,51 @@ def test_create_appointment(page: Page, context: dict) -> None:
     service_row = inner_iframe.locator('.service-item').filter(has_text=service_name)
     service_row.wait_for(state='visible', timeout=5000)
     service_row.click()
-    page.wait_for_timeout(2000)  # Allow service picker to close and appointment form to load
-    
-    # Verify the service picker closed by checking if Schedule button is now accessible
+    # Wait for service picker to close and appointment form to load by checking Schedule button
     schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
     schedule_btn.wait_for(state='visible', timeout=10000)
-    
+
+    # HEALED 2026-01-26: New Appointment dialog can show a required "Address" field under Location.
+    # If we don't fill it, Schedule does not submit and the appointment is never created.
+    try:
+        address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
+        address_field.wait_for(state='visible', timeout=2000)
+        address_field.click()
+        address_field.press_sequentially('123 Test Street', delay=30)
+        page.wait_for_timeout(300)
+    except Exception:
+        try:
+            addr_placeholder = inner_iframe.get_by_placeholder(re.compile(r'Address', re.IGNORECASE)).first
+            addr_placeholder.click()
+            addr_placeholder.press_sequentially('123 Test Street', delay=30)
+            page.wait_for_timeout(300)
+        except Exception:
+            pass
+
+    # HEALED 2026-01-26: Dismiss Google Places autocomplete by blurring the address field (Escape closes the whole modal).
+    # Click the Schedule button area to blur address and close pac-container, or Tab out.
+    page.keyboard.press('Tab')
+    page.wait_for_timeout(600)
+    try:
+        pac = page.locator('.pac-container')
+        if pac.count() > 0:
+            pac.first.wait_for(state='hidden', timeout=2000)
+    except Exception:
+        pass
+
     # Step 9: Click Schedule Appointment
     print("  Step 9: Scheduling appointment...")
-    # schedule_btn is already located in Step 8
-    schedule_btn.click()
+    schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
+    schedule_btn.wait_for(state='visible', timeout=10000)
+    schedule_btn.click(force=True)
     
     # Step 10: Verify Appointment in Calendar (actual data verification)
     # NOTE: We verify the appointment appears in the calendar, NOT by checking toast messages
     print("  Step 10: Verifying appointment appears in calendar...")
-    # Wait for the calendar to update and show the new appointment
-    page.wait_for_timeout(3000)  # Allow calendar to refresh
-    
+    # Wait for the appointment to appear in calendar instead of arbitrary timeout
     # The appointment appears as a menuitem in the calendar grid containing the client name
     appointment_in_calendar = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+    appointment_in_calendar.wait_for(state='visible', timeout=15000)
     appointment_in_calendar.wait_for(state='visible', timeout=15000)
     
     # Save to context for subsequent tests

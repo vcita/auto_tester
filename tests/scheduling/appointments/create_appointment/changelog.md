@@ -1,5 +1,37 @@
 # Create Appointment Test - Changelog
 
+## 2026-01-26 - Healed (Google Places autocomplete intercepts Schedule click)
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (heal_test)
+**Reason**: TimeoutError when clicking "Schedule appointment" – "pac-item from pac-container intercepts pointer events".
+
+**Root Cause**: After filling the Address field, the Google Places autocomplete dropdown (pac-container/pac-item) stays visible and overlays the Schedule button, so the click is intercepted.
+
+**Fix Applied**: After filling the Address field (Step 8b), press Escape to dismiss the autocomplete dropdown, then wait 400ms, before clicking Schedule appointment.
+
+**Changes**: test.py – added `page.keyboard.press('Escape')` and short wait before Step 9; script.md – same in Step 8b VERIFIED PLAYWRIGHT CODE.
+
+**Verified Approach**: Error call log identified pac-container as interceptor; Escape is standard way to dismiss address autocomplete.
+
+---
+
+## 2026-01-26 - Healed (Required Address field in New Appointment dialog)
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (heal_test)
+**Reason**: Step 10 timed out waiting for appointment in calendar; screenshot showed "New Appointment" dialog still open with "Required field" on the Address under Location.
+
+**Root Cause**: The dialog can require an Address when Location is "My business address". The test clicked "Schedule appointment" without filling it, so the form did not submit and the appointment was never created; the verification step then timed out looking for a menuitem with the client name.
+
+**Fix Applied**: Before clicking Schedule, try to find and fill the Address field (by role textbox name matching "Address" or by placeholder). Fill with "123 Test Street". If the field is not present, continue (try/except). Added as Step 8b in script.md.
+
+**Changes**: test.py – added `import re` and Address-fill block before Step 9; script.md – new Step 8b and VERIFIED PLAYWRIGHT CODE.
+
+**Verified Approach**: Screenshot analysis; category re-run used for validation.
+
+---
+
 ## 2026-01-23 - Initial Build
 
 **Phase**: All files

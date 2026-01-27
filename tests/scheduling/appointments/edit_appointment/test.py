@@ -44,7 +44,9 @@ def test_edit_appointment(page: Page, context: dict) -> None:
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-    page.wait_for_timeout(2000)  # Wait for calendar to load
+    # Wait for calendar to load by waiting for appointment to be visible
+    appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+    appointment.wait_for(state='visible', timeout=10000)
     
     # Step 3: Click on Appointment in Calendar
     print(f"  Step 3: Clicking on appointment for client: {client_name}...")
@@ -68,10 +70,8 @@ def test_edit_appointment(page: Page, context: dict) -> None:
     # Step 6: Enter Note Text
     print(f"  Step 6: Entering note: {test_note}...")
     # The note modal opens in a nested iframe with id vue_wizard_iframe
-    note_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
-    note_area = note_iframe.locator('[contenteditable="true"]')
     note_area.click()
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(200)  # Brief settle for editor focus (allowed)
     page.keyboard.type(test_note)
     
     # Step 7: Save the Note
@@ -79,7 +79,12 @@ def test_edit_appointment(page: Page, context: dict) -> None:
     save_btn = note_iframe.get_by_role('button', name='Save')
     save_btn.wait_for(state='visible', timeout=5000)
     save_btn.click()
-    page.wait_for_timeout(2000)  # Wait for save to complete
+    # Wait for save to complete by checking note appears in list
+    # Step 8: Verify Note Saved (Actual Data Verification)
+    print("  Step 8: Verifying note was saved...")
+    # The note should appear as a button with the note text in the Internal note section
+    saved_note = outer_iframe.get_by_role('button').filter(has_text=test_note)
+    saved_note.wait_for(state='visible', timeout=10000)
     
     # Step 8: Verify Note Saved (Actual Data Verification)
     print("  Step 8: Verifying note was saved...")

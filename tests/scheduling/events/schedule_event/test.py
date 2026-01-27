@@ -45,20 +45,31 @@ def test_schedule_event(page: Page, context: dict) -> None:
     service_combobox.wait_for(state='visible', timeout=15000)
     
     # Step 4: Select Group Event Service
-    # HEALED: Newly created service from _setup often does not appear in the dropdown (different/cached list).
-    # Select the first "Event Test Workshop" option and update context so downstream steps use the selected service.
+    # Prefer the service from _setup (context) so Schedule Event and View Event use the same name.
+    # If that option is not in the dropdown (cached list), fall back to first "Event Test Workshop" and update context.
     print("  Step 4: Selecting group event service...")
     service_combobox.click()
     listbox = inner_iframe.get_by_role('listbox')
     listbox.wait_for(state='visible', timeout=10000)
-    service_option = inner_iframe.get_by_role('option').filter(has_text='Event Test Workshop').first
-    service_option.wait_for(state='visible', timeout=10000)
-    # Extract service name from option text (e.g. "Event Test Workshop 1769366547 ₪25.00 ..." -> "Event Test Workshop 1769366547")
-    option_text = service_option.text_content() or ""
-    service_name = option_text.split("₪")[0].strip() if "₪" in option_text else option_text.strip().split("\n")[0].strip()
-    if not service_name or "Event Test Workshop" not in service_name:
-        service_name = "Event Test Workshop"  # fallback for parsing
-    context["event_group_service_name"] = service_name
+    expected_name = context.get("event_group_service_name")
+    service_option = None
+    service_name = None
+    if expected_name:
+        try:
+            opt = inner_iframe.get_by_role('option').filter(has_text=expected_name).first
+            opt.wait_for(state='visible', timeout=5000)
+            service_option = opt
+            service_name = expected_name
+        except Exception:
+            pass
+    if service_option is None:
+        service_option = inner_iframe.get_by_role('option').filter(has_text='Event Test Workshop').first
+        service_option.wait_for(state='visible', timeout=10000)
+        option_text = service_option.text_content() or ""
+        service_name = option_text.split("₪")[0].strip() if "₪" in option_text else option_text.strip().split("\n")[0].strip()
+        if not service_name or "Event Test Workshop" not in service_name:
+            service_name = "Event Test Workshop"  # fallback for parsing
+        context["event_group_service_name"] = service_name
     service_option.click()
     # Wait for dialog to show start date control after service selection
     start_date_buttons = inner_iframe.get_by_role('button', name='Start date:')
@@ -149,8 +160,9 @@ def test_schedule_event(page: Page, context: dict) -> None:
     page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(event_service_name, delay=30)
 
-    # HEALED: [cursor="pointer"] is not an HTML attribute (it's CSS); use get_by_text to find event
-    event_cell = inner_iframe.get_by_text(event_service_name)
+    # HEALED: [cursor="pointer"] is not an HTML attribute (it's CSS); use get_by_text to find event.
+    # Same name can appear in multiple places (e.g. two rows); use .first to avoid strict mode violation.
+    event_cell = inner_iframe.get_by_text(event_service_name).first
     event_cell.wait_for(state='visible', timeout=10000)
 
     # Return to Calendar via "Calendar View" submenu (clicking "Calendar" only toggles menu when on Event List; MCP-validated)

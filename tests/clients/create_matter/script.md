@@ -10,8 +10,11 @@
 
 ## Initial State
 - User must be logged in (setup logs in and leaves browser on dashboard)
+- **Account must have completed first-time setup.** If the account has not finished vcita onboarding, the "Welcome to vcita!" dialog appears on the dashboard and blocks Quick actions / Add matter. When debugging: seeing that dialog means the account isn’t ready; run `python main.py create_user` (and ensure it completes) or complete onboarding once for the config account.
 - Browser is on **app.vcita.com/app/dashboard** (login redirects to app subdomain)
 - **Do NOT** navigate to dashboard via `page.goto(base_url + "/app/dashboard")`: base_url is www.vcita.com and www.vcita.com/app/dashboard shows "This page is unavailable". Use UI navigation only if not already on dashboard.
+- **HEALED 2026-01-26**: After ensuring dashboard, wait 2s for vue_iframe_layout/panel to settle (matches create_client). After clicking Add matter, wait 3s then poll for form frame up to 25×1s; form loads asynchronously in nested frame.
+- **HEALED 2026-01-27**: Form can load in angular-iframe or vue_iframe_layout; when vue is on .../pending, form appears later. Increased to 5s initial wait then 40×1s poll (45s total after click) so we find the frame reliably.
 
 ## Test Data Generation
 ```python
@@ -20,7 +23,7 @@ import random
 
 timestamp = int(time.time())
 first_name = random.choice(["Test", "John", "Jane", "Alex", "Sam"])
-last_name = f"Property{timestamp}"
+last_name = f"Property{timestamp % 1000000}"   # 6 digits = short name, less truncation in table
 email = f"test_{timestamp}@vcita-test.com"
 phone = f"1-555-{random.randint(1000000, 9999999)}"
 contact_address = f"{random.randint(100, 999)} Test Street, Test City, TC {random.randint(10000, 99999)}"

@@ -1,5 +1,9 @@
 # Edit Contact Test - Changelog
 
+## 2026-01-27 - Shorter edited last name (avoid table truncation)
+- **Reason**: After edit, `created_matter_name` is used by delete_matter; long "ContactEdit{timestamp}" caused table truncation. Shorter name reduces reliance on prefix matching.
+- **Change**: `last_name = f"CE{timestamp % 1000000}"` (e.g. "CE123456"). script.md, steps.md updated.
+
 ## 2026-01-26 - Healed (Datepicker blocking Referred by click)
 - **Error**: `TimeoutError: Locator.click: Timeout 30000ms exceeded` waiting for "Referred by" textbox click.
 - **Why it passed before**: The test was built (2026-01-21) and run with the previous account (e.g. itzik+autotest@vcita.com from env/setup default). After switching to **create_user** and running with the **new user** (itzik+autotest.<timestamp>@vcita.com, Home Services / Landscaper), the Edit contact dialog for that vertical has a **Birthday** field whose position in the form’s **tab order** is right after Address. So the same test code (Tab after Address to “dismiss autocomplete”) now focused Birthday and opened the datepicker, which then blocked the Referred by click. So the regression was caused by **account/vertical change**, not a product change.

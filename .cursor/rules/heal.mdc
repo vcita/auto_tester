@@ -96,6 +96,14 @@ If the heal request doesn't have a screenshot, that's a bug - the test runner sh
 
 **CRITICAL RULE: When a test fails, NEVER guess what the issue is. ALWAYS run it using MCP and observe the UI as a user would.**
 
+### Use the SAME account as the failed test (CRITICAL)
+
+**You MUST use the exact same account (same credentials) that ran the failing test when exploring with MCP.** The heal request and config.yaml (e.g. `target.auth`) contain the username (and optionally password) that the runner used. Log in with those credentials in the MCP browser before reproducing the test steps.
+
+- **If the MCP browser is already logged in** (e.g. dashboard loads when you open the app), **do not assume it is the right account.** Check the visible user/email. If it is not the account from the heal request (e.g. "MCP Welcome Test" vs `itzik+autotest.1769462440@vcita.com`), **log out, then log in** with the credentials from the heal request or `config.yaml`.
+- **Using a different account invalidates the exploration:** Different accounts can have different data (e.g. no clients vs. a list of matters), different verticals ("Properties" vs "Clients"), different UI state, and different permissions. You may see a different bug or no bug at all, and any fix you propose may not apply to the account that actually failed.
+- **Before starting the test steps in MCP:** Confirm you are on the same account (e.g. user menu or page shows the username from the heal request). Only then run the failing test flow step-by-step.
+
 ### The Wrong Way (NEVER DO THIS):
 - ❌ Look at error message and guess the fix
 - ❌ Try a different selector based on assumptions
@@ -103,7 +111,8 @@ If the heal request doesn't have a screenshot, that's a bug - the test runner sh
 - ❌ Fix based on screenshots alone without understanding the flow
 
 ### The Right Way (ALWAYS DO THIS):
-- ✅ **Open MCP browser** - Navigate to the starting point of the failing test
+- ✅ **Use the SAME account as the failed test** - Log in with the credentials from the heal request or config.yaml (`target.auth`). If MCP is already logged in as another user, log out first, then log in with the failed test's account. Do not explore while logged in as a different user.
+- ✅ **Open MCP browser** - Navigate to the starting point of the failing test (after confirming correct account)
 - ✅ **Execute test steps one by one** - Run each action exactly as the test.py code does
 - ✅ **Observe the UI like a user** - Watch what actually happens on screen
 - ✅ **Verify each step visually** - Take snapshot after EVERY action to confirm it worked
@@ -124,6 +133,27 @@ The screenshot shows the END state. MCP debugging shows you the JOURNEY to that 
 **CRITICAL: Do NOT write code fixes based on guessing from screenshots or error messages alone!**
 
 You must SEE what happens in the browser, step by step, to understand the real problem.
+
+### When debugging: account not ready (first-time setup)
+
+If you see the **"Welcome to vcita!"** dialog (Phone *, Business size *, Continue) or "Just a few basic questions" after login, the **account has not completed first-time setup**. Tests assume the account is past onboarding; they will fail (e.g. "Could not find form frame with 'First Name'") because the add-matter/add-client form never opens. This is not a test bug—fix by ensuring the account completes onboarding: run `python main.py create_user` and confirm it finishes (including validation), or complete the Welcome flow once manually for the config account. See context.md "Test Account Prerequisites".
+
+### MCP Uses Its Own Browser (Cannot Attach to Python-Launched Browser)
+
+Playwright MCP starts and controls **its own** browser. The AI **cannot** attach MCP to a browser that was opened by the Python test runner or a debug script. Therefore:
+
+- **Do NOT** run `--until-test` expecting the AI to "drive that browser with MCP" — MCP cannot attach to the runner's browser. If you (the human) want to debug in the open window, the runner **leaves the browser open**; press Enter in the terminal when done to close it.
+- **Do** run `python main.py run --category <cat> --until-test "<Test Name>"` to get the runner to **dump context** to **until_test_context.json** in the run dir (with `next_test`, `url`, `title`, `context`; password redacted) and leave the browser open. To debug **with MCP**, start a **new** MCP browser, log in (base_url + "/login", config credentials), and use the dumped **url** and **context** to run the failing test steps in MCP.
+
+### MCP Debugging: Availability and Config
+
+1. **If you cannot find or use the MCP, halt and alert.** Do not attempt to debug the test without Playwright MCP. If MCP tools are unavailable or not responding, stop the healing flow, tell the user that MCP is required for debugging, and do not apply blind fixes.
+
+2. **You MUST use the same account as the failed test when exploring with MCP.** This is not optional. When debugging with MCP:
+   - **Log in with the exact credentials** from the heal request or config (e.g. `target.auth` in config.yaml). The heal request often includes `username` or login_url; use that account.
+   - **If the MCP browser is already in a session** (e.g. you navigate to the app and see a dashboard), **verify it is the same user** that ran the failed test. If you see a different name/email (e.g. "MCP Welcome Test" or another test account), **log out and log in** with the failed test's credentials before reproducing any steps.
+   - **Use the same context** the failing test had (e.g. matter names, IDs from the heal request or `until_test_context.json`) so list data and state match.
+   - **Why this matters:** Debugging on a different account or with different context can hide the real issue (e.g. empty list vs. list with rows, different vertical labels, different UI or permissions). Fixes based on the wrong account may not work when the test runs again with the configured account.
 
 ## Heal Process Overview
 
@@ -243,9 +273,14 @@ This ensures no steps are accidentally skipped (like dropdown selections or opti
 **Step-by-Step Debugging Process:**
 
 ```
-1. Open browser with MCP: browser_navigate to starting URL
-2. Take snapshot to see current state
-3. For EACH step in test.py:
+1. (Optional) Run with --until-test to dump context; then load until_test_context.json for url and context.
+2. Open browser with MCP (MCP's own browser). **Log in with the SAME account as the failed test:**
+   - Go to base_url + "/login" (from config). If the browser is already logged in, check the visible user/email.
+   - If it is NOT the account from the heal request / config.yaml (target.auth), log out, then log in with that account's credentials.
+   - Do not proceed to reproduce the test until you have confirmed you are on the correct account.
+3. Navigate to the failing test's starting URL (from until_test_context.json or from test flow); use context values as needed.
+4. Take snapshot to see current state
+5. For EACH step in test.py:
    a. Execute the action using MCP (click, type, etc.)
    b. Take snapshot/screenshot IMMEDIATELY after
    c. VERIFY the action worked:
@@ -254,9 +289,9 @@ This ensures no steps are accidentally skipped (like dropdown selections or opti
       - For selections: Is the correct option selected?
    d. If verification fails: STOP and investigate
    e. If verification passes: Continue to next step
-4. Document all findings - which steps work, which fail
-5. **CRITICAL: Complete the ENTIRE flow with MCP before updating code** - Don't update test code until you've successfully run the whole flow with MCP and verified it works end-to-end
-6. Only AFTER full validation, update the test code
+6. Document all findings - which steps work, which fail
+7. **CRITICAL: Complete the ENTIRE flow with MCP before updating code** - Don't update test code until you've successfully run the whole flow with MCP and verified it works end-to-end
+8. Only AFTER full validation, update the test code
 ```
 
 **Example: Debugging a Form Fill**

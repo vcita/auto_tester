@@ -6,11 +6,12 @@ Follow the rules in `.cursor/rules/heal.mdc` to heal this test.
 
 ---
 
-## IMPORTANT: Always Use URLs from config.yaml
+## IMPORTANT: Same account and URLs for MCP
 
-When accessing vcita during MCP exploration:
+When debugging with MCP you **MUST** use the **same account** that ran the failed test (same credentials as in the heal request / config). Using a different account (e.g. whatever session the MCP browser already has) can show different data and UI and hides the real bug.
+
 - **Login URL**: Use **base_url + "/login"** from config.yaml (target.base_url). Never hardcode the host.
-- **Credentials**: Use values from config.yaml target.auth section.
+- **Credentials**: Use **config.yaml target.auth** (username/password). If the MCP browser is already logged in as another user, **log out first**, then log in with this account before reproducing the test.
 - **New test user**: Run `python main.py create_user` to create a new user in vcita and update config.
 
 ---
@@ -43,69 +44,54 @@ When accessing vcita during MCP exploration:
 
 **Follow `.cursor/rules/heal.mdc` section "MANDATORY THIRD STEP: Debug with MCP (NO BLIND FIXES!)"** for detailed guidance.
 
-### 2.1: Prepare Browser State with `--until-test`
+**MCP debugging rules (see heal.mdc "MCP Debugging: Availability and Config"):**
+1. **If you cannot find or use the MCP, halt and alert** — do not apply blind fixes; tell the user MCP is required.
+2. **You MUST use the same account as the failed test.** Log in with the credentials from the heal request or config.yaml. If MCP is already in a session (e.g. you see a dashboard), verify the visible user matches that account; if not, log out and log in with the failed test's credentials. Same context (e.g. service name, IDs from until_test_context.json) so data and UI match the failing run.
 
-**BEST PRACTICE: Use `--until-test` to run the category up to (but not including) the failing test, leaving the browser in the correct state for MCP debugging.**
+### 2.1: MCP Uses Its Own Browser (Cannot Attach to Python-Launched Browser)
 
-This ensures:
-- All previous tests have run (setup, context, navigation state)
-- Browser is on the correct page
-- Context variables are populated
-- You can immediately start debugging the failing test with MCP
+**Important:** Playwright MCP starts and controls **its own** browser. The AI **cannot** attach MCP to a browser that was opened by the Python test runner or a debug script. So:
 
-**How to use:**
+- **Do NOT** assume "run Python with --until-test, then drive that browser with MCP" — that browser cannot be driven by MCP.
+- **Do** use `--until-test` to **dump the context** the next test would have had; then debug in a **new** MCP browser session using that context.
 
-1. **Identify the failing test name** from the heal request or error message
-   - Format is usually `Category/Test Name` (e.g., `Services/Edit Group Event`)
-   - Or just the test name (e.g., `Edit Group Event`)
+### 2.2: Get Context for the Failing Test with `--until-test`
 
-2. **Run the category with `--until-test`**:
+1. **Identify the failing test name** from the heal request (e.g. `Events/_setup`, `Events/Schedule Event`).
+
+2. **Run the category with `--until-test`** so the runner stops *before* that test and dumps context:
    ```bash
-   python main.py run --category scheduling --until-test "Services/Edit Group Event"
-   ```
-   Or with just the test name:
-   ```bash
-   python main.py run --category scheduling --until-test "Edit Group Event"
+   python main.py run --category scheduling/events --until-test "Events/Schedule Event"
    ```
 
 3. **The runner will:**
-   - Run setup (if exists)
-   - Run all tests before the specified test
-   - Stop before executing the target test
-   - Keep the browser open
-   - Display current URL and page title
-   - Wait for you to press Enter before closing
+   - Run setup and all tests before the specified test
+   - Write **until_test_context.json** to the run dir (e.g. `tests/scheduling/events/_runs/<run_id>/until_test_context.json`) with: `next_test`, `url`, `title`, `context` (all context variables the next test would receive; password redacted)
+   - Print the path and a short summary to stdout
+   - **Leave the browser open** so you can debug manually in that window; press Enter in the terminal when done to close it
 
-4. **Once the browser is open and ready:**
-   - The browser is in the exact state it would be before the failing test
-   - All context variables from previous tests are available
-   - You can now use Playwright MCP to execute the test step-by-step
+4. **If you debug with MCP:** The AI cannot attach MCP to that open browser. Start a **new** MCP browser session and use the dumped context. Then:
+   - **Log in with the SAME account as the failed test:** go to base_url + "/login" and sign in with credentials from config.yaml (target.auth). If the browser is already logged in, check that the visible user/email is the same as in the heal request; if not, log out and log in with the correct account. Do not proceed with the test steps until you have confirmed the correct account.
+   - Either navigate to the **url** from `until_test_context.json` (the page the next test would start on), or re-run the flow that leads to that page, using the **context** values (e.g. service name, IDs) from the file so your MCP steps match what the test expects.
+   - Execute the failing test steps one-by-one in MCP and verify.
 
-5. **After completing MCP debugging:**
-   - **IMPORTANT: Close the browser** by pressing Enter in the terminal where the runner is waiting
-   - This will finalize the video recording (if enabled) and clean up resources
-   - The runner will then continue and complete the execution
+**Alternative:** If you cannot use `--until-test` (e.g. no matching test name), start a new MCP browser, log in, then navigate and replicate the test flow from the test's steps.md/script.md, using any context from the heal request or run artifacts.
 
-**Alternative: If `--until-test` doesn't work or you need a different starting point:**
-- You can manually navigate to the starting URL in MCP
-- Or run the category normally and use `--keep-open` on failure
-- But `--until-test` is preferred as it ensures correct state
-
-### 2.2: Execute Test Step-by-Step with MCP
+### 2.3: Execute Test Step-by-Step with MCP
 
 **Key requirements:**
 - **This is NOT optional** - mandatory for every heal request
 - **Never guess** - Always observe with MCP first
 - **Think like a user** - What would they see? What would they experience?
 - **Create step checklist** before starting (see heal.mdc for format)
-- **Execute test steps one-by-one** using MCP
+- **Execute test steps one-by-one** in your MCP browser (use context/URL from until_test_context.json if you used --until-test)
 - **Verify each step visually** with snapshots
 - **Document findings** - which steps worked, which failed, what you observed
-- **Close the browser when done** - Press Enter in the terminal to close the browser and finalize video recording
+- **Close the MCP browser when done**
 
 See `.cursor/rules/heal.mdc` section "3. Step-by-Step Debugging with MCP (REQUIRED)" for complete process and checklist format.
 
-### 2.3: Key UI Interaction Patterns (CRITICAL)
+### 2.4: Key UI Interaction Patterns (CRITICAL)
 
 **These patterns were learned from real debugging sessions and MUST be applied when interacting with UI elements:**
 
@@ -484,9 +470,9 @@ Example status update location:
 **Key items:**
 - [ ] Screenshot/video analyzed
 - [ ] Changelog was read after processing snapshot/logs (check for recent changes)
-- [ ] **Used `--until-test` to prepare browser state for MCP debugging** (or manually navigated to correct state)
-- [ ] MCP simulation completed (regardless of changelog findings)
-- [ ] **Browser closed after MCP debugging session** (pressed Enter to finalize video and clean up)
+- [ ] **Used `--until-test` to dump context to until_test_context.json** (or replicated state in MCP from steps/script)
+- [ ] MCP simulation completed in a **new** MCP browser session with same context (MCP cannot attach to Python-launched browser)
+- [ ] MCP browser closed when debugging done
 - [ ] Issue classified correctly (Test bug vs Product bug)
 - [ ] Fix validated with MCP (A-Z before code changes)
 - [ ] Files fixed in correct order (steps.md -> script.md -> test.py)

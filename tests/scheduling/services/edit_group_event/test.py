@@ -115,7 +115,7 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     print("  Step 3: Changing max attendees to 15...")
     max_attendees_field = iframe.get_by_role("spinbutton", name="Max attendees icon-q-mark-s *")
     max_attendees_field.click()
-    max_attendees_field.fill("15")
+    max_attendees_field.fill("15")  # fill is OK for number spinbutton
     
     # Step 5: Change Duration Minutes from 0 to 30
     print("  Step 4: Setting duration to 1 hour 30 minutes...")
@@ -131,7 +131,7 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     print("  Step 5: Changing price to 35...")
     price_field = iframe.get_by_role("spinbutton", name="Service price (ILS) *")
     price_field.click()
-    price_field.fill("35")
+    price_field.fill("35")  # fill is OK for number spinbutton
     
     # Step 7: Save Changes
     print("  Step 6: Saving changes...")
@@ -169,24 +169,30 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
     services_heading.wait_for(state="visible", timeout=15000)
     
-    # HEALED: After navigating back, reload the page to ensure list shows updated values
-    # The list may not refresh automatically after edit, so reload to get latest data
-    page.reload(wait_until="domcontentloaded")
-    page.wait_for_url("**/app/settings/services", timeout=10000)
-    
-    # Re-acquire iframe reference after reload
-    angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=10000)
+    # HEALED 2026-01-27: Replaced page.reload() with UI navigation to comply with navigation rules.
+    # After navigating back, navigate away and back to Services to refresh the list.
+    # Navigate to Settings main page
+    page.get_by_text("Settings", exact=True).click()
+    page.wait_for_url("**/app/settings", timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')
+    # Navigate back to Services
+    services_button = iframe.get_by_role("button", name="Define the services your")
+    services_button.wait_for(state="visible", timeout=10000)
+    services_button.click()
+    page.wait_for_url("**/app/settings/services", timeout=10000)
     
     # Wait for Services heading to confirm page loaded
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
     services_heading.wait_for(state="visible", timeout=10000)
-    page.wait_for_timeout(2000)  # Wait for list to render
+    
+    # Wait for "My Services" text to confirm list section loaded
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
     
     # Step 10: Verify Changes in Services List
     print("  Step 9: Verifying changes in services list...")
     # HEALED: After navigating back, the list may need scrolling to find the group event
+    # No arbitrary wait - we wait for "My Services" above, then scroll to find the event
     # Wait for "My Services" text to confirm the list section has loaded
     iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
     

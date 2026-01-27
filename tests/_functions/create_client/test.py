@@ -35,14 +35,17 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     email = params.get("email", f"test_{timestamp}@vcita-test.com")
     full_name = f"{first_name} {last_name}"
     
-    # Step 1: Navigate to Dashboard
+    # Step 1: Navigate to Dashboard (UI only; HEALED 2026-01-26: no page.goto – use sidebar like create_matter)
     base_url = get_base_url(context, params)
     print("  Step 1: Navigating to dashboard...")
-    page.goto(f"{base_url}/app/dashboard")
+    if "/app/dashboard" not in page.url:
+        dashboard_link = page.get_by_text("Dashboard", exact=True)
+        dashboard_link.wait_for(state="visible", timeout=15000)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=15000)
     page.wait_for_load_state("domcontentloaded")
-    # Wait for page to fully load by checking for Quick actions panel
-    page.wait_for_timeout(2000)  # Initial load time
-    
+    page.wait_for_timeout(2000)
+
     # Step 2: Wait for Quick Actions Panel
     print("  Step 2: Waiting for Quick actions panel...")
     page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)

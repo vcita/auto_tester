@@ -135,15 +135,34 @@ title_field.fill(custom_title)
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # Click to expand location dropdown - use a filter to find the dropdown with arrow
-location_dropdown = inner_iframe.get_by_role('button').filter(has_text='arrow_drop_down').first
+location_dropdown = inner_iframe.get_by_role('button').filter(has_text=re.compile(r'^arrow_drop_down$'))
+location_dropdown.wait_for(state='visible', timeout=5000)
 location_dropdown.click()
 page.wait_for_timeout(500)  # Wait for dropdown to open
 
 # Select "My business address"
 my_business_option = inner_iframe.get_by_role('option', name='My business address')
-my_business_option.wait_for(state='visible', timeout=5000)
+my_business_option.wait_for(state='visible', timeout=10000)
 my_business_option.click()
 page.wait_for_timeout(500)  # Wait for selection to apply
+```
+
+### Step 9b: Fill required Address field (HEALED)
+
+- **Action**: Fill
+- **Target**: "Address" textbox in New Appointment modal
+- **Reason**: UI now requires Address before scheduling; selecting "My business address" does not auto-fill it.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+# HEALED: Modal has a required "Address" field that must be filled before Schedule appointment
+address_field = inner_iframe.get_by_role('textbox', name='Address')
+address_field.wait_for(state='visible', timeout=5000)
+address_field.fill('My business address')
+page.wait_for_timeout(300)
+# Dismiss Google Places autocomplete by blurring (Tab); Escape would close the whole modal.
+page.keyboard.press('Tab')
+page.wait_for_timeout(600)
 ```
 
 ### Step 10: Click Schedule Appointment

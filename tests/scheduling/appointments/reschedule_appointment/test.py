@@ -39,7 +39,9 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-    page.wait_for_timeout(2000)  # Wait for calendar to load
+    # Wait for calendar to load by waiting for appointment to be visible
+    appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+    appointment.wait_for(state='visible', timeout=10000)
     
     # Step 3: Click on Appointment in Calendar
     print(f"  Step 3: Clicking on appointment for client: {client_name}...")
@@ -92,13 +94,15 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     print("  Step 10: Submitting reschedule...")
     submit_btn = outer_iframe.get_by_role('button', name='Submit')
     submit_btn.click()
-    page.wait_for_timeout(2000)  # Wait for reschedule to complete
-    
+    # Wait for reschedule to complete by checking time heading updated or "Rescheduled from" appears
     # Step 11: Verify Time Changed (Actual Data Verification)
     print("  Step 11: Verifying time was changed...")
     # Verify the time has changed by checking the h2 heading
     time_heading = outer_iframe.get_by_role('heading', level=2).first
     time_heading.wait_for(state='visible', timeout=10000)
+    # Also wait for "Rescheduled from" to confirm reschedule completed
+    rescheduled_from = outer_iframe.get_by_text('Rescheduled from')
+    rescheduled_from.wait_for(state='visible', timeout=10000)
     new_time = time_heading.text_content()
     print(f"       New time: {new_time}")
     

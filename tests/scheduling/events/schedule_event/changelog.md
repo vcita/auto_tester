@@ -1,5 +1,13 @@
 # Schedule Event Changelog
 
+## 2026-01-26 - Prefer _setup service name in dropdown (fix View Event wrong event)
+**Phase**: test.py
+**Reason**: View Event was looking for "Event Test Workshop 1769445591" (wrong) instead of the service just created in _setup ("Event Test Workshop 1769458997"). schedule_event was using .first "Event Test Workshop" and overwriting context with that option's name, so the newly created service was ignored.
+
+**Fix Applied**: Prefer the option that matches context["event_group_service_name"] (from _setup). If that option is visible in the listbox within 5s, select it and keep context. Otherwise fall back to first "Event Test Workshop", parse its name, and update context as before.
+
+**Changes**: test.py Step 4: try option.filter(has_text=expected_name).first; on success use expected_name; else fall back to first "Event Test Workshop" and set context.
+
 ## 2026-01-25 - Healed (Step 4 service combobox option timeout)
 **Phase**: script.md, test.py
 **Author**: Cursor AI (heal)

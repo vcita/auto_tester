@@ -220,8 +220,20 @@ print("  [OK] Changes verified: 45 minutes, price 75")
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Navigate back to services list
-page.goto("https://app.vcita.com/app/settings/services")
+# Click Settings in sidebar to go to Settings main page
+settings_menu = page.get_by_text("Settings", exact=True)
+settings_menu.click()
+page.wait_for_url("**/app/settings", timeout=10000)
+
+# Re-acquire iframe reference after navigation
+angular_iframe = page.locator('iframe[title="angularjs"]')
+angular_iframe.wait_for(state="visible", timeout=10000)
+iframe = page.frame_locator('iframe[title="angularjs"]')
+
+# Click Services button to navigate back to Services page
+services_btn = iframe.get_by_role("button", name="Define the services your")
+services_btn.click()
+page.wait_for_url("**/app/settings/services", timeout=10000)
 
 # Wait for services page to load
 services_heading = iframe.get_by_role("heading", name="Settings / Services")

@@ -25,21 +25,20 @@
 | Direct URL navigation | Reliable, fast | None |
 | Search in properties list | More realistic user flow | Slower, more complex |
 
-**CHOSEN**: Direct URL navigation - We already have the matter_id from context, simulating user clicking from properties list.
+HEALED 2026-01-27: Replaced page.goto() with prerequisite check. edit_contact runs after edit_matter, which should leave the browser on the matter detail page. Verify we're on the correct page instead of navigating.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# Navigate to matter detail page if not already there
+# Verify we're already on the correct page (from previous test)
+matter_id = context["created_matter_id"]
 if matter_id not in page.url:
-    page.goto(f"https://app.vcita.com/app/clients/{matter_id}")
-    page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(2000)
+    raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
 
-# Verify on correct page
-expect(page).to_have_url(re.compile(rf"/app/clients/{re.escape(matter_id)}"))
+# Verify page loaded
+page.wait_for_load_state("domcontentloaded")
 ```
 
-- **How verified**: Successfully navigated to matter detail page in MCP
+- **How verified**: edit_matter leaves browser on matter detail page; verify state instead of navigating
 - **Wait for**: Page load, URL contains matter_id
 - **Fallback locators**: None needed for navigation
 
@@ -114,7 +113,7 @@ last_name_field.press_sequentially(edit_data["last_name"], delay=30)
 ```
 
 - **How verified**: Field value changed from "Matter1769001836" to "ContactEdit12345" in MCP
-- **Value**: Generated value with timestamp, e.g., "ContactEdit{timestamp}"
+- **Value**: Short suffix to avoid ellipsis in table, e.g. "CE{timestamp % 1000000}" (e.g. "CE123456")
 - **Fallback locators**: `input[name="lastName"]`
 
 ### Step 5: Edit Address Field

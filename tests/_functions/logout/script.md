@@ -51,10 +51,10 @@ None required.
 
 ### Step 6: Verify Logout Success
 - **Action**: Verify
-- **Target**: Login form is visible
+- **Target**: Login form is visible (we are on the sign-in page)
 - **Element hints**:
-  - Login form is inside `#vue_iframe`
-  - Look for "Log In to Your Account" text
+  - Prefer: login form inside `#vue_iframe` with "Log In to Your Account" (some hosts)
+  - Fallback: `page.get_by_label("Email", exact=True)` in main document (login form not in iframe on some hosts)
 
 ## Success Verification
 - URL contains `/login`

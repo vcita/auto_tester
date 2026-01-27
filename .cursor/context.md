@@ -65,6 +65,10 @@ The Playwright MCP browser tool is **critical** for:
 
 **Rule**: Never guess locators. Always verify with MCP first.
 
+**When debugging with MCP:** (1) If you cannot find or use the MCP, halt and alert — do not apply blind fixes. (2) Always use the same config as the runner (same account/credentials and context from heal request or until_test_context.json). See `.cursor/rules/heal.mdc` "MCP Debugging: Availability and Config".
+
+**MCP uses its own browser:** The AI cannot attach MCP to a browser launched by the Python runner or a debug script. With `--until-test`, the runner dumps context to `until_test_context.json` and **leaves the browser open** so you can debug manually; for MCP debugging, start a **new** MCP browser and use that context/URL.
+
 For tests that stay unfixed after several MCP attempts, use the standalone debug script: copy `debug_test_skeleton.py` to `debug_<category>_<test_name>.py` and follow the escalation steps in heal.mdc / heal_test.md.
 
 ### 2. Wait Strategy (CRITICAL)
@@ -101,6 +105,13 @@ run_after: edit_contact  # Runs after edit_contact completes
 ```
 
 ---
+
+## Test Account Prerequisites
+
+**First-time setup must be completed.** The test account (from config or created via `python main.py create_user`) must have finished vcita’s first-time onboarding. If onboarding is not complete, the **Welcome to vcita!** dialog (Phone, Business size, etc.) appears on the dashboard and blocks normal flows (e.g. Quick actions, Add client/matter).
+
+- **When debugging with MCP:** If you see the Welcome dialog or “Just a few basic questions” after login, the account has **not** completed first-time setup. That explains failures like “Could not find form frame with 'First Name'” (the add-matter form never opens because the app is still in onboarding).
+- **Fix:** Run `python main.py create_user` and ensure it completes successfully (including the logout + second-login validation). Or complete the Welcome flow once manually for the account in config, then re-run tests.
 
 ## Known Issues & Workarounds
 

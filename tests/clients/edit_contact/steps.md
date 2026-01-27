@@ -70,7 +70,7 @@ These fields were chosen because:
 ## Test Data
 
 Generate new values with timestamp to ensure uniqueness:
-- last_name: "ContactEdit{timestamp}"
+- last_name: "CE{timestamp % 1000000}" (short to avoid table truncation)
 - address: "EDITED: {random number} Updated Street, New City"
 - referred_by: "EDITED: Test Referral Source - {timestamp}"
 

@@ -1,5 +1,41 @@
 # Changelog - Create Matter
 
+## [2.8.0] - 2026-01-27
+
+### Fixed (Healed)
+- **Could not find form frame with 'First Name' field** (recurring after 40 attempts)
+  - **Error**: `Exception: Could not find form frame with 'First Name' field`; vue_iframe_layout stayed on `.../vue/#/pending?...` for full 40×1s poll.
+  - **Root cause**: First click on Add matter sometimes does not open the form (e.g. vue stuck on pending). Retrying the click can open it.
+  - **Fix applied**: If form not found after 40 attempts, click Add matter again (scroll into view + click), wait 5s, then poll up to 20×1s for form frame. Helper `_find_form_frame()` used for both passes.
+  - **Files updated**: test.py (Step 4).
+  - **Verified**: Full suite run — Create Matter passed (42.4s).
+
+## [2.7.0] - 2026-01-27
+
+### Fixed (Healed)
+- **Could not find form frame with 'First Name' field** (recurring)
+  - **Error**: `Exception: Could not find form frame with 'First Name' field` after 25×1s polling.
+  - **Root cause**: Form can load in `angular-iframe` (fast) or `vue_iframe_layout`; when vue stays on `.../vue/#/pending?...`, the form appears later. MCP reproduced success (form in angular-iframe on first poll); failed run had vue at pending—timing variance.
+  - **Fix applied**: Increased form-frame wait: 5s initial (was 3s) and 40×1s poll (was 25), ~45s total after Add matter click, so slow/vue-pending loads still succeed.
+  - **Files updated**: test.py (Step 4), script.md (Initial State note).
+  - **Verified**: Category run — Create Matter passed (47.1s).
+
+## 2026-01-27 - Shorter matter name (avoid table truncation)
+- **Reason**: Clients table shows names with ellipsis when long; delete_matter needs to find/verify the row. We already search so only the right client is shown; shorter names reduce truncation.
+- **Change**: `last_name = f"Matter{timestamp % 1000000}"` (6-digit suffix, e.g. "Matter123456") instead of full timestamp. script.md, steps.md updated.
+
+## [2.6.0] - 2026-01-26
+
+### Fixed (Healed)
+- **Could not find form frame with 'First Name' field**
+  - **Error**: `Exception: Could not find form frame with 'First Name' field` after 10 attempts (500ms each).
+  - **Root cause**: The Add matter form loads in a nested frame (vue_iframe_layout) asynchronously; 5s total polling was often not enough for the Vue app to navigate and render the "First Name" field. No navigation-rule violation; timing only.
+  - **Fix applied**:
+    1. After ensuring dashboard, add 2s settle time (matches create_client) so panel/vue iframe are ready.
+    2. After clicking Add matter, wait 3s before starting form-frame polling.
+    3. Increase form-frame polling to 25 attempts × 1s (up to ~28s total after click) so we find the frame once the form has loaded.
+  - **Files updated**: test.py (Step 1 + Step 4), script.md (Initial State note).
+
 ## [2.5.0] - 2026-01-26
 
 ### Fixed (Healed)

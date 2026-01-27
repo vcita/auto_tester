@@ -31,5 +31,5 @@ tests:
 target:
   base_url: https://www.vcita.com
   auth:
-    username: itzik+autotest.1769433641@vcita.com
+    username: itzik+autotest.1769462440@vcita.com
     password: vcita123

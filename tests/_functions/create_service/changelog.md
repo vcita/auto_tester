@@ -1,5 +1,21 @@
 # Create Service Function - Changelog
 
+## 2026-01-26 - Healed (Already on Services page)
+
+**Phase**: test.py (fn_create_service)
+**Author**: Cursor AI (heal_test)
+**Reason**: Appointments/_setup failed when run after scheduling _setup: timeout waiting for get_by_text("Settings") to be visible.
+
+**Root Cause**: When scheduling _setup runs first it navigates to Settings > Services and leaves the browser there. Appointments _setup then calls fn_create_service, which always tried to click "Settings" on the main page. In that state the main page may not show "Settings" (e.g. content in iframe or "This page is unavailable"), so the wait timed out.
+
+**Fix Applied**: If page.url already contains "/app/settings/services", skip Steps 1–2 (navigate to Settings, click Services). Wait for the angular iframe and for the "Settings / Services" heading, then continue from Step 3 (New service). This makes the function work when invoked from both "cold" (dashboard) and "warm" (already on Services) states.
+
+**Changes**: test.py – added early branch when "/app/settings/services" in page.url; script.md unchanged (behavior documented).
+
+**Verified Approach**: Logic validation; category re-run used for validation.
+
+---
+
 ## 2026-01-23 - Initial Build
 
 **Phase**: All files

@@ -39,8 +39,9 @@ def test_view_appointment(page: Page, context: dict) -> None:
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-    # Wait for calendar grid to load
-    page.wait_for_timeout(2000)
+    # Wait for calendar grid to load by waiting for appointment to be visible
+    appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+    appointment.wait_for(state='visible', timeout=10000)
     
     # Step 3: Click on Appointment in Calendar
     print(f"  Step 3: Clicking on appointment for client: {client_name}...")

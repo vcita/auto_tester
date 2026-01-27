@@ -19,6 +19,8 @@ def _debug(msg: str) -> None:
 DEFAULT_PASSWORD = "vcita123"
 # Phone for onboarding dialog (server-validated; set VCITA_TEST_PHONE or pass phone= if needed)
 DEFAULT_PHONE = "5550100"
+# Address for Welcome dialog (optional field "Your business address"; set VCITA_TEST_ADDRESS or pass address=)
+DEFAULT_ADDRESS = "123 Test Street"
 
 # App is at base_url with /app/ path. Iframe may have id, title, or src set.
 def _on_app_page(page: Page) -> bool:
@@ -43,6 +45,7 @@ def fn_create_user(page: Page, context: dict, **params) -> None:
     - base_url: (optional) Target base URL from config/context; login URL = base_url + "/login".
     - onboarding_only: (optional) If True, skip signup and only login + dismiss + validate.
     - phone: (optional) Phone number for first-time "Welcome" dialog (server-validated). Default from VCITA_TEST_PHONE or 5550100.
+    - address: (optional) Business address for "Welcome" dialog. Default from VCITA_TEST_ADDRESS or "123 Test Street".
 
     Saves to context:
     - created_user_email: The email used.
@@ -69,16 +72,28 @@ def fn_create_user(page: Page, context: dict, **params) -> None:
         fn_login(page, context, username=email, password=password)
 
     phone = params.get("phone") or os.environ.get("VCITA_TEST_PHONE") or DEFAULT_PHONE
+    address = params.get("address") or os.environ.get("VCITA_TEST_ADDRESS") or DEFAULT_ADDRESS
     # Spot when Welcome to vcita window opens (inside angular iframe), then dismiss onboarding dialogs
     # Short timeouts for debugging first-login dialog detection (~30s wait + ~45s dismiss max)
-    _wait_for_welcome_dialog(page, timeout_seconds=30.0)
+    if not _wait_for_welcome_dialog(page, timeout_seconds=30.0):
+        raise ValueError(
+            "Welcome dialog did not appear after signup/login within 30s. "
+            "Account may already be onboarded, or app/iframe failed to load."
+        )
     _dismiss_onboarding_dialogs(
-        page, phone=phone, min_wait_for_dialog_seconds=10.0, max_wait=45.0
+        page, phone=phone, address=address, min_wait_for_dialog_seconds=10.0, max_wait=45.0
     )
+
+    # Validate: logout and login again; assert no onboarding dialog (account truly ready for tests)
+    _debug("  [debug] Validating: logout then second login...")
+    fn_logout(page, context)
+    context.pop("logged_in_user", None)
+    fn_login(page, context, username=email, password=password)
+    _assert_no_dialog_after_login(page, timeout_seconds=10.0)
 
     context["created_user_email"] = email
     context["created_user_ready"] = True
-    _debug(f"  [OK] Create user complete (first login): {email}.")
+    _debug(f"  [OK] Create user complete (first login + onboarding dismissed + validated): {email}.")
 
 
 def _do_signup(page: Page, login_url: str, email: str, name: str, password: str) -> None:
@@ -161,6 +176,7 @@ def _dismiss_onboarding_dialogs(
     page: Page,
     idle_seconds: float = 6.0,
     phone: str = DEFAULT_PHONE,
+    address: str = DEFAULT_ADDRESS,
     max_wait: float = 120.0,
     min_wait_for_dialog_seconds: float = 0.0,
 ) -> None:
@@ -222,11 +238,38 @@ def _dismiss_onboarding_dialogs(
                                 _debug(f"  [debug] Filling Phone * with {phone!r}...")
                                 frame.get_by_role("textbox", name="Phone *").fill(phone)
                                 page.wait_for_timeout(400)
+                                # Optional: Your business address (same Welcome dialog; Google Places autocomplete shows dropdown – dismiss it so Continue works)
+                                address_filled = False
+                                try:
+                                    addr_field = frame.get_by_role("textbox", name="Your business address")
+                                    addr_field.wait_for(state="visible", timeout=2000)
+                                    _debug(f"  [debug] Filling address with {address!r}...")
+                                    addr_field.fill(address)
+                                    page.wait_for_timeout(800)  # Let Google Places dropdown appear
+                                    # Dismiss address dropdown (MCP-validated: Escape closes it; typed text kept; Continue clickable)
+                                    page.keyboard.press("Escape")
+                                    page.wait_for_timeout(300)
+                                    address_filled = True
+                                except Exception:
+                                    try:
+                                        addr_field = frame.locator('input[name="address"]')
+                                        addr_field.wait_for(state="visible", timeout=1000)
+                                        _debug(f"  [debug] Filling address (input[name=address]) with {address!r}...")
+                                        addr_field.fill(address)
+                                        page.wait_for_timeout(800)
+                                        # Same as above: Escape closes Google Places dropdown (MCP-validated)
+                                        page.keyboard.press("Escape")
+                                        page.wait_for_timeout(300)
+                                        address_filled = True
+                                    except Exception:
+                                        _debug("  [debug] Address field not found, skipping.")
+                                if address_filled:
+                                    _debug("  [debug] Address filled (dropdown dismissed).")
                                 _debug("  [debug] Clicking Continue.")
                                 frame.get_by_role("button", name=re.compile(r"continue", re.I)).click()
                                 last_dismissed = time.time()
                                 found = True
-                                _debug("  [OK] Welcome dialog: submitted (business size + phone + Continue).")
+                                _debug("  [OK] Welcome dialog: submitted (business size + phone" + (" + address" if address_filled else "") + " + Continue).")
                                 page.wait_for_timeout(2000)
                             except Exception as e:
                                 _debug(f"  [debug] Welcome dialog fill/continue failed: {e}")

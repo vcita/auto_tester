@@ -1,5 +1,13 @@
 # View Event Changelog
 
+## 2026-01-26 - Strict mode: use .first when multiple menuitems match
+**Phase**: test.py
+**Reason**: get_by_role("menuitem").filter(has_text=service_name) resolved to 3 elements; strict mode violation. Multiple calendar menuitems can show the same service name (e.g. multi-slot or duplicate nodes).
+
+**Fix Applied**: Use .first on the menuitem locator so exactly one element is used when multiple match.
+
+**Changes**: test.py Step 3: event_menuitem = ...filter(has_text=service_name).first
+
 ## 2026-01-25 - Healed (Step 2 strict mode violation on date button)
 **Phase**: script.md, test.py
 **Author**: Cursor AI (heal)

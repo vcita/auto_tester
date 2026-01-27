@@ -27,27 +27,34 @@ def fn_create_service(page: Page, context: dict, **params) -> None:
     if not name:
         timestamp = int(time.time())
         name = f"Test Service {timestamp}"
-    
-    # Step 1: Navigate to Settings
+
     base_url = get_base_url(context, params)
-    print("  Step 1: Navigating to Settings...")
-    # First ensure we're on app and sidebar is loaded
-    if not (base_url in page.url and "/app/" in page.url):
-        page.goto(f"{base_url}/app/dashboard")
-        page.wait_for_load_state("domcontentloaded")
-    
-    # Wait for sidebar to be available
-    settings_menu = page.get_by_text('Settings')
-    settings_menu.wait_for(state='visible', timeout=30000)
-    settings_menu.click()
-    page.wait_for_url("**/app/settings", timeout=10000)
-    
-    # Step 2: Click Services button
-    print("  Step 2: Opening Services section...")
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
-    iframe = page.frame_locator('iframe[title="angularjs"]')
-    iframe.get_by_role('button', name='Define the services your').click()
-    page.wait_for_url("**/app/settings/services", timeout=10000)
+
+    # HEALED 2026-01-26: When already on Services page (e.g. after scheduling _setup), skip main-page
+    # "Settings" lookup and iframe Services click - they time out when content is in iframe or page state differs.
+    if "/app/settings/services" in page.url:
+        print("  Step 1: Already on Services page, skipping navigation...")
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+        iframe = page.frame_locator('iframe[title="angularjs"]')
+        iframe.get_by_role('heading', name='Settings / Services').wait_for(state='visible', timeout=10000)
+    else:
+        # Step 1: Navigate to Settings
+        print("  Step 1: Navigating to Settings...")
+        if not (base_url in page.url and "/app/" in page.url):
+            page.goto(f"{base_url}/app/dashboard")
+            page.wait_for_load_state("domcontentloaded")
+
+        settings_menu = page.get_by_text('Settings')
+        settings_menu.wait_for(state='visible', timeout=30000)
+        settings_menu.click()
+        page.wait_for_url("**/app/settings", timeout=10000)
+
+        # Step 2: Click Services button
+        print("  Step 2: Opening Services section...")
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+        iframe = page.frame_locator('iframe[title="angularjs"]')
+        iframe.get_by_role('button', name='Define the services your').click()
+        page.wait_for_url("**/app/settings/services", timeout=10000)
     
     # Step 3: Click New Service dropdown
     print("  Step 3: Opening New service menu...")

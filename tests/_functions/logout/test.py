@@ -53,17 +53,15 @@ def fn_logout(page: Page, context: dict, **params) -> None:
         )
     
     # Step 6: Verify Logout Success
-    # After Cloudflare, the login page should show
-    # The login form is inside an iframe
-    vue_iframe = page.locator('#vue_iframe')
-    vue_iframe.wait_for(state="visible", timeout=15000)
-    
-    # Get the iframe content frame
-    iframe = vue_iframe.content_frame()
-    
-    # Verify login form is visible
-    login_text = iframe.get_by_text("Log In to Your Account")
-    login_text.wait_for(state="visible", timeout=10000)
+    # After Cloudflare we are on the sign-in page. Login form may be in #vue_iframe (some hosts) or in main document.
+    try:
+        vue_iframe = page.locator('#vue_iframe')
+        vue_iframe.wait_for(state="visible", timeout=8000)
+        iframe = vue_iframe.content_frame()
+        iframe.get_by_text("Log In to Your Account").wait_for(state="visible", timeout=8000)
+    except Exception:
+        # Sign-in page can render form in main document (e.g. get_by_label used by fn_login)
+        page.get_by_label("Email", exact=True).wait_for(state="visible", timeout=10000)
     
     # Clear logged_in_user from context
     if "logged_in_user" in context:

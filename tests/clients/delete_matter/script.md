@@ -32,8 +32,8 @@
 - **Wait for**: Matter row to appear (ensures search has been applied and row is in DOM).
 
 #### Step 3: Locate the Matter in the List
-- **Action**: Find the row containing the matter name from context
-- **Locator**: `page.get_by_role("row", name=context["created_matter_name"])`
+- **Action**: Find the row containing the matter name from context. The UI may show the name truncated with ellipsis ("…" or "..."), so the row's accessible name is not the full name.
+- **Locator**: Match by name prefix so truncation doesn't break the test: `name_prefix = matter_name[:min(30, len(matter_name))]`; `page.get_by_role("row").filter(has_text=name_prefix).first`. HEALED 2026-01-27.
 - **Expected**: Row should be visible in the table (after search)
 
 #### Step 4: Select the Matter Checkbox
@@ -46,14 +46,14 @@
 ### Part 3: Delete the Matter
 
 #### Step 5: Click the More Button
-- **Action**: Click the "More" button to reveal additional actions
-- **Locator**: `page.get_by_role("button", name="More", exact=True)`
+- **Action**: After selection indicator is visible, wait 1.5s for bulk bar to stabilize, then click the "More" button. If click fails with element detached (Vue re-render), retry up to 3 times with fresh locator (12s timeout per attempt).
+- **Locator**: `page.get_by_role("button", name="More", exact=True)` — HEALED 2026-01-27: bulk bar can re-render; short wait + retry loop avoids timeout from detached element.
 - **Wait for**: Dropdown menu to appear
 - **Expected**: Menu shows options including "Delete" under "MANAGE" section
 
 #### Step 6: Click Delete Option
 - **Action**: Click "Delete" from the dropdown menu
-- **Locator**: `page.locator('div').filter(hasText=re.compile(r"^Delete$")).nth(1)` or `page.get_by_text("Delete", exact=True)`
+- **Locator**: `page.get_by_role("menu").get_by_text("Delete")` — HEALED 2026-01-27: dropdown options are not role="menuitem" (generic/span); scope to menu then match text.
 - **Wait for**: Confirmation dialog to appear
 - **Expected**: Dialog with title "Delete <entity>?" (entity varies: properties, clients, patients, students, pets, etc.). Use `get_by_text(re.compile(r"Delete .+\?", re.IGNORECASE))` to be entity-agnostic.
 
@@ -73,8 +73,8 @@
 ### Part 4: Verify Deletion (USER PERSPECTIVE)
 
 #### Step 9: Verify Matter is ACTUALLY Removed from List
-- **Action**: Verify the matter no longer appears in the list
-- **Locator**: `page.get_by_role("row", name=context["created_matter_name"])`
+- **Action**: Verify no row contains the matter name (search is still applied, so only that client would match). Use same name prefix as Step 3 so truncation is irrelevant.
+- **Locator**: `page.get_by_role("row").filter(has_text=name_prefix)` — expect count 0 (name_prefix = first 30 chars of created_matter_name).
 - **Expected**: Row should NOT be visible (count should be 0)
 - **CRITICAL**: This is the real validation - seeing the item is gone, not just a toast
 
@@ -116,6 +116,6 @@
 | Matter row | `get_by_role("row", name="...")` (use after search so row is on first page) |
 | Row checkbox | Row's first button element |
 | More button | `get_by_role("button", name="More", exact=True)` |
-| Delete menu item | `locator('div').filter(hasText=r"^Delete$")` |
+| Delete menu item | `get_by_role("menu").get_by_text("Delete")` |
 | Confirm Delete | `get_by_role("button", name="Delete")` |
 | Success OK | `get_by_role("button", name="OK")` |

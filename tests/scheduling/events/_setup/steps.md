@@ -8,16 +8,18 @@ Prepare the system for event scheduling tests by creating:
 Then navigate to the Calendar page.
 
 ## Prerequisites
-- User must be logged in (will login if not already logged in)
+- **Parent (Scheduling) setup has run**: browser is on Settings > Services page; user is logged in.
+- Events setup does **not** navigate to Services; it only creates the service and client, then goes to Calendar.
 
 ## Steps
 1. Call: login (if not already logged in)
-2. Create a group event service for testing
+2. Create a group event service for testing (assume we are already on Services page)
    - Name: "Event Test Workshop {timestamp}"
    - Max attendees: 10
    - Duration: 60 minutes
    - Price: 25
    - Location: Face to face
+   - After create: navigate away from Services and back (known UI issue – list does not show new service until refreshed)
    - save_to_context: event_group_service_id, event_group_service_name
 3. Call: create_client
    - first_name: "Event"

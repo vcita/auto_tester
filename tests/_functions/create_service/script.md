@@ -15,10 +15,12 @@
 
 ## Actions
 
-### Step 1: Navigate to Settings
+### Step 1: Navigate to Settings (or skip if already on Services)
 
-- **Action**: Click
+- **Action**: If URL already contains `/app/settings/services`, skip to Step 3 (wait for iframe and continue). Otherwise click Settings in sidebar.
 - **Target**: Settings menu item in sidebar
+
+**Note (2026-01-26 heal)**: When the caller leaves the browser on Services page (e.g. scheduling _setup → appointments _setup), skip this step and Step 2 to avoid timeout on main-page "Settings" which may not be visible.
 
 **LOCATOR DECISION:**
 

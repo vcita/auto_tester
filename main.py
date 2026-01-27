@@ -165,8 +165,9 @@ def cmd_run(args):
         
         # Run tests
         if args.category:
-            # Run specific category
-            result = runner.run_category(args.category)
+            # Run specific category (optionally only a subcategory)
+            subcategory = getattr(args, 'subcategory', None)
+            result = runner.run_category(args.category, subcategory_name=subcategory)
         else:
             # Run all categories
             result = runner.run_all()
@@ -413,8 +414,10 @@ def cmd_create_user(args):
     if getattr(args, "base_url", None) is not None:
         target["base_url"] = args.base_url
 
+    address = getattr(args, "address", None) or os.environ.get("VCITA_TEST_ADDRESS", "123 Test Street")
     console.print("[cyan]Creating user in vcita (signup + onboarding)...[/cyan]")
     console.print(f"  email: {email}")
+    console.print(f"  address: {address}")
     console.print("  (Browser will open; complete any CAPTCHA if prompted.)")
     ok = _run_create_user_then_update_config(
         config_path=config_path,
@@ -422,12 +425,15 @@ def cmd_create_user(args):
         email=email,
         password=password,
         base_url=base_url.rstrip("/"),
+        address=address,
     )
     if not ok:
         sys.exit(1)
 
 
-def _run_create_user_then_update_config(config_path: Path, config: dict, email: str, password: str, base_url: str) -> bool:
+def _run_create_user_then_update_config(
+    config_path: Path, config: dict, email: str, password: str, base_url: str, address: str = "123 Test Street"
+) -> bool:
     """Launch browser, run create_user flow, then update config with the new account. Returns True on success."""
     from playwright.sync_api import sync_playwright
 
@@ -445,11 +451,15 @@ def _run_create_user_then_update_config(config_path: Path, config: dict, email: 
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 " + bypass_string
         )
+        video_dir = Path.cwd() / ".temp_videos"
+        video_dir.mkdir(parents=True, exist_ok=True)
         bw_context = browser.new_context(
             viewport={"width": 1920, "height": 1080},
             locale="en-US",
             timezone_id="America/New_York",
             user_agent=custom_user_agent,
+            record_video_dir=str(video_dir),
+            record_video_size={"width": 1920, "height": 1080},
         )
         bw_context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -457,6 +467,7 @@ def _run_create_user_then_update_config(config_path: Path, config: dict, email: 
         page = bw_context.new_page()
         run_context = {"base_url": base_url.rstrip("/")}
 
+        video_path = None
         try:
             from tests._functions.create_user.test import fn_create_user
             import os
@@ -467,14 +478,28 @@ def _run_create_user_then_update_config(config_path: Path, config: dict, email: 
                 email=email,
                 password=password,
                 phone=phone,
+                address=address,
             )
         except Exception as e:
             console.print(f"[red]Create user failed: {e}[/red]")
             import traceback
             console.print(traceback.format_exc())
-            return False
+            failed = True
+        else:
+            failed = False
         finally:
+            if page.video:
+                video_path = page.video.path()
+            bw_context.close()
             browser.close()
+        if video_path and Path(video_path).exists():
+            import time as _time
+            stamp = _time.strftime("%Y%m%d_%H%M%S", _time.localtime())
+            dest = video_dir / f"create_user_{stamp}.webm"
+            Path(video_path).rename(dest)
+            console.print(f"[dim]Video saved: {dest}[/dim]")
+        if failed:
+            return False
 
     # Success: update config with the new account
     target["auth"]["username"] = email
@@ -533,7 +558,11 @@ def main():
     )
     run_parser.add_argument(
         "--until-test",
-        help="Stop before executing this test and keep browser open for MCP debugging. Test name can be full path (e.g., 'Services/Edit Group Event') or just the test name (e.g., 'Edit Group Event')"
+        help="Stop before this test; dump context to until_test_context.json in run dir and leave browser open for manual debugging. For MCP debugging, start a new MCP session and use the dump. Test name can be full path (e.g., 'Events/Schedule Event') or just the test name."
+    )
+    run_parser.add_argument(
+        "--subcategory",
+        help="Run only this subcategory (e.g. 'services'). Parent category's setup runs first. Use with --category."
     )
     
     # Explore command - explore and generate tests
@@ -587,6 +616,7 @@ def main():
     create_user_parser = subparsers.add_parser("create_user", help="Create a new user in vcita (signup + onboarding) and update config.yaml. Opens browser.")
     create_user_parser.add_argument("--email", default=None, help="Account email (default: itzik+autotest.<timestamp>@vcita.com)")
     create_user_parser.add_argument("--password", default=None, help="Password (default: env VCITA_TEST_PASSWORD or vcita123)")
+    create_user_parser.add_argument("--address", default=None, help="Business address in Welcome dialog (default: env VCITA_TEST_ADDRESS or 123 Test Street)")
     create_user_parser.add_argument("--base-url", dest="base_url", default=None, help="Base URL (default: from config; login URL = base_url + '/login')")
 
     # Stress test command - run categories multiple times

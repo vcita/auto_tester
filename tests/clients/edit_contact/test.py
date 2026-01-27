@@ -10,11 +10,12 @@ from playwright.sync_api import Page, expect
 
 
 def generate_edit_data() -> dict:
-    """Generate new values for editing contact fields."""
+    """Generate new values for editing contact fields.
+    Uses short suffix (6 digits) so displayed name fits in table without ellipsis."""
     timestamp = int(time.time())
     
     return {
-        "last_name": f"ContactEdit{timestamp}",
+        "last_name": f"CE{timestamp % 1000000}",
         "address": f"EDITED: {timestamp % 1000} Updated Street, New City",
         "referred_by": f"EDITED: Test Referral - {timestamp}",
     }
