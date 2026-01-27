@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 30886,
+  "error": "AssertionError: Setup could not confirm group event service was created: 'Event Test Workshop 1769451861' not found on Services page. Create dialog closed but service may not have been saved. Check run video/screenshot.",
+  "error_type": "AssertionError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_202354\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-26T20:24:53.010371"
+}

@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Create Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 15641,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-26T19:57:50.605563"
+}

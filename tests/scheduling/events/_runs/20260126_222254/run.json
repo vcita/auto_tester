@@ -1,0 +1,94 @@
+{
+  "category_name": "Events",
+  "category_path": "scheduling\\events",
+  "status": "partial",
+  "passed": 1,
+  "failed": 1,
+  "skipped": 4,
+  "total": 6,
+  "duration_ms": 52044,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Events/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 30542,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Events/Schedule Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 19833,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/View Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 1669,
+      "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"menuitem\").filter(has_text=\"Event Test Workshop 1769445591\") resolved to 3 elements:\n    1) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"1p89l7slary8rd8e\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b503:00 PM - 04:00 PM\u21b51a11\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n    2) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"euauwz64a3yb0dto\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b503:00 PM - 04:00 PM\u21b5dfgdfgdfg\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n    3) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"32t1di25k2d6t01r\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b504:00 PM - 05:00 PM\u21b5gfdgdg\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"menuitem\").filter(has_text=\"Event Test Workshop 1769445591\") to be visible\n",
+      "error_type": "Error",
+      "screenshot": ".temp_screenshots\\view_event_20260126_222409.png"
+    },
+    {
+      "test_name": "Events/Add Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/View Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Remove Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/View Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Edit Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\edit_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/View Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Cancel Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/View Event failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": null,
+  "run_id": "20260126_222254",
+  "saved_at": "2026-01-26T22:24:09.960403",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769433641@vcita.com"
+      }
+    }
+  }
+}

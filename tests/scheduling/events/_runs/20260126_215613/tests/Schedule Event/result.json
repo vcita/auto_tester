@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 28202,
+  "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_text(\"Event Test Workshop 1769445591\") resolved to 2 elements:\n    1) <span data-v-d12fc5ae=\"\" class=\"service-title\">Event Test Workshop 1769445591</span> aka get_by_text(\"Event Test Workshop\").first\n    2) <span data-v-d12fc5ae=\"\" class=\"service-title\">Event Test Workshop 1769445591</span> aka get_by_text(\"Event Test Workshop\").nth(1)\n\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_text(\"Event Test Workshop 1769445591\") to be visible\n",
+  "error_type": "Error",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_215613\\tests\\Schedule Event\\screenshot.png",
+  "saved_at": "2026-01-26T21:57:58.538993"
+}

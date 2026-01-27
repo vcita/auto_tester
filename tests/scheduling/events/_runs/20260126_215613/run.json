@@ -1,0 +1,94 @@
+{
+  "category_name": "Events",
+  "category_path": "scheduling\\events",
+  "status": "failed",
+  "passed": 0,
+  "failed": 1,
+  "skipped": 5,
+  "total": 6,
+  "duration_ms": 72148,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Events/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 43946,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Events/Schedule Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 28202,
+      "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_text(\"Event Test Workshop 1769445591\") resolved to 2 elements:\n    1) <span data-v-d12fc5ae=\"\" class=\"service-title\">Event Test Workshop 1769445591</span> aka get_by_text(\"Event Test Workshop\").first\n    2) <span data-v-d12fc5ae=\"\" class=\"service-title\">Event Test Workshop 1769445591</span> aka get_by_text(\"Event Test Workshop\").nth(1)\n\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_text(\"Event Test Workshop 1769445591\") to be visible\n",
+      "error_type": "Error",
+      "screenshot": ".temp_screenshots\\schedule_event_20260126_215758.png"
+    },
+    {
+      "test_name": "Events/View Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Add Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Remove Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Edit Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\edit_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Cancel Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Events/Schedule Event failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": null,
+  "run_id": "20260126_215613",
+  "saved_at": "2026-01-26T21:57:58.561932",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769433641@vcita.com"
+      }
+    }
+  }
+}

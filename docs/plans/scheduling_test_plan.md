@@ -6,7 +6,7 @@ This document defines the comprehensive test plan for vcita's Scheduling module 
 
 **Scope**: Business admin functionality only (not client-side booking)
 
-**Status**: In Progress - Services, Appointments, and Events Implemented
+**Status**: In Progress - Services, Appointments, and Events Implemented | Calendar Subcategory Planned
 
 ---
 
@@ -15,17 +15,20 @@ This document defines the comprehensive test plan for vcita's Scheduling module 
 ### Module Features Discovered
 
 **Core Scheduling Features:**
-- Services (1-on-1 appointments) - CRUD operations
-- Group Events (multi-participant sessions) - CRUD operations
-- Manual appointment creation by business
-- Calendar view and management
-- Working hours configuration
+- Services (1-on-1 appointments) - CRUD operations ✅
+- Group Events (multi-participant sessions) - CRUD operations ✅
+- Manual appointment creation by business ✅
+- Calendar view and management (Day, 3 Days, Week, Month, Agenda views) 🆕
+- Working hours configuration (per day, multiple time slots, date-specific) 🆕
+- Calendar navigation (Previous/Next/Today buttons) 🆕
+- Calendar list views (Appointment List, Event List) 🆕
 - Booking settings (buffer time, advance booking limits)
 
 **Calendar Integration:**
-- Google Calendar sync (2-way)
-- Outlook/Apple Calendar sync
+- Google Calendar sync (2-way) - Settings > Availability & Calendar > Calendar sync
+- Outlook/Apple Calendar sync - Settings > Availability & Calendar > Calendar sync
 - External calendar availability blocking
+- "Connect an external calendar" option in calendar sidebar 🆕
 
 **Staff Management (if applicable):**
 - Staff calendars
@@ -36,6 +39,18 @@ This document defines the comprehensive test plan for vcita's Scheduling module 
 - Online booking widget settings
 - Booking page customization
 - Confirmation and reminder settings
+
+**Calendar Business Settings (Discovered via MCP):**
+- Start week on (Sunday/Monday/etc.) - Settings > Availability & Calendar > Business settings
+- Time format (12-hour AM/PM or 24-hour) - Settings > Availability & Calendar > Business settings
+- Time zone configuration - Settings > Availability & Calendar > General availability
+- Local business time zone display option 🆕
+
+**Calendar Actions (Discovered via MCP):**
+- Invite to schedule (from More actions menu)
+- Print calendar (from More actions menu)
+- Export booking data (from More actions menu)
+- View reports (from More actions menu)
 
 ---
 
@@ -79,11 +94,31 @@ scheduling/
 │
 ├── calendar/                  # 🆕 NEW - Calendar management
 │   ├── _category.yaml
-│   ├── set_working_hours/     # Configure business hours
-│   ├── block_time/            # Block time slots (vacation, breaks)
-│   ├── view_day/              # Navigate calendar day view
-│   ├── view_week/             # Navigate calendar week view
-│   └── view_month/            # Navigate calendar month view
+│   ├── view_calendar_day/     # Navigate to day view
+│   ├── view_calendar_3days/   # Navigate to 3-day view
+│   ├── view_calendar_week/    # Navigate to week view
+│   ├── view_calendar_month/   # Navigate to month view
+│   ├── view_calendar_agenda/  # Navigate to agenda view
+│   ├── navigate_calendar_previous/ # Navigate to previous date
+│   ├── navigate_calendar_next/   # Navigate to next date
+│   ├── navigate_calendar_today/   # Navigate to today
+│   ├── view_appointment_list/ # Switch to appointment list view
+│   ├── view_event_list/       # Switch to event list view
+│   ├── set_working_hours/     # Configure business working hours
+│   ├── set_multiple_time_slots/ # Add multiple time slots per day
+│   ├── toggle_day_availability/ # Toggle day on/off
+│   ├── edit_time_slot/        # Edit existing time slot
+│   ├── delete_time_slot/      # Delete time slot
+│   ├── set_date_specific_availability/ # Configure specific date availability
+│   ├── block_date/            # Block a specific date
+│   ├── unblock_date/          # Remove date block
+│   ├── set_start_week_on/     # Configure week start day
+│   ├── set_time_format/       # Set 12/24 hour format
+│   ├── set_time_zone/         # Configure time zone
+│   ├── calendar_invite_to_schedule/ # Invite to schedule action
+│   ├── calendar_print/        # Print calendar
+│   ├── calendar_export_data/  # Export booking data
+│   └── calendar_view_reports/ # View reports
 │
 └── booking_settings/          # 🆕 NEW - Booking configuration (lower priority)
     ├── _category.yaml
@@ -149,14 +184,42 @@ scheduling/
 
 ### 3.4 Calendar Subcategory (🆕 NEW - Medium Priority)
 
-| Order | Test ID | Name | Priority | Description |
-|-------|---------|------|----------|-------------|
-| 1 | view_calendar_day | View Day | medium | Navigate to day view and verify |
-| 2 | view_calendar_week | View Week | medium | Navigate to week view and verify |
-| 3 | view_calendar_month | View Month | medium | Navigate to month view and verify |
-| 4 | set_working_hours | Set Working Hours | high | Configure business working hours |
-| 5 | block_time | Block Time | medium | Create a time block (vacation/break) |
-| 6 | unblock_time | Unblock Time | medium | Remove time block |
+**Calendar Features Discovered via MCP Exploration:**
+- Calendar views: Day, 3 Days, Week, Month, Agenda
+- Calendar navigation: Previous/Next date, Today button
+- Calendar list views: Calendar View, Appointment List, Event List
+- Working hours: Set per day, multiple time slots per day, toggle days on/off, edit/delete time slots
+- Date-specific availability: Block specific dates or set different hours
+- Business settings: Start week on, time format, time zone
+- Calendar actions: Invite to schedule, Print, Export booking data, View reports
+
+| Order | Test ID | Name | Priority | Status | Description |
+|-------|---------|------|----------|--------|-------------|
+| 1 | view_calendar_day | View Day | medium | ⏳ Pending | Navigate to day view and verify calendar displays correctly |
+| 2 | view_calendar_3days | View 3 Days | medium | ⏳ Pending | Navigate to 3-day view and verify calendar displays correctly |
+| 3 | view_calendar_week | View Week | medium | ⏳ Pending | Navigate to week view and verify calendar displays correctly |
+| 4 | view_calendar_month | View Month | medium | ⏳ Pending | Navigate to month view and verify calendar displays correctly |
+| 5 | view_calendar_agenda | View Agenda | low | ⏳ Pending | Navigate to agenda view and verify list displays correctly |
+| 6 | navigate_calendar_previous | Navigate Previous Date | medium | ⏳ Pending | Click previous date button and verify calendar updates |
+| 7 | navigate_calendar_next | Navigate Next Date | medium | ⏳ Pending | Click next date button and verify calendar updates |
+| 8 | navigate_calendar_today | Navigate Today | medium | ⏳ Pending | Click today button and verify calendar shows current date |
+| 9 | view_appointment_list | View Appointment List | medium | ⏳ Pending | Switch to appointment list view and verify appointments display |
+| 10 | view_event_list | View Event List | medium | ⏳ Pending | Switch to event list view and verify events display |
+| 11 | set_working_hours | Set Working Hours | high | ⏳ Pending | Configure business working hours for a day |
+| 12 | set_multiple_time_slots | Set Multiple Time Slots | medium | ⏳ Pending | Add multiple time slots for a single day (e.g., 9-12 AM and 2-5 PM) |
+| 13 | toggle_day_availability | Toggle Day Availability | medium | ⏳ Pending | Toggle a day on/off (enable/disable working hours) |
+| 14 | edit_time_slot | Edit Time Slot | medium | ⏳ Pending | Modify an existing time slot (change start/end time) |
+| 15 | delete_time_slot | Delete Time Slot | medium | ⏳ Pending | Remove a time slot from a day |
+| 16 | set_date_specific_availability | Set Date-Specific Availability | medium | ⏳ Pending | Configure availability for a specific date (different from regular hours) |
+| 17 | block_date | Block Date | medium | ⏳ Pending | Block a specific date (mark as unavailable) |
+| 18 | unblock_date | Unblock Date | medium | ⏳ Pending | Remove a date block (restore to regular availability) |
+| 19 | set_start_week_on | Set Start Week On | low | ⏳ Pending | Configure which day the week starts on (Sunday/Monday/etc.) |
+| 20 | set_time_format | Set Time Format | low | ⏳ Pending | Change time format between 12-hour (AM/PM) and 24-hour |
+| 21 | set_time_zone | Set Time Zone | medium | ⏳ Pending | Configure default time zone for calendar |
+| 22 | calendar_invite_to_schedule | Invite to Schedule | low | ⏳ Pending | Use "Invite to schedule" action from calendar menu |
+| 23 | calendar_print | Print Calendar | low | ⏳ Pending | Use print action from calendar menu |
+| 24 | calendar_export_data | Export Booking Data | low | ⏳ Pending | Export booking data from calendar menu |
+| 25 | calendar_view_reports | View Reports | low | ⏳ Pending | Access reports from calendar menu |
 
 ### 3.5 Booking Settings Subcategory (🆕 NEW - Low Priority)
 
@@ -219,7 +282,10 @@ The subcategories should run in this order:
 
 ### Calendar (new)
 - `working_hours_set` (boolean flag)
-- `blocked_time_id`
+- `blocked_time_id` / `blocked_date`
+- `time_slot_id` (for multiple time slots)
+- `calendar_view_mode` (day/week/month/agenda)
+- `calendar_current_date` (for navigation tests)
 
 ---
 
@@ -285,21 +351,53 @@ The subcategories should run in this order:
 
 **Implementation Tasks:**
 1. Create `calendar/_category.yaml` with subcategory configuration
-2. Implement tests in order:
+2. Implement tests in priority order:
+
+**High Priority:**
+   - `set_working_hours` - Configure business working hours (core functionality)
    - `view_calendar_day` - Navigate to day view and verify
    - `view_calendar_week` - Navigate to week view and verify
    - `view_calendar_month` - Navigate to month view and verify
-   - `set_working_hours` - Configure business working hours
-   - `block_time` - Create a time block (vacation/break)
-   - `unblock_time` - Remove time block
+
+**Medium Priority:**
+   - `navigate_calendar_today` - Navigate to today button
+   - `navigate_calendar_previous` / `navigate_calendar_next` - Date navigation
+   - `view_calendar_3days` - 3-day view
+   - `view_appointment_list` / `view_event_list` - List views
+   - `set_multiple_time_slots` - Multiple time slots per day
+   - `toggle_day_availability` - Enable/disable days
+   - `edit_time_slot` / `delete_time_slot` - Time slot management
+   - `set_date_specific_availability` - Date-specific availability
+   - `block_date` / `unblock_date` - Date blocking
+   - `set_time_zone` - Time zone configuration
+
+**Low Priority:**
+   - `view_calendar_agenda` - Agenda view
+   - `set_start_week_on` - Week start configuration
+   - `set_time_format` - Time format (12/24 hour)
+   - `calendar_invite_to_schedule` - Invite action
+   - `calendar_print` - Print functionality
+   - `calendar_export_data` - Export functionality
+   - `calendar_view_reports` - Reports access
 
 **Prerequisites:**
 - User is logged in
-- Calendar page is accessible
+- Calendar page is accessible (navigate to `/app/calendar`)
+- Settings > Availability & Calendar page accessible for configuration tests
 
 **Context Variables to Save:**
 - `working_hours_set` - Boolean flag indicating working hours configured
-- `blocked_time_id` - ID of created time block
+- `blocked_time_id` / `blocked_date` - ID/date of created time block
+- `time_slot_id` - ID of created time slot (for edit/delete tests)
+- `calendar_view_mode` - Current view mode (day/week/month/agenda)
+- `calendar_current_date` - Current date displayed in calendar
+
+**Implementation Notes:**
+- Calendar UI uses nested iframes: `iframe[title="angularjs"]` → `#vue_iframe_layout`
+- View selector is a dropdown menu with options: Day, 3 Days, Week, Month, Agenda
+- Working hours are configured in Settings > Availability & Calendar > General availability
+- Date-specific availability uses "Edit date-specific availability" button
+- Calendar actions are in "More actions" menu (top right of calendar)
 
 ### 📋 Future: Booking Settings Subcategory (Low Priority)
 - Configuration options for booking rules
@@ -355,3 +453,65 @@ The subcategories should run in this order:
 - Event instance created
 - Shows on calendar with correct details
 - Ready to accept attendees
+
+---
+
+## 9. MCP Exploration Summary (Calendar Features)
+
+**Date**: January 27, 2026
+
+**Exploration Method**: Used Playwright MCP browser tools to explore vcita calendar functionality
+
+### Calendar Views Discovered:
+1. **Day View** - Single day with hourly time slots (12 AM - 11 PM)
+2. **3 Days View** - Three consecutive days displayed
+3. **Week View** - Full week view
+4. **Month View** - Full month calendar grid
+5. **Agenda View** - List format of appointments/events
+
+### Calendar Navigation:
+- **Previous Date** button (left arrow) - Navigate to previous day/week/month
+- **Next Date** button (right arrow) - Navigate to next day/week/month
+- **Today** button - Jump to current date
+- **Date picker** - Mini calendar in sidebar for quick date selection
+
+### Calendar List Views (Sidebar):
+- **Calendar View** - Main calendar grid view (default)
+- **Appointment List** - List of all appointments
+- **Event List** - List of all events
+
+### Working Hours Configuration (Settings > Availability & Calendar > General availability):
+- **Per-day toggles** - Enable/disable working hours for each day (Sunday-Saturday)
+- **Time slots** - Set start and end time (e.g., 09:00 AM - 05:00 PM)
+- **Multiple time slots** - "Add time slot" button allows multiple ranges per day
+- **Edit/Delete time slots** - Edit (pencil icon) and delete (trash icon) buttons for each slot
+- **Date-specific availability** - "Edit date-specific availability" button for specific dates
+
+### Business Settings (Settings > Availability & Calendar > Business settings):
+- **Start week on** - Dropdown: Sunday, Monday, etc.
+- **Time format** - Dropdown: 12 hours (AM/PM) or 24 hours
+- **Time zone** - Dropdown with timezone selection
+- **Local business option** - Checkbox: "If your business is local, display all times for staff and clients in your time zone"
+
+### Calendar Actions (More actions menu):
+- **Invite to schedule** - Generate invite link
+- **Print** - Print calendar view
+- **Export booking data** - Export calendar data
+- **View reports** - Access scheduling reports
+
+### UI Structure:
+- Calendar uses nested iframes:
+  - Outer: `iframe[title="angularjs"]`
+  - Inner: `#vue_iframe_layout` (Vue.js calendar component)
+- View selector is a dropdown button showing current view (Day/Week/Month)
+- Services list appears in left sidebar with checkboxes to filter calendar display
+- Mini calendar appears in left sidebar for date navigation
+
+### Key Locators Discovered:
+- View selector: `button[name="Day"]` (or Week/Month) with dropdown menu
+- More actions: `button[name="More actions"]`
+- Today button: `button[name="Today"]`
+- Previous/Next: Arrow buttons in calendar header
+- Working hours: Settings > Availability & Calendar > General availability tab
+- Time slot edit: Pencil icon button next to time range
+- Time slot delete: Trash icon button next to time range

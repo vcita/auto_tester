@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/View Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 1669,
+  "error": "Error: Locator.wait_for: Error: strict mode violation: get_by_role(\"menuitem\").filter(has_text=\"Event Test Workshop 1769445591\") resolved to 3 elements:\n    1) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"1p89l7slary8rd8e\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b503:00 PM - 04:00 PM\u21b51a11\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n    2) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"euauwz64a3yb0dto\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b503:00 PM - 04:00 PM\u21b5dfgdfgdfg\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n    3) <div tabindex=\"0\" role=\"menuitem\" aria-haspopup=\"true\" id=\"32t1di25k2d6t01r\" staff_uid=\"vcu9nmpu2nf9vk14\" class=\"smart-scheduler-event\" title=\"0/10\u21b5Event Test Workshop 1769445591\u21b504:00 PM - 05:00 PM\u21b5gfdgdg\">\u2026</div> aka get_by_role(\"button\").filter(has_text=\"today 25-31 January 2026 week\")\n\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"menuitem\").filter(has_text=\"Event Test Workshop 1769445591\") to be visible\n",
+  "error_type": "Error",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_222254\\tests\\View Event\\screenshot.png",
+  "saved_at": "2026-01-26T22:24:09.936677"
+}

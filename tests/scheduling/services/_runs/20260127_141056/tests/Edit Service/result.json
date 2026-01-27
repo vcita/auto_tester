@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Edit Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\edit_service",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 14759,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-27T14:19:31.613539"
+}

@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "No setup function found in C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup\\test.py. Available: []",
+  "error_type": "ImportError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T12:47:09.706800"
+}

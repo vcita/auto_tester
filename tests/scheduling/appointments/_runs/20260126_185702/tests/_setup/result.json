@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 32883,
+  "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Quick actions\", exact=True) to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260126_185702\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-26T18:57:53.526498"
+}

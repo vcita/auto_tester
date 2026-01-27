@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "Error loading C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup\\test.py: ImportError: cannot import name 'ADD_MATTER_TEXT_REGEX' from 'tests._params' (C:\\Programming\\auto_tester\\tests\\_params\\__init__.py)",
+  "error_type": "ImportError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T12:58:35.870727"
+}

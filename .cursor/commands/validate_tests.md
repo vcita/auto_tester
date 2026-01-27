@@ -82,9 +82,9 @@ Use these rule files as the **definition of what to validate**. Perform each che
 
 **Sources**: `.cursor/rules/phase3_code.mdc` (“CRITICAL: Wait Strategy”), `.cursor/rules/phase2_script.mdc` (“CRITICAL: Wait Strategy”)
 
-- **Rule**: No arbitrary time waits. Always wait for a concrete event (element state, URL, list loaded, etc.) with a timeout. Only use `wait_for_timeout()` for small allowed delays (e.g. 100–300 ms before typing, 200–500 ms settle after element wait); never use it alone for action completion.
+- **Rule**: No arbitrary time waits. Always wait for a concrete event (element state, URL, list loaded, etc.) with a **long timeout (30-45s)**. Use event-based waits (`wait_for()`, `wait_for_url()`, etc.) that continue immediately when the condition is met, only waiting the full duration if the condition never appears. Only use `wait_for_timeout()` for small allowed delays (e.g. 100–300 ms before typing, 200–500 ms settle after element wait, or polling intervals in loops); never use it alone for action completion.
 - **Check**: In scoped `test.py` (and `script.md` if desired), grep for `wait_for_timeout`. Any call > 500 ms (or without a preceding event-based wait) is a violation unless justified. Allow only ≤500 ms with an “allowed” / “brief” comment.
-- **Report**: Pass if no forbidden long waits; Fail with file:line and suggested replacement (event-based wait) where possible.
+- **Report**: Pass if no forbidden long waits and event-based waits use long timeouts (30-45s); Fail with file:line and suggested replacement (event-based wait with long timeout) where possible.
 
 ### 2.7 Context / prerequisites consistency (optional)
 
@@ -101,6 +101,18 @@ Use these rule files as the **definition of what to validate**. Perform each che
 - **Rule**: The matter entity name varies by vertical (clients, properties, patients, students, pets, etc.). Tests must NOT hardcode a single entity label in locators or assertions. Use regex, positional selectors, or documented alternatives so tests work across verticals.
 - **Check**: In each resolved test (and related _functions), grep for hardcoded entity-specific strings: literals like "Properties", "Delete properties?", "Properties deleted", "Add property", "Delete property" (menuitem), or the pattern "1 SELECTED OF \d+ PROPERTIES" as the only match. **Allowed**: positional selectors; regex that accept multiple labels (e.g. `r"1 SELECTED OF \d+"`, `r"Delete .+\?"`); for "Add &lt;entity&gt;" use **`tests._params.ADD_MATTER_TEXT_REGEX`** (entity list in `tests/_params/matter_entities.yaml`) — prefer this over inlining the entity list. Docstrings that mention "Properties"/"Clients" as examples are OK; the check targets locators and assertions.
 - **Report**: Pass if no forbidden hardcoded entity-only locators; Fail with file:line and offending string.
+
+### 2.9 Test cleanup and teardown
+
+**Source**: `.cursor/rules/project.mdc` (§ Test Cleanup and Teardown)
+
+- **Rule**: After a category completes execution, the system should be left in a clean state. Objects created in `_setup` must be deleted in `_teardown`. Objects created in tests must be deleted in subsequent tests (CRUD pattern) or `_teardown`. Objects that cannot be deleted should be cancelled/marked as inactive (documented). Context variables must be cleared after deletion.
+- **Check**: For each category (or resolved test scope):
+  1. **Setup → Teardown mapping**: If `_setup` exists, check if `_teardown` exists and deletes objects created in setup. Read `_setup/test.py` and `_setup/steps.md` to identify created objects (context variables like `created_service_id`, `created_client_id`, etc.). Then check `_teardown/test.py` and `_teardown/steps.md` to verify cleanup.
+  2. **Test sequence cleanup**: For tests that create objects (e.g., `create_matter`, `create_service`, `create_appointment`), check if there's a corresponding delete/cancel test later in the sequence (e.g., `delete_matter`, `delete_service`, `cancel_appointment`). Read `_category.yaml` to understand test order.
+  3. **Context variable clearing**: Check that delete/cancel tests clear context variables (e.g., `del context["created_matter_id"]` or `context["created_matter_id"] = None`).
+  4. **Cancellation documentation**: If objects are cancelled instead of deleted (e.g., appointments), verify this is documented in the cancel test or teardown.
+- **Report**: Per-category table: Category | Setup objects | Teardown cleanup | Test sequence cleanup | Context cleared | Status (Pass/Fail/N/A + notes). **Pass** if: (1) no `_setup` OR `_setup` objects are cleaned in `_teardown`, (2) all create tests have corresponding delete/cancel tests OR objects are cleaned in `_teardown`, (3) context variables are cleared after deletion. **Fail** if objects are created but never cleaned up. **N/A** if category has no object creation.
 
 ---
 
@@ -124,13 +136,15 @@ Produce a single validation report.
    | 6. Wait strategy (no arbitrary waits) | ✅ Pass / ❌ Fail | … |
    | 7. Context / prerequisites consistency | ✅ Pass / ❌ Fail / N/A | … |
    | 8. Matter entity name agnosticism | ✅ Pass / ❌ Fail | … |
+   | 9. Test cleanup and teardown | ✅ Pass / ❌ Fail / N/A | … |
 
 3. **Per-rule sections**  
-   For each rule (1–8), add a section with:
+   For each rule (1–9), add a section with:
    - Rule (one sentence) and source (rule file).
    - Check performed (what you grepped/read).
-   - Result: Pass or Fail.
+   - Result: Pass or Fail (or N/A where applicable).
    - If Fail: file paths, line numbers or step names, and concrete violations (and, for wait strategy, suggested event-based fixes where useful).
+   - For rule 2.9 (cleanup): Include per-category table showing setup objects, teardown cleanup, test sequence cleanup, and context clearing status.
 
 4. **Files to update (optional)**  
    If any Fail: list files that should be updated (e.g. `tests/…/steps.md`, `tests/…/test.py`, `tests/…/script.md`) and what to change briefly.

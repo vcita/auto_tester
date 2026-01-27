@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "ValueError: Expected to be on Services page, but URL is https://app.vcita.com/app/event-list",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\_runs\\20260127_010049\\tests\\Create Service\\screenshot.png",
+  "saved_at": "2026-01-27T01:03:49.136469"
+}

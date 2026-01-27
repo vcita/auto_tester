@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Delete Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\delete_service",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 9823,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-27T10:11:13.343176"
+}

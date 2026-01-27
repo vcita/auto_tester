@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "Error loading C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event\\test.py: SyntaxError: unterminated string literal (detected at line 184) (test.py, line 184)",
+  "error_type": "ImportError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T12:26:06.197854"
+}

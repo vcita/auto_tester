@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "No test function found in C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event\\test.py. Available: []",
+  "error_type": "ImportError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T13:15:44.134728"
+}

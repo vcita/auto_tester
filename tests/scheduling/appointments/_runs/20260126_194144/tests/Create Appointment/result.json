@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Create Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 42823,
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"button\", name=\"Schedule appointment\")\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260126_194144\\tests\\Create Appointment\\screenshot.png",
+  "saved_at": "2026-01-26T19:43:17.345927"
+}

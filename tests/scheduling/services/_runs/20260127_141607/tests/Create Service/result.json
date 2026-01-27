@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 81,
+  "error": "TargetClosedError: Locator.click: Target page, context or browser has been closed",
+  "error_type": "TargetClosedError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T14:31:26.347907"
+}

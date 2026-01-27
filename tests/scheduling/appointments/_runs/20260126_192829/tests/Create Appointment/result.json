@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Create Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 40733,
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"button\", name=\"Schedule appointment\")\n    - locator resolved to <button type=\"button\" data-v-582ec022=\"\" data-v-189b7a6a=\"\" data-v-6e723926=\"\" data-qa=\"multi-booking-modal-Schedule appointment\" class=\"VcFooterButton v-btn v-btn--contained v-btn--is-elevated v-btn--has-bg theme--light elevation-0 v-size--default secondary VcButton primary__text\">\u2026</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    54 \u00d7 waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260126_192829\\tests\\Create Appointment\\screenshot.png",
+  "saved_at": "2026-01-26T19:29:57.344122"
+}

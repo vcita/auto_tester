@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 22745,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-27T09:03:09.731994"
+}

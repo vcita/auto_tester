@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 30023,
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Settings\")\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\_runs\\20260127_114914\\tests\\Create Service\\screenshot.png",
+  "saved_at": "2026-01-27T11:55:10.629869"
+}

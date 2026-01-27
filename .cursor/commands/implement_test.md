@@ -49,6 +49,17 @@ Follow .cursor/rules/phase2_script.mdc
 
 Follow .cursor/rules/phase3_code.mdc
 
+**CRITICAL: Wait Strategy**
+
+When implementing waits in test.py:
+
+- **Use event-based waits with long timeouts (30-45s)**: `locator.wait_for(state="visible", timeout=30000)` continues immediately when condition is met, only waits full duration if condition never appears
+- **Never use arbitrary `wait_for_timeout()` alone** - Always wait for a meaningful event (element state, URL, etc.)
+- **For polling loops**: Use short intervals (100-200ms) with long overall timeout (30-45s), exit immediately when found
+- **Why long timeouts work**: Tests are fast on fast systems (continue immediately), robust on slow systems (long timeout), and distinguish real failures from network glitches
+
+See `.cursor/rules/phase3_code.mdc` section "CRITICAL: Wait Strategy" for detailed patterns and examples.
+
 - Copy VERIFIED PLAYWRIGHT CODE exactly from script.md
 - Never modify or improve the verified locators
 

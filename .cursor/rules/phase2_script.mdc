@@ -333,23 +333,43 @@ name_field.press_sequentially(name)
 
 **NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element or condition.
 
+**CRITICAL: Long Timeouts for Robust Tests**
+
+Tests must be robust and work even when the system is slow. Use **long timeouts (30-45 seconds) on meaningful event-based waits**:
+
+- **Continues immediately when condition is met** - If element appears in 2 seconds, test continues in 2 seconds
+- **Only waits full duration if condition never appears** - If element never appears, we know there's a real failure
+- **Makes tests stable** - Works on slow systems without being flaky on fast systems
+
+**Use long timeouts (30-45s) for all event-based waits:**
+- Element visibility: `locator.wait_for(state="visible", timeout=30000)`
+- URL navigation: `page.wait_for_url("**/dashboard**", timeout=30000)`
+- Dialog operations: `dialog.wait_for(state="visible", timeout=30000)`
+- List/item appearance: `item.wait_for(state="visible", timeout=30000)`
+
+**For polling loops** (when direct event-based wait isn't possible):
+- Short polling intervals (100-200ms) to check frequently
+- Long overall timeout (30-45s) for the entire operation
+- Exit immediately when condition is found
+
 ### During MCP Exploration
 
 For every action step, you MUST identify:
 1. **What element indicates the action completed?** (dialog appeared, item in list, button enabled, etc.)
 2. **Document the wait condition** in the script alongside the action
+3. **Use long timeout (30-45s)** to ensure robustness on slow systems
 
 ### Wait Patterns by Action Type
 
 | Action Type | Wait Pattern | Example |
 |-------------|--------------|---------|
-| Dialog opens | `dialog.wait_for(state="visible")` | `iframe.get_by_role("dialog").wait_for(state="visible", timeout=10000)` |
-| Dialog closes | `dialog.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=10000)` |
-| Item created | `new_item.wait_for(state="visible")` | `service_row.wait_for(state="visible", timeout=10000)` |
-| Item deleted | `item.wait_for(state="hidden")` | `deleted_row.wait_for(state="hidden", timeout=10000)` |
-| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/settings/services/**")` |
-| Loading complete | `spinner.wait_for(state="hidden")` | `loader.wait_for(state="hidden", timeout=15000)` |
-| Form ready | `field.wait_for(state="visible")` | `name_field.wait_for(state="visible", timeout=5000)` |
+| Dialog opens | `dialog.wait_for(state="visible")` | `iframe.get_by_role("dialog").wait_for(state="visible", timeout=30000)` |
+| Dialog closes | `dialog.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=30000)` |
+| Item created | `new_item.wait_for(state="visible")` | `service_row.wait_for(state="visible", timeout=30000)` |
+| Item deleted | `item.wait_for(state="hidden")` | `deleted_row.wait_for(state="hidden", timeout=30000)` |
+| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/settings/services/**", timeout=30000)` |
+| Loading complete | `spinner.wait_for(state="hidden")` | `loader.wait_for(state="hidden", timeout=30000)` |
+| Form ready | `field.wait_for(state="visible")` | `name_field.wait_for(state="visible", timeout=30000)` |
 
 ### Acceptable Small Delays
 
@@ -377,11 +397,11 @@ Each step should include the wait condition:
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 save_btn.click()
-# Wait for dialog to close
-dialog.wait_for(state="hidden", timeout=10000)
+# Wait for dialog to close - long timeout for slow systems, continues immediately when dialog closes
+dialog.wait_for(state="hidden", timeout=30000)
 ```
 
-- **Wait for**: Dialog closes (wait_for state="hidden")
+- **Wait for**: Dialog closes (wait_for state="hidden", timeout=30000) - long timeout ensures robustness
 ```
 
 ## MCP Exploration Completeness Checklist

@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 26738,
+  "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_role(\"dialog\") to be hidden\n    4 \u00d7 locator resolved to visible <md-dialog role=\"dialog\" tabindex=\"-1\" aria-label=\"Service info ...\" aria-describedby=\"dialogContent_92\" class=\"new-service-dialog _md md-transition-in\">\u2026</md-dialog>\n    2 \u00d7 locator resolved to visible <md-dialog role=\"dialog\" tabindex=\"-1\" aria-label=\"Service info ...\" aria-describedby=\"dialogContent_92\" class=\"new-service-dialog _md md-transition-out-add md-transition-in-remove md-transition-out md-transition-out-add-active md-transition-in-remove-active\">\u2026</md-dialog>\n    - locator resolved to visible <md-dialog role=\"dialog\" tabindex=\"-1\" aria-label=\"Great. Now ...\" aria-describedby=\"dialogContent_170\" class=\"new-event-prompt _md md-transition-in-add md-transition-out-remove md-transition-in md-transition-in-add-active md-transition-out-remove-active\">\u2026</md-dialog>\n    25 \u00d7 locator resolved to visible <md-dialog role=\"dialog\" tabindex=\"-1\" aria-label=\"Great. Now ...\" aria-describedby=\"dialogContent_170\" class=\"new-event-prompt _md md-transition-in\">\u2026</md-dialog>\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_201739\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-26T20:18:31.455805"
+}

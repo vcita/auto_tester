@@ -1,0 +1,113 @@
+{
+  "category_name": "Appointments",
+  "category_path": "scheduling\\appointments",
+  "status": "partial",
+  "passed": 5,
+  "failed": 1,
+  "skipped": 1,
+  "total": 7,
+  "duration_ms": 131872,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Appointments/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 28178,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Appointments/Create Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 16528,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/View Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\view_appointment",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 4966,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Edit Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\edit_appointment",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 10603,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Reschedule Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 8245,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Cancel Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_appointment",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 7059,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Create Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_custom_appointment",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 15464,
+      "error": "TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"button\", name=\"Schedule appointment\") to be visible\n",
+      "error_type": "TimeoutError",
+      "screenshot": ".temp_screenshots\\create_custom_appointment_20260126_195438.png"
+    },
+    {
+      "test_name": "Appointments/Cancel Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_custom_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Custom Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": {
+    "test_name": "Appointments/_teardown",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_teardown",
+    "test_type": "teardown",
+    "status": "passed",
+    "duration_ms": 40829,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "run_id": "20260126_195247",
+  "saved_at": "2026-01-26T19:55:19.697618",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769433641@vcita.com"
+      }
+    }
+  }
+}

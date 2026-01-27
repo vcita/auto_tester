@@ -1,0 +1,104 @@
+{
+  "category_name": "Appointments",
+  "category_path": "scheduling\\appointments",
+  "status": "failed",
+  "passed": 0,
+  "failed": 0,
+  "skipped": 7,
+  "total": 7,
+  "duration_ms": 32883,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Appointments/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_setup",
+    "test_type": "setup",
+    "status": "failed",
+    "duration_ms": 32883,
+    "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Quick actions\", exact=True) to be visible\n",
+    "error_type": "TimeoutError",
+    "screenshot": ".temp_screenshots\\_setup_20260126_185753.png"
+  },
+  "test_results": [
+    {
+      "test_name": "Appointments/Create Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/View Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\view_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Edit Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\edit_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Reschedule Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Cancel Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Create Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_custom_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Cancel Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_custom_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/_setup failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": null,
+  "run_id": "20260126_185702",
+  "saved_at": "2026-01-26T18:57:53.535773",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769433641@vcita.com"
+      }
+    }
+  }
+}

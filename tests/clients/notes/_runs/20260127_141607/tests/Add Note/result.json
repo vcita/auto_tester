@@ -1,0 +1,11 @@
+{
+  "test_name": "Notes/Add Note",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\clients\\notes\\add_note",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 14602,
+  "error": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_wizard_iframe\").content_frame.get_by_role(\"button\", name=\"Save\") to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\clients\\notes\\_runs\\20260127_141607\\tests\\Add Note\\screenshot.png",
+  "saved_at": "2026-01-27T14:21:48.200299"
+}

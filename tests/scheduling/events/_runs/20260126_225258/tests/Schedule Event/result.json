@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Schedule Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 20392,
+  "error": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-qa=\\\"VcMenuItem-calendar-subitem-event_list\\\"]\") to be visible\n    24 \u00d7 locator resolved to hidden <div align-center=\"\" data-v-23b36969=\"\" data-v-50fa0c52=\"\" data-qa=\"VcMenuItem-calendar-subitem-event_list\" class=\"layout align-center VcMenuItem-subitem VcMenuItem-userSelectNone ps-6 md desktop\">\u2026</div>\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_225258\\tests\\Schedule Event\\screenshot.png",
+  "saved_at": "2026-01-26T22:54:37.852938"
+}

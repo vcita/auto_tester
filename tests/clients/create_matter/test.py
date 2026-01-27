@@ -72,20 +72,20 @@ def test_create_matter(page: Page, context: dict) -> None:
     if "/app/dashboard" not in page.url:
         dashboard_link = page.get_by_text("Dashboard", exact=True)
         dashboard_link.click()
-        page.wait_for_url("**/app/dashboard**", timeout=15000)
+        page.wait_for_url("**/app/dashboard**", timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
     page.wait_for_load_state("domcontentloaded")
     # HEALED 2026-01-27: Wait for Quick actions panel to be visible instead of arbitrary timeout
     # This ensures vue_iframe_layout and panel are ready
-    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when panel appears
 
     print("  Step 2: Waiting for Quick actions panel...")
     # HEALED 2026-01-22: UI changed - Quick Actions button no longer opens dropdown
     # "Add property" is now directly visible in the Quick actions panel on the right side
     # Must wait for the panel to fully load (async)
-    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=15000)
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when panel appears
     # Wait for panel content (Add matter button) to be visible instead of arbitrary timeout
     quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
-    quick_section.get_by_text(ADD_MATTER_TEXT_REGEX).wait_for(state="visible", timeout=15000)
+    quick_section.get_by_text(ADD_MATTER_TEXT_REGEX).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
     
     print("  Step 3: Clicking Add matter...")
     # HEALED 2026-01-26: Scope to Quick actions panel. Go up to section that contains both heading and list
@@ -93,7 +93,7 @@ def test_create_matter(page: Page, context: dict) -> None:
     # Entity list and regex from tests/_params/matter_entities.yaml (single source of truth).
     quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
     add_matter_text = quick_section.get_by_text(ADD_MATTER_TEXT_REGEX)
-    add_matter_text.wait_for(state="visible", timeout=15000)
+    add_matter_text.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
     
     # Scroll into view and click
     add_matter_text.scroll_into_view_if_needed()
@@ -167,7 +167,7 @@ def test_create_matter(page: Page, context: dict) -> None:
     show_more_btn.click()
     # Wait for the Referred by field to become visible (indicates expansion complete)
     referred_field_check = form_frame.get_by_role("textbox", name="Referred by")
-    referred_field_check.wait_for(state="visible", timeout=5000)
+    referred_field_check.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when field appears
     
     # ========== PART 2: Fill Contact Information ==========
     # Note: Email and Mobile phone fields become comboboxes (autocomplete) when focused
@@ -255,7 +255,7 @@ def test_create_matter(page: Page, context: dict) -> None:
     matter_type_dropdown.click()
     # Wait for dropdown options to appear
     option = form_frame.get_by_role("option", name=test_data["matter_type"])
-    option.wait_for(state="visible", timeout=5000)
+    option.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when option appears
     option.click()
     # Wait for dropdown to close (listbox becomes hidden or option is no longer visible)
     page.wait_for_timeout(200)  # Brief settle for dropdown close animation
@@ -278,12 +278,12 @@ def test_create_matter(page: Page, context: dict) -> None:
     save_btn.click()
     
     # Wait for save to complete - the page will redirect to client page
-    page.wait_for_url(re.compile(r"/app/clients/"), timeout=15000)
+    page.wait_for_url(re.compile(r"/app/clients/"), timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
     
     # ========== VERIFICATION ==========
     
     # Verify URL contains matter ID
-    expect(page).to_have_url(re.compile(r"/app/clients/[a-z0-9]+"), timeout=10000)
+    expect(page).to_have_url(re.compile(r"/app/clients/[a-z0-9]+"), timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
     
     # Extract matter ID from URL
     url = page.url
@@ -299,7 +299,7 @@ def test_create_matter(page: Page, context: dict) -> None:
     # The client detail page has title format: "Property / {Name} | vcita"
     # NOTE: page.get_by_text() doesn't search inside iframes - the client page uses iframes
     # So we verify using the page title instead which contains the client name
-    expect(page).to_have_title(re.compile(re.escape(test_data["full_name"])), timeout=15000)
+    expect(page).to_have_title(re.compile(re.escape(test_data["full_name"])), timeout=30000)  # Long timeout for slow systems, continues immediately when title matches
     
     # Save to context for later tests (especially delete_matter test)
     context["created_matter_name"] = test_data["full_name"]

@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 11134,
+  "error": "UnboundLocalError: cannot access local variable 're' where it is not associated with a value",
+  "error_type": "UnboundLocalError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260126_202007\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-26T20:20:37.765872"
+}

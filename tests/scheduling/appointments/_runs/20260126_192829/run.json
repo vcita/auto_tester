@@ -1,0 +1,113 @@
+{
+  "category_name": "Appointments",
+  "category_path": "scheduling\\appointments",
+  "status": "failed",
+  "passed": 0,
+  "failed": 1,
+  "skipped": 6,
+  "total": 7,
+  "duration_ms": 110743,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Appointments/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 28675,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Appointments/Create Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_appointment",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 40733,
+      "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.locator(\"#vue_iframe_layout\").content_frame.get_by_role(\"button\", name=\"Schedule appointment\")\n    - locator resolved to <button type=\"button\" data-v-582ec022=\"\" data-v-189b7a6a=\"\" data-v-6e723926=\"\" data-qa=\"multi-booking-modal-Schedule appointment\" class=\"VcFooterButton v-btn v-btn--contained v-btn--is-elevated v-btn--has-bg theme--light elevation-0 v-size--default secondary VcButton primary__text\">\u2026</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    54 \u00d7 waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"pac-item\">\u2026</div> from <div class=\"pac-container pac-logo hdpi\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n",
+      "error_type": "TimeoutError",
+      "screenshot": ".temp_screenshots\\create_appointment_20260126_192956.png"
+    },
+    {
+      "test_name": "Appointments/View Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\view_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Edit Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\edit_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Reschedule Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Cancel Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Create Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\create_custom_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Appointments/Cancel Custom Appointment",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_custom_appointment",
+      "test_type": "test",
+      "status": "skipped",
+      "duration_ms": 0,
+      "error": "Skipped due to Appointments/Create Appointment failure",
+      "error_type": null,
+      "screenshot": null
+    }
+  ],
+  "teardown_result": {
+    "test_name": "Appointments/_teardown",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_teardown",
+    "test_type": "teardown",
+    "status": "passed",
+    "duration_ms": 41335,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "run_id": "20260126_192829",
+  "saved_at": "2026-01-26T19:30:38.710851",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769433641@vcita.com"
+      }
+    }
+  }
+}

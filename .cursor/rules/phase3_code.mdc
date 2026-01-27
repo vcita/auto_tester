@@ -211,32 +211,68 @@ page.keyboard.type("text to type")
 
 **NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element.
 
+**CRITICAL: Long Timeouts for Robust Tests**
+
+Tests must be robust and work even when the system is slow. The solution is to use **long timeouts (30-45 seconds) on meaningful event-based waits**. This approach:
+
+- **Continues immediately when the condition is met** - If the element appears in 2 seconds, the test continues in 2 seconds (not 30)
+- **Only waits the full duration if the condition never appears** - If the element never appears, we know there's a real failure (not just a network glitch)
+- **Makes tests stable and robust** - Tests work on slow systems without being flaky on fast systems
+
+**Use long timeouts (30-45s) for:**
+- Element visibility/hidden waits: `locator.wait_for(state="visible", timeout=30000)`
+- URL navigation waits: `page.wait_for_url("**/dashboard**", timeout=30000)`
+- Iframe loading: `page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)`
+- Dialog operations: `dialog.wait_for(state="visible", timeout=30000)`
+- List/item appearance: `item.wait_for(state="visible", timeout=30000)`
+
+**For polling loops** (when you can't use a direct event-based wait):
+- Use short polling intervals (100-200ms) to check frequently
+- Use long overall timeout (30-45s) for the entire polling operation
+- Continue immediately when the condition is found
+- Example: Poll every 200ms for up to 45 seconds = 225 attempts, but exits immediately when found
+
 #### Wait Patterns
 
 | Action Type | Wait Pattern | Example |
 |-------------|--------------|---------|
-| Dialog opens | `locator.wait_for(state="visible")` | `dialog.wait_for(state="visible", timeout=10000)` |
-| Dialog closes | `locator.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=10000)` |
-| Item created | `locator.wait_for(state="visible")` | `new_row.wait_for(state="visible", timeout=10000)` |
-| Item deleted | `locator.wait_for(state="hidden")` | `row.wait_for(state="hidden", timeout=10000)` |
-| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/dashboard**")` |
-| Loading done | `locator.wait_for(state="hidden")` | `spinner.wait_for(state="hidden", timeout=15000)` |
+| Dialog opens | `locator.wait_for(state="visible")` | `dialog.wait_for(state="visible", timeout=30000)` |
+| Dialog closes | `locator.wait_for(state="hidden")` | `dialog.wait_for(state="hidden", timeout=30000)` |
+| Item created | `locator.wait_for(state="visible")` | `new_row.wait_for(state="visible", timeout=30000)` |
+| Item deleted | `locator.wait_for(state="hidden")` | `row.wait_for(state="hidden", timeout=30000)` |
+| Navigation | `page.wait_for_url(pattern)` | `page.wait_for_url("**/dashboard**", timeout=30000)` |
+| Loading done | `locator.wait_for(state="hidden")` | `spinner.wait_for(state="hidden", timeout=30000)` |
 
 #### Correct Patterns
 
 ```python
-# CORRECT: Wait for element state after action
+# CORRECT: Wait for element state after action with long timeout for slow systems
 save_btn.click()
-dialog.wait_for(state="hidden", timeout=10000)  # Wait for dialog to close
+dialog.wait_for(state="hidden", timeout=30000)  # Long timeout, continues immediately when dialog closes
 
-# CORRECT: Wait for created item to appear
+# CORRECT: Wait for created item to appear with long timeout
 create_btn.click()
 new_item = iframe.get_by_role("button").filter(has_text=item_name)
-new_item.wait_for(state="visible", timeout=10000)
+new_item.wait_for(state="visible", timeout=30000)  # Long timeout, continues immediately when item appears
+
+# CORRECT: Navigation with long timeout
+page.get_by_text("Dashboard").click()
+page.wait_for_url("**/app/dashboard**", timeout=30000)  # Long timeout, continues immediately when URL matches
 
 # CORRECT: Small delay for UI animation AFTER element wait
-dialog.wait_for(state="visible", timeout=10000)
-page.wait_for_timeout(200)  # Brief settle time for animation
+dialog.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems
+page.wait_for_timeout(200)  # Brief settle time for animation (allowed)
+
+# CORRECT: Polling loop with short intervals and long overall timeout
+form_frame = None
+max_wait_seconds = 45
+poll_interval_ms = 200
+max_attempts = int(max_wait_seconds * 1000 / poll_interval_ms)  # 225 attempts
+for attempt in range(max_attempts):
+    form_frame = _find_form_frame()
+    if form_frame:
+        break  # Continue immediately when found
+    page.wait_for_timeout(poll_interval_ms)  # Brief polling interval
 ```
 
 #### Wrong Patterns

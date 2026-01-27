@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 23470,
+  "error": "Error: Target page, context or browser has been closed\n=========================== logs ===========================\nwaiting for navigation to \"**/app/settings/services**\" until 'load'\n============================================================",
+  "error_type": "Error",
+  "screenshot": null,
+  "saved_at": "2026-01-27T11:25:07.333513"
+}

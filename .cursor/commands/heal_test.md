@@ -44,6 +44,17 @@ When debugging with MCP you **MUST** use the **same account** that ran the faile
 
 **Follow `.cursor/rules/heal.mdc` section "MANDATORY THIRD STEP: Debug with MCP (NO BLIND FIXES!)"** for detailed guidance.
 
+**CRITICAL: Wait Strategy When Healing**
+
+When fixing timeout or wait-related issues, follow the **long wait on meaningful event** policy:
+
+- **Use event-based waits with long timeouts (30-45s)**: `locator.wait_for(state="visible", timeout=30000)` continues immediately when element appears, only waits full duration if element never appears
+- **Never shorten timeouts** - Instead, replace arbitrary `wait_for_timeout()` with event-based waits
+- **For polling loops**: Use short intervals (100-200ms) with long overall timeout (30-45s), exit immediately when found
+- **Why this works**: Tests are fast on fast systems (continue immediately), robust on slow systems (long timeout), and distinguish real failures from network glitches
+
+See `.cursor/rules/heal.mdc` section "CRITICAL: Wait Strategy When Healing" for detailed examples.
+
 **MCP debugging rules (see heal.mdc "MCP Debugging: Availability and Config"):**
 1. **If you cannot find or use the MCP, halt and alert** — do not apply blind fixes; tell the user MCP is required.
 2. **You MUST use the same account as the failed test.** Log in with the credentials from the heal request or config.yaml. If MCP is already in a session (e.g. you see a dashboard), verify the visible user matches that account; if not, log out and log in with the failed test's credentials. Same context (e.g. service name, IDs from until_test_context.json) so data and UI match the failing run.

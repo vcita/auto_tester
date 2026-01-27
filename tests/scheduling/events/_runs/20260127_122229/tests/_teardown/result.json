@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/_teardown",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_teardown",
+  "test_type": "teardown",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "Error loading C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_teardown\\test.py: IndentationError: unexpected indent (test.py, line 88)",
+  "error_type": "ImportError",
+  "screenshot": null,
+  "saved_at": "2026-01-27T12:26:06.270796"
+}
