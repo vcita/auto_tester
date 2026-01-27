@@ -104,7 +104,19 @@ import time
 timestamp = int(time.time())
 note_content = f"Automated test note - Created at {timestamp}"
 
+# Wait for the wizard iframe to appear first before accessing its content
+wizard_iframe_locator = outer_iframe.locator('#vue_wizard_iframe')
+wizard_iframe_locator.wait_for(state="visible", timeout=15000)
+
+# Now create the frame locator for the wizard iframe
 wizard_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
+
+# Wait for the Save button to appear (indicates dialog is ready)
+# The wizard iframe needs time to load its content
+page.wait_for_timeout(500)  # Brief wait for iframe content to load
+save_button = wizard_iframe.get_by_role("button", name="Save")
+save_button.wait_for(state="visible", timeout=15000)
+
 # Rich text editor - use contenteditable locator with fallback to placeholder text
 note_area = wizard_iframe.locator('div[contenteditable="true"]').or_(
     wizard_iframe.get_by_text("Add your note here")

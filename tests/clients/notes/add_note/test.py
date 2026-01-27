@@ -57,12 +57,19 @@ def test_add_note(page: Page, context: dict):
     
     # Step 5: Enter note content
     print(f"  Step 4: Entering note content...")
+    
+    # Wait for the wizard iframe to appear first
+    wizard_iframe_locator = outer_iframe.locator('#vue_wizard_iframe')
+    wizard_iframe_locator.wait_for(state="visible", timeout=15000)
+    
+    # Now create the frame locator for the wizard iframe
     wizard_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
     
-    # The note area is a rich text editor - we need to click on it first, then it becomes editable
     # Wait for the Save button to appear (indicates dialog is ready)
+    # The wizard iframe needs time to load its content
+    page.wait_for_timeout(500)  # Brief wait for iframe content to load
     save_button = wizard_iframe.get_by_role("button", name="Save")
-    save_button.wait_for(state="visible", timeout=10000)
+    save_button.wait_for(state="visible", timeout=15000)
     
     # The placeholder "Add your note here" is shown initially
     note_area = wizard_iframe.locator('div[contenteditable="true"]').or_(
