@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 40086,
+  "error": "ValueError: Could not find Settings link. Current URL: https://www.vcita.com/app/dashboard. Page may be in unexpected state.",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\_runs\\20260127_192312\\tests\\Create Service\\screenshot.png",
+  "saved_at": "2026-01-27T19:26:42.369585"
+}

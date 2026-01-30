@@ -71,22 +71,14 @@ def test_delete_matter(page: Page, context: dict) -> None:
     selection_indicator = page.get_by_text(re.compile(r"1 SELECTED OF \d+"))
     selection_indicator.wait_for(state="visible", timeout=15000)
 
-    # HEALED 2026-01-27: Bulk action bar (with More) can re-render after selection; element may detach on first click.
-    # Wait for "More" button to be visible and stable instead of arbitrary timeout.
-    page.get_by_role("button", name="More", exact=True).wait_for(state="visible", timeout=10000)
-    page.wait_for_timeout(300)  # Brief settle for bar to stabilize (allowed)
+    # Wait for bulk action bar (with More) to be visible before clicking (no retries).
+    more_btn = page.get_by_role("button", name="More", exact=True)
+    more_btn.wait_for(state="visible", timeout=10000)
 
     # ========== PART 3: Delete the Matter ==========
 
-    # Step 5: Click the More button (retry on detached element; bar may re-render)
-    for attempt in range(3):
-        try:
-            page.get_by_role("button", name="More", exact=True).click(timeout=12000)
-            break
-        except Exception as e:
-            if attempt == 2:
-                raise
-            page.wait_for_timeout(500)
+    # Step 5: Click the More button (once, after bar is visible)
+    more_btn.click(timeout=12000)
     
     # Step 6: Click Delete option in the dropdown
     # HEALED 2026-01-27: Dropdown items are not role="menuitem" (they're generic/span). Use menu + text.

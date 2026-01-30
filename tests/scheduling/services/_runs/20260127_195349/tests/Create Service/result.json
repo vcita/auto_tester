@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 30431,
+  "error": "TimeoutError: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/app/settings**\" until 'load'\n============================================================",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\_runs\\20260127_195349\\tests\\Create Service\\screenshot.png",
+  "saved_at": "2026-01-27T19:56:52.986258"
+}

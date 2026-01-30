@@ -74,92 +74,65 @@ def test_create_matter(page: Page, context: dict) -> None:
         dashboard_link.click()
         page.wait_for_url("**/app/dashboard**", timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
     page.wait_for_load_state("domcontentloaded")
-    # HEALED 2026-01-27: Wait for Quick actions panel to be visible instead of arbitrary timeout
-    # This ensures vue_iframe_layout and panel are ready
-    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when panel appears
+    # Dashboard content (Quick actions, Add property) is inside an iframe. HEALED 2026-01-30: Do not
+    # use frame_locator('iframe[title="angularjs"]') — multiple such iframes can exist and the first
+    # may be hidden, so we'd wait in the wrong frame. Use page-level get_by_text("Quick actions") so
+    # Playwright finds the visible panel in any frame, then scope within that document.
+    print("  Step 2: Waiting for Quick actions panel and Add matter button...")
+    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
+    add_matter_locator = quick_section.get_by_text(ADD_MATTER_TEXT_REGEX)
+    add_matter_locator.wait_for(state="visible", timeout=30000)
+    # System bug: click on Add matter right after visibility can be ignored/queued. Settle allows
+    # the panel to accept the click. Queued for fixing; keep this wait until resolved.
+    page.wait_for_timeout(2500)
 
-    print("  Step 2: Waiting for Quick actions panel...")
-    # HEALED 2026-01-22: UI changed - Quick Actions button no longer opens dropdown
-    # "Add property" is now directly visible in the Quick actions panel on the right side
-    # Must wait for the panel to fully load (async)
-    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when panel appears
-    # Wait for panel content (Add matter button) to be visible instead of arbitrary timeout
-    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
-    quick_section.get_by_text(ADD_MATTER_TEXT_REGEX).wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
-    
+    # HEALED 2026-01-30: Click the clickable parent, not the inner text node. get_by_text() can resolve
+    # to the inner element; the actual click handler is on the parent (cursor=pointer). Clicking the
+    # parent reliably opens the form; MCP confirmed the parent opens the form.
+    add_matter_clickable = add_matter_locator.locator("..")
     print("  Step 3: Clicking Add matter...")
-    # HEALED 2026-01-26: Scope to Quick actions panel. Go up to section that contains both heading and list
-    # (.. may be just the heading row on some accounts; .. gets the block that has the action list).
-    # Entity list and regex from tests/_params/matter_entities.yaml (single source of truth).
-    quick_section = page.get_by_text("Quick actions", exact=True).locator("../..")
-    add_matter_text = quick_section.get_by_text(ADD_MATTER_TEXT_REGEX)
-    add_matter_text.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
-    
-    # Scroll into view and click
-    add_matter_text.scroll_into_view_if_needed()
-    page.wait_for_timeout(500)
-    add_matter_text.click()
-    
-    print("  Step 4: Waiting for property form...")
-    # HEALED 2026-01-27: Form can load in angular-iframe or vue_iframe_layout; vue sometimes stays on
-    # .../vue/#/pending?... and form appears late. Increased to 5s initial + 40×1s poll (45s total).
-    # HEALED 2026-01-27 (retry): If form still not found, click Add matter once more and poll again (first click may not have opened form).
+    add_matter_clickable.scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
+    add_matter_clickable.click()
+
+    print("  Step 4: Waiting for property form (opened by Add matter click)...")
+    # Form loads in a nested iframe after the click. Do NOT wait in the pre-existing vue_iframe_layout
+    # (dashboard frame) — it already exists and does not contain the form until the SPA navigates.
+    # Wait only for "First Name" to appear in any frame; that happens when the form has actually opened.
     def _find_form_frame():
-        f = None
         for frame in page.frames:
             try:
                 if frame.locator('text=First Name').count() > 0:
-                    f = frame
-                    break
+                    return frame
             except Exception:
                 pass
-        return f
+        return None
 
-    # HEALED 2026-01-27: Wait for any frame to potentially have "First Name" or for vue_iframe to not be on pending
-    # Check if vue_iframe_layout exists and is not on pending route
-    vue_frame_ready = False
-    for frame in page.frames:
-        if frame.name == 'vue_iframe_layout':
-            if '/pending' not in frame.url:
-                vue_frame_ready = True
-                break
-    # If vue frame is ready, start polling immediately; otherwise brief initial wait
-    if not vue_frame_ready:
-        page.wait_for_timeout(2000)  # Brief wait for vue to potentially navigate off pending
-    
-    form_frame = None
-    max_attempts = 40
-    for attempt in range(max_attempts):
-        form_frame = _find_form_frame()
-        if form_frame:
-            break
-        # Brief wait between checks (polling interval)
-        page.wait_for_timeout(500)  # Brief polling interval (allowed)
-        print(f"    Attempt {attempt + 1}/{max_attempts}: Form not found yet...")
+    def _wait_form_in_any_frame(timeout_ms: int):
+        """Wait for 'First Name' to be visible in any frame; return that frame or None."""
+        per_frame_ms = 500
+        max_passes = max(4, timeout_ms // 4000)
+        for _ in range(max_passes):
+            for frame in page.frames:
+                try:
+                    frame.locator('text=First Name').wait_for(state='visible', timeout=per_frame_ms)
+                    return frame
+                except Exception:
+                    continue
+        return None
+
+    form_frame = _wait_form_in_any_frame(timeout_ms=20000)
 
     if not form_frame:
-        print("    Retrying: clicking Add matter again and waiting for form...")
-        add_matter_text.scroll_into_view_if_needed()
-        page.wait_for_timeout(300)  # Brief settle before click (allowed)
-        add_matter_text.click()
-        # Brief wait for click to register, then start polling
-        page.wait_for_timeout(2000)  # Brief wait for form to potentially appear
-        for attempt in range(20):
-            form_frame = _find_form_frame()
-            if form_frame:
-                break
-            page.wait_for_timeout(500)  # Brief polling interval (allowed)
-            print(f"    Retry attempt {attempt + 1}/20: Form not found yet...")
-
-    if not form_frame:
-        # Debug: print all frames
         print("  DEBUG: Available frames:")
         for i, frame in enumerate(page.frames):
-            print(f"    [{i}] name='{frame.name}', url='{frame.url[:50]}...'")
+            url_preview = (frame.url[:50] + "...") if len(frame.url) > 50 else frame.url
+            print(f"    [{i}] name='{frame.name}', url='{url_preview}'")
         raise Exception("Could not find form frame with 'First Name' field")
-    
-    print("  Step 5: Waiting for form content (First Name field)...")
-    form_frame.locator('text=First Name').wait_for(timeout=15000)
+
+    # Ensure form content is visible (immediate when we found it in _wait_form_in_any_frame)
+    form_frame.locator('text=First Name').wait_for(state='visible', timeout=15000)
+    print("  Step 5: Form ready (First Name field visible).")
     
     # Step 6: Click "Show more" to expand all contact fields
     # This button must be visible and clicked to access Referred By field

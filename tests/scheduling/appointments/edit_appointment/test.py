@@ -65,7 +65,10 @@ def test_edit_appointment(page: Page, context: dict) -> None:
     add_note_btn = outer_iframe.get_by_role('button', name='Add note')
     add_note_btn.wait_for(state='visible', timeout=5000)
     add_note_btn.click()
-    page.wait_for_timeout(1000)  # Wait for note dialog to open
+    # Wait for note dialog to open (meaningful event: Save button in note iframe)
+    note_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
+    note_iframe.get_by_role('button', name='Save').wait_for(state='visible', timeout=30000)
+    note_area = note_iframe.locator('[contenteditable="true"]')
     
     # Step 6: Enter Note Text
     print(f"  Step 6: Entering note: {test_note}...")

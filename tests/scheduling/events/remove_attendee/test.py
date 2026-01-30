@@ -260,7 +260,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
             print(f"  [DEBUG] Attempt {attempt + 1}/10: cancel_option.count() = {count}")
             if count > 0:
                 break
-            page.wait_for_timeout(500)  # Wait 500ms between checks
+            page.wait_for_timeout(500)  # Polling interval between checks (allowed)
         
         print(f"  [DEBUG] Final count after polling: {count}")
         if count > 0:
@@ -281,7 +281,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                 print(f"  [DEBUG] Filter attempt {attempt + 1}/10: count = {count}")
                 if count > 0:
                     break
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(500)  # Polling interval (allowed)
             print(f"  [DEBUG] Filter final count: {count}")
             if count > 0:
                 menu_found = True
@@ -300,7 +300,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                 print(f"  [DEBUG] Outer iframe attempt {attempt + 1}/10: count = {count}")
                 if count > 0:
                     break
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(500)  # Polling interval (allowed)
             print(f"  [DEBUG] Outer iframe final count: {count}")
             if count > 0:
                 menu_found = True
@@ -319,7 +319,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                 print(f"  [DEBUG] Document attempt {attempt + 1}/10: count = {count}")
                 if count > 0:
                     break
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(500)  # Polling interval (allowed)
             print(f"  [DEBUG] Document final count: {count}")
             if count > 0:
                 menu_found = True
@@ -425,7 +425,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
         text = attendees_tab.first.text_content()
         if text and '(0)' in text:
             break
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(500)  # Polling interval (allowed)
     
     # IMPORTANT: We validate removal by checking BOTH:
     # 1. The attendees count is 0 (attendee no longer counted as active)
@@ -474,7 +474,7 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # Re-check count if needed (in case UI is still updating)
     if not count_is_zero:
         for _ in range(6):
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(500)  # Polling interval (allowed)
             attendees_count_text = attendees_tab.first.text_content()
         count_match = re.search(r'\((\d+)\)', attendees_count_text or "")
         attendees_count = int(count_match.group(1)) if count_match else -1

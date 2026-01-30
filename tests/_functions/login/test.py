@@ -34,76 +34,51 @@ def fn_login(page: Page, context: dict, **params) -> None:
     base_url = get_base_url(context, params)
     login_url = base_url + "/login"
     
-    # Step 1: Navigate to Login Page with retry for context destruction
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            page.goto(login_url, wait_until="commit")
-            
-            # Wait for page to load - either login form appears or we get redirected
-            page.wait_for_load_state("domcontentloaded")
-            
-            # Debug: Print current page info
-            print(f"  Page URL: {page.url}")
-            print(f"  Page Title: {page.title()}")
-            
-            # If already on dashboard, we're already logged in
-            if "dashboard" in page.url:
-                context["logged_in_user"] = username
-                print("  Already logged in, skipping login")
-                return
-            
-            # Handle Cloudflare challenge - wait for it to complete or for user to solve it
-            max_cloudflare_wait = 120  # 2 minutes for manual solving if needed
-            if "Just a moment" in page.title() or page.title() == "":
-                print("  [!] Cloudflare security check detected")
-                print("  [>] Please click 'Verify you are human' checkbox if visible...")
-                try:
-                    page.wait_for_function(
-                        """() => {
-                            const title = document.title || '';
-                            // Wait until title doesn't contain Cloudflare indicators
-                            return !title.includes('Just a moment') && title !== '' && title.length > 0;
-                        }""",
-                        timeout=max_cloudflare_wait * 1000
-                    )
-                    print(f"  [OK] Cloudflare check passed!")
-                except Exception as e:
-                    print(f"  [X] Cloudflare timeout - page title: {page.title()}")
-                    raise e
-                print(f"  Page Title after wait: {page.title()}")
-            
-            # Wait for either login form OR dashboard to appear
-            # This handles both fresh login and already-logged-in scenarios
-            print(f"  Waiting for login page or dashboard...")
-            
-            # Use expect with a long timeout - it handles retries internally
-            try:
-                # Wait for the email field to be visible - this is a reliable indicator
-                # that the login form has fully rendered
-                email_field = page.get_by_label("Email", exact=True)
-                email_field.wait_for(state="visible", timeout=60000)
-                print(f"  [OK] Login form is ready")
-            except Exception as wait_error:
-                # Check if we ended up on dashboard instead
-                if "dashboard" in page.url:
-                    context["logged_in_user"] = username
-                    print("  Already logged in (redirected to dashboard), skipping login")
-                    return
-                print(f"  Current URL: {page.url}")
-                print(f"  Current Title: {page.title()}")
-                raise wait_error
-            
-            # If we get here, we successfully loaded the login page
-            break
-            
-        except Exception as e:
-            error_msg = str(e)
-            if "Execution context was destroyed" in error_msg and attempt < max_retries - 1:
-                print(f"  [!] Page navigation interrupted (attempt {attempt + 1}/{max_retries}), retrying...")
-                page.wait_for_timeout(2000)
-                continue
-            raise
+    # Step 1: Navigate to Login Page (once; no retries for actions)
+    page.goto(login_url, wait_until="commit")
+    page.wait_for_load_state("domcontentloaded")
+
+    print(f"  Page URL: {page.url}")
+    print(f"  Page Title: {page.title()}")
+
+    # If already on dashboard, wait for it to be ready then return
+    if "dashboard" in page.url:
+        context["logged_in_user"] = username
+        print("  Already logged in, waiting for dashboard to be ready...")
+        page.wait_for_load_state("domcontentloaded")
+        page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)
+        print("  [OK] Dashboard ready")
+        return
+
+    # Handle Cloudflare challenge - wait for it to complete or for user to solve it
+    max_cloudflare_wait = 120  # 2 minutes for manual solving if needed
+    if "Just a moment" in page.title() or page.title() == "":
+        print("  [!] Cloudflare security check detected")
+        print("  [>] Please click 'Verify you are human' checkbox if visible...")
+        page.wait_for_function(
+            """() => {
+                const title = document.title || '';
+                return !title.includes('Just a moment') && title !== '' && title.length > 0;
+            }""",
+            timeout=max_cloudflare_wait * 1000
+        )
+        print(f"  [OK] Cloudflare check passed!")
+        print(f"  Page Title after wait: {page.title()}")
+
+    # Wait for login form or dashboard to appear
+    print(f"  Waiting for login page or dashboard...")
+    try:
+        email_field = page.get_by_label("Email", exact=True)
+        email_field.wait_for(state="visible", timeout=60000)
+        print(f"  [OK] Login form is ready")
+    except Exception as wait_error:
+        if "dashboard" in page.url:
+            context["logged_in_user"] = username
+            print("  Already logged in (redirected to dashboard), skipping login")
+            return
+        print(f"  Current URL: {page.url}")
+        print(f"  Current Title: {page.title()}")
+        raise wait_error
     
     # Step 2: Enter Email
     # The textbox has an associated label "Email" - use get_by_label
@@ -153,10 +128,15 @@ def fn_login(page: Page, context: dict, **params) -> None:
                 print(f"  [X] Login failed - stuck on: {current_url}")
                 raise e
     
-    # Verify dashboard loaded by waiting for the sidebar menu to be visible
-    # This is faster than waiting for the title since the sidebar renders quickly
+    # Verify dashboard loaded: DOM first, then key UI so tests don't wait again
     page.wait_for_load_state("domcontentloaded")
-    
+    # Wait for dashboard to be usable (Quick actions panel). Without this, setup
+    # "completes" but the first test (e.g. create_matter) then waits here, which
+    # looks like a long pause after the dashboard with no visible action.
+    print("  Waiting for dashboard to be ready (Quick actions)...")
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)
+    print("  [OK] Dashboard ready")
+
     # Save to context
     context["logged_in_user"] = username
     print(f"  [OK] Login successful for: {username}")

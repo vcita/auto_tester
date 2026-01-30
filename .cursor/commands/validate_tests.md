@@ -102,7 +102,15 @@ Use these rule files as the **definition of what to validate**. Perform each che
 - **Check**: In each resolved test (and related _functions), grep for hardcoded entity-specific strings: literals like "Properties", "Delete properties?", "Properties deleted", "Add property", "Delete property" (menuitem), or the pattern "1 SELECTED OF \d+ PROPERTIES" as the only match. **Allowed**: positional selectors; regex that accept multiple labels (e.g. `r"1 SELECTED OF \d+"`, `r"Delete .+\?"`); for "Add &lt;entity&gt;" use **`tests._params.ADD_MATTER_TEXT_REGEX`** (entity list in `tests/_params/matter_entities.yaml`) — prefer this over inlining the entity list. Docstrings that mention "Properties"/"Clients" as examples are OK; the check targets locators and assertions.
 - **Report**: Pass if no forbidden hardcoded entity-only locators; Fail with file:line and offending string.
 
-### 2.9 Test cleanup and teardown
+### 2.9 No retries for actions
+
+**Source**: `.cursor/rules/project.mdc` (§ No Retries for Actions), `.cursor/rules/phase3_code.mdc` (§ No Retries for Actions)
+
+- **Rule**: Do not retry user actions. Wait for a condition that indicates readiness, then perform each action once. No retry loops for clicks, fills, or navigation (e.g. "if form not open, click again"; "retry More button up to 3 times").
+- **Check**: In each resolved test, grep for `retry|retries|for attempt in range|Retrying:` in `test.py` and `script.md`. Exclude infrastructure-only retries (e.g. navigation "Execution context was destroyed") if documented as such; all user-action retries (click again, fill again, etc.) are violations.
+- **Report**: Pass if no user-action retry loops; Fail with file:line and violation (e.g. "retry click Add matter", "3 attempts for More button").
+
+### 2.10 Test cleanup and teardown
 
 **Source**: `.cursor/rules/project.mdc` (§ Test Cleanup and Teardown)
 
@@ -113,6 +121,8 @@ Use these rule files as the **definition of what to validate**. Perform each che
   3. **Context variable clearing**: Check that delete/cancel tests clear context variables (e.g., `del context["created_matter_id"]` or `context["created_matter_id"] = None`).
   4. **Cancellation documentation**: If objects are cancelled instead of deleted (e.g., appointments), verify this is documented in the cancel test or teardown.
 - **Report**: Per-category table: Category | Setup objects | Teardown cleanup | Test sequence cleanup | Context cleared | Status (Pass/Fail/N/A + notes). **Pass** if: (1) no `_setup` OR `_setup` objects are cleaned in `_teardown`, (2) all create tests have corresponding delete/cancel tests OR objects are cleaned in `_teardown`, (3) context variables are cleared after deletion. **Fail** if objects are created but never cleaned up. **N/A** if category has no object creation.
+
+**Note**: Rule numbering in the summary table uses 2.9 for "No retries", 2.10 for "Test cleanup and teardown". Renumber subsequent references (e.g. "2.9" → "2.10" for cleanup) in the report template if needed.
 
 ---
 
@@ -136,7 +146,8 @@ Produce a single validation report.
    | 6. Wait strategy (no arbitrary waits) | ✅ Pass / ❌ Fail | … |
    | 7. Context / prerequisites consistency | ✅ Pass / ❌ Fail / N/A | … |
    | 8. Matter entity name agnosticism | ✅ Pass / ❌ Fail | … |
-   | 9. Test cleanup and teardown | ✅ Pass / ❌ Fail / N/A | … |
+   | 9. No retries for actions | ✅ Pass / ❌ Fail | … |
+   | 10. Test cleanup and teardown | ✅ Pass / ❌ Fail / N/A | … |
 
 3. **Per-rule sections**  
    For each rule (1–9), add a section with:
@@ -144,7 +155,7 @@ Produce a single validation report.
    - Check performed (what you grepped/read).
    - Result: Pass or Fail (or N/A where applicable).
    - If Fail: file paths, line numbers or step names, and concrete violations (and, for wait strategy, suggested event-based fixes where useful).
-   - For rule 2.9 (cleanup): Include per-category table showing setup objects, teardown cleanup, test sequence cleanup, and context clearing status.
+   - For rule 2.10 (cleanup): Include per-category table showing setup objects, teardown cleanup, test sequence cleanup, and context clearing status.
 
 4. **Files to update (optional)**  
    If any Fail: list files that should be updated (e.g. `tests/…/steps.md`, `tests/…/test.py`, `tests/…/script.md`) and what to change briefly.

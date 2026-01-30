@@ -9,8 +9,52 @@
 - Tests have been run
 - Group event service exists (context: `event_group_service_name`)
 - Test client exists (context: `event_client_name`)
+- Browser is on `/app/event-list` (from cancel_event)
 
 ## Actions
+
+### Step 0: Ensure on Navigable Page
+
+- **Action**: Navigate
+- **Target**: Dashboard (required before delete_client)
+
+**HEALED 2026-01-27**: After cancel_event, browser is on `/app/event-list`. Must navigate to dashboard first, otherwise `fn_delete_client` navigation to matter list (`.menu-items-group > div:nth-child(4)`) fails with error page at 2:11 in video.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+if "/app/dashboard" not in page.url:
+    print("  Teardown Step 0: Not on dashboard - navigating...")
+    page.wait_for_load_state("domcontentloaded")
+    try:
+        dashboard_link = page.get_by_text("Dashboard", exact=True)
+        dashboard_link.wait_for(state="visible", timeout=30000)
+        dashboard_link.scroll_into_view_if_needed()
+        page.wait_for_timeout(200)  # Brief settle before click (allowed)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+        page.wait_for_load_state("domcontentloaded")
+        print("  Teardown Step 0: Successfully navigated to dashboard")
+    except Exception as e:
+        # Fallback: try Settings then Dashboard
+        print(f"  Teardown Step 0: Dashboard navigation failed: {e}, trying Settings...")
+        try:
+            settings_link = page.get_by_text("Settings", exact=True)
+            settings_link.wait_for(state="visible", timeout=30000)
+            settings_link.scroll_into_view_if_needed()
+            page.wait_for_timeout(200)
+            settings_link.click()
+            page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")
+            # Then navigate to dashboard from settings
+            dashboard_link = page.get_by_text("Dashboard", exact=True)
+            dashboard_link.wait_for(state="visible", timeout=30000)
+            dashboard_link.click()
+            page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_load_state("domcontentloaded")
+            print("  Teardown Step 0: Successfully navigated to dashboard via Settings")
+        except Exception as e2:
+            print(f"  Teardown Step 0: Warning - Could not navigate to dashboard: {e2}")
+            pass  # Continue anyway
+```
 
 ### Step 1: Delete Test Client
 
@@ -31,8 +75,39 @@ if client_name:
     try:
         fn_delete_client(page, context)
         print(f"    Client deleted: {client_name}")
+        # HEALED 2026-01-27: After delete_client, page may be on error page. Check and navigate away.
+        page.wait_for_load_state("domcontentloaded")
+        page_text = page.locator("body").text_content() or ""
+        if "This page is unavailable" in page_text or "page is unavailable" in page_text.lower():
+            print("    Warning: Error page detected after client deletion, navigating to dashboard...")
+            try:
+                homepage_link = page.get_by_text("Return to homepage", exact=False)
+                if homepage_link.count() > 0:
+                    homepage_link.click()
+                    page.wait_for_url("**/app/dashboard**", timeout=10000)
+                else:
+                    # Fallback: navigate to dashboard via URL (allowed for error recovery)
+                    page.goto(f"{context.get('base_url', 'https://www.vcita.com')}/app/dashboard")
+                    page.wait_for_load_state("domcontentloaded")
+            except Exception as nav_error:
+                print(f"    Warning: Could not navigate away from error page: {nav_error}")
     except Exception as e:
         print(f"    Warning: Could not delete client: {e}")
+        # HEALED 2026-01-27: Even if delete fails, check for error page and navigate away
+        page.wait_for_load_state("domcontentloaded")
+        page_text = page.locator("body").text_content() or ""
+        if "This page is unavailable" in page_text or "page is unavailable" in page_text.lower():
+            print("    Warning: Error page detected, navigating to dashboard...")
+            try:
+                homepage_link = page.get_by_text("Return to homepage", exact=False)
+                if homepage_link.count() > 0:
+                    homepage_link.click()
+                    page.wait_for_url("**/app/dashboard**", timeout=10000)
+                else:
+                    page.goto(f"{context.get('base_url', 'https://www.vcita.com')}/app/dashboard")
+                    page.wait_for_load_state("domcontentloaded")
+            except Exception:
+                pass
 else:
     print("  Teardown Step 1: No client to delete (not in context)")
 ```
@@ -59,10 +134,56 @@ if service_name:
         context["created_service_name"] = service_name
         fn_delete_service(page, context)
         print(f"    Service deleted: {service_name}")
+        # HEALED 2026-01-27: After delete_service, check for error page and navigate away
+        page.wait_for_load_state("domcontentloaded")
+        page_text = page.locator("body").text_content() or ""
+        if "This page is unavailable" in page_text or "page is unavailable" in page_text.lower():
+            print("    Warning: Error page detected after service deletion, navigating to dashboard...")
+            try:
+                homepage_link = page.get_by_text("Return to homepage", exact=False)
+                if homepage_link.count() > 0:
+                    homepage_link.click()
+                    page.wait_for_url("**/app/dashboard**", timeout=10000)
+                else:
+                    page.goto(f"{context.get('base_url', 'https://www.vcita.com')}/app/dashboard")
+                    page.wait_for_load_state("domcontentloaded")
+            except Exception:
+                pass
     except Exception as e:
         print(f"    Warning: Could not delete service: {e}")
+        # HEALED 2026-01-27: Even if delete fails, check for error page
+        page.wait_for_load_state("domcontentloaded")
+        page_text = page.locator("body").text_content() or ""
+        if "This page is unavailable" in page_text or "page is unavailable" in page_text.lower():
+            print("    Warning: Error page detected, navigating to dashboard...")
+            try:
+                homepage_link = page.get_by_text("Return to homepage", exact=False)
+                if homepage_link.count() > 0:
+                    homepage_link.click()
+                    page.wait_for_url("**/app/dashboard**", timeout=10000)
+                else:
+                    page.goto(f"{context.get('base_url', 'https://www.vcita.com')}/app/dashboard")
+                    page.wait_for_load_state("domcontentloaded")
+            except Exception:
+                pass
 else:
     print("  Teardown Step 2: No service to delete (not in context)")
+
+# HEALED 2026-01-27: Final check - ensure we're not on an error page before teardown completes
+page.wait_for_load_state("domcontentloaded")
+page_text = page.locator("body").text_content() or ""
+if "This page is unavailable" in page_text or "page is unavailable" in page_text.lower():
+    print("  Teardown Final: Error page detected, navigating to dashboard...")
+    try:
+        homepage_link = page.get_by_text("Return to homepage", exact=False)
+        if homepage_link.count() > 0:
+            homepage_link.click()
+            page.wait_for_url("**/app/dashboard**", timeout=10000)
+        else:
+            page.goto(f"{context.get('base_url', 'https://www.vcita.com')}/app/dashboard")
+            page.wait_for_load_state("domcontentloaded")
+    except Exception:
+        pass
 ```
 
 **Clears context**: `event_group_service_name`, `created_service_name` (if set)

@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Cancel Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 9341,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-27T19:04:35.769190"
+}

@@ -50,13 +50,10 @@ def test_create_custom_appointment(page: Page, context: dict) -> None:
     # Step 3: Click New Button
     print("  Step 3: Clicking New button...")
     new_btn.click()
-    page.wait_for_timeout(500)  # Wait for dropdown menu
-    
-    # Step 4: Select Appointment from Menu
+    # Step 4: Select Appointment from Menu (wait for dropdown - meaningful event)
     print("  Step 4: Selecting Appointment...")
-    # CRITICAL: Use exact=True to avoid matching calendar items
     appointment_option = inner_iframe.get_by_role('menuitem', name='Appointment', exact=True)
-    appointment_option.wait_for(state='visible', timeout=5000)
+    appointment_option.wait_for(state='visible', timeout=30000)
     appointment_option.click()
     # Wait for client selection dialog
     dialog = outer_iframe.get_by_role('dialog')
@@ -66,14 +63,14 @@ def test_create_custom_appointment(page: Page, context: dict) -> None:
     print(f"  Step 5: Searching for client: {client_name}...")
     search_field = outer_iframe.get_by_role('textbox', name='Search by name, email or tag')
     search_field.click()
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(client_name, delay=30)
-    page.wait_for_timeout(500)  # Allow search results to update
+    # Wait for search results (meaningful event)
+    client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
+    client_option.wait_for(state='visible', timeout=30000)
     
     # Step 6: Select the Client
     print(f"  Step 6: Selecting client...")
-    client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
-    client_option.wait_for(state='visible', timeout=5000)
     client_option.click()
     # Wait for service panel to load by waiting for Custom service button
     custom_service_btn = inner_iframe.get_by_role('button', name='Custom service')
@@ -101,13 +98,11 @@ def test_create_custom_appointment(page: Page, context: dict) -> None:
     location_dropdown = inner_iframe.get_by_role('button').filter(has_text=re.compile(r'^arrow_drop_down$'))
     location_dropdown.wait_for(state='visible', timeout=5000)
     location_dropdown.click()
-    page.wait_for_timeout(500)  # Wait for dropdown to open
-    
-    # VERIFIED: Options are in inner_iframe, use get_by_role('option')
+    # Wait for dropdown (meaningful event)
     my_business_option = inner_iframe.get_by_role('option', name='My business address')
-    my_business_option.wait_for(state='visible', timeout=10000)
+    my_business_option.wait_for(state='visible', timeout=30000)
     my_business_option.click()
-    page.wait_for_timeout(500)  # Wait for selection to apply
+    page.wait_for_timeout(300)  # Brief settle after selection (allowed)
 
     # Step 9b: Fill required Address field (HEALED: UI requires Address before scheduling)
     print("  Step 9b: Filling required Address field...")
@@ -115,10 +110,10 @@ def test_create_custom_appointment(page: Page, context: dict) -> None:
     address_field.wait_for(state='visible', timeout=5000)
     address_field.click()
     address_field.press_sequentially('My business address', delay=30)
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(300)  # Brief settle (allowed)
     # Dismiss Google Places autocomplete by blurring (Tab). Escape closes the whole modal (same fix as create_appointment).
     page.keyboard.press('Tab')
-    page.wait_for_timeout(600)
+    page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
 
     # Step 10: Click Schedule Appointment
     print("  Step 10: Scheduling appointment...")

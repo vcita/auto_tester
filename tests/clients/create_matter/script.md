@@ -46,11 +46,10 @@ referred_by = random.choice(["Google Search", "Facebook", "Friend Referral", "We
 - **Action**: Click
 - **Target**: First "Add property" / "Add client" / "Add patient" etc. in the Quick actions panel on the right side of the dashboard
 - **Element hints**:
-  - Scope to panel: `page.get_by_text("Quick actions", exact=True).locator("..")` then within it
-  - Entity-agnostic: `get_by_text(re.compile(r"Add\s+(property|client|patient|student|pet)s?", re.IGNORECASE))` (substring match, no ^/$)
-  - Located in the "Quick actions" panel so we don't match a duplicate elsewhere; wait 15s for visible
+  - **HEALED 2026-01-30**: Do NOT use `frame_locator('iframe[title="angularjs"]')` — multiple such iframes can exist and the first may be hidden, so we'd wait in the wrong frame. Use **page-level** `page.get_by_text("Quick actions", exact=True).locator("../..")` so Playwright finds the visible panel in any frame, then within it entity-agnostic: `get_by_text(re.compile(r"Add\s+(property|client|patient|student|pet)s?", re.IGNORECASE))`.
+  - Click the **parent** of the matched text: `add_matter_locator.locator("..")`. The click handler is on the parent (cursor=pointer); get_by_text can resolve to the inner text node.
 - **Wait for**: Matter creation form/dialog to appear (inside iframe)
-- **Note**: HEALED 2026-01-26 - Scoped locator to Quick actions panel and loosened regex so the button is found reliably across verticals and async loading. HEALED 2026-01-22 - "Add property" is in a static Quick actions panel on the right side.
+- **Note**: HEALED 2026-01-30 - Page-level Quick actions locator (iframe-agnostic) and click parent so the clickable container receives the click.
 
 ### Step 2: Click "Show more" to expand contact fields
 - **Action**: Click

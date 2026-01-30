@@ -164,7 +164,15 @@ def cmd_run(args):
         reporter = CLIReporter(runner.events)
         
         # Run tests
-        if args.category:
+        # Check for selection (multiple categories/subcategories)
+        selection = getattr(args, 'selection', None)
+        if selection and args.category:
+            console.print("[red]Error: --selection and --category cannot be used together. Use --selection for multiple categories/subcategories, or --category for a single category.[/red]")
+            sys.exit(1)
+        if selection:
+            # Run selected categories/subcategories
+            result = runner.run_all(selection=selection)
+        elif args.category:
             # Run specific category (optionally only a subcategory)
             subcategory = getattr(args, 'subcategory', None)
             result = runner.run_category(args.category, subcategory_name=subcategory)
@@ -563,6 +571,11 @@ def main():
     run_parser.add_argument(
         "--subcategory",
         help="Run only this subcategory (e.g. 'services'). Parent category's setup runs first. Use with --category."
+    )
+    run_parser.add_argument(
+        "--selection", "-s",
+        nargs="+",
+        help="Run only the selected category/subcategory paths (e.g., 'clients scheduling/events'). Each path can be a category (e.g., 'clients') or a subcategory path (e.g., 'scheduling/events'). Mutually exclusive with --category."
     )
     
     # Explore command - explore and generate tests

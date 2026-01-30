@@ -1,13 +1,12 @@
 # Events Subcategory
 # Tests for scheduling and managing group event instances
-# This subcategory runs after the services subcategory (after group event CRUD is complete)
+# Run order: services -> appointments -> events (runs after appointments)
 
 name: Events
 description: Tests for scheduling group event instances, managing attendees, and canceling events
 
-# Run after services subcategory completes
-# Note: run_after doesn't support subcategory names yet, so this runs at end (after Services)
-# run_after: services
+# Run after appointments subcategory (order: services -> appointments -> events)
+run_after: appointments
 
 # Execution order - tests run sequentially in this order
 tests:

@@ -493,6 +493,65 @@ class RunStorage:
         
         return runs
     
+    def get_all_last_results(self) -> List[Dict]:
+        """
+        Get the latest result (passed/failed/skipped) for every test that has been run.
+        Scans all category _runs directories and returns the most recent result per test.
+        
+        Returns:
+            List of dicts with keys: category_path (str), test_name (str, as stored in run dir), status (str)
+        """
+        results: List[Dict] = []
+        
+        def scan_category_runs(category_path: Path, category_name: str):
+            runs_dir = category_path / self.RUNS_DIR_NAME
+            if not runs_dir.exists():
+                return
+            run_dirs = sorted(
+                [d for d in runs_dir.iterdir() if d.is_dir()],
+                key=lambda d: d.name,
+                reverse=True
+            )
+            if not run_dirs:
+                return
+            latest_run = run_dirs[0]
+            tests_dir = latest_run / "tests"
+            if not tests_dir.exists():
+                return
+            category_path_str = str(category_path.relative_to(self.tests_root)).replace("\\", "/")
+            for test_dir in tests_dir.iterdir():
+                if not test_dir.is_dir():
+                    continue
+                result_json = test_dir / "result.json"
+                if not result_json.exists():
+                    continue
+                try:
+                    data = json.loads(result_json.read_text(encoding="utf-8"))
+                    status = data.get("status")
+                    if status in ("passed", "failed", "skipped"):
+                        results.append({
+                            "category_path": category_path_str,
+                            "test_name": test_dir.name,
+                            "status": status,
+                        })
+                except (json.JSONDecodeError, IOError):
+                    pass
+            
+            for subdir in category_path.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith("_") and subdir.name != self.RUNS_DIR_NAME:
+                    subcat_name = f"{category_name}/{subdir.name}" if category_name != subdir.name else subdir.name
+                    scan_category_runs(subdir, subcat_name)
+        
+        for category_dir in self.tests_root.iterdir():
+            if not category_dir.is_dir() or category_dir.name.startswith("_"):
+                continue
+            try:
+                scan_category_runs(category_dir, category_dir.name)
+            except ValueError:
+                continue
+        
+        return results
+    
     def list_test_runs(self, category: str, test_name: str) -> List[Dict]:
         """
         List all runs that contain a specific test.

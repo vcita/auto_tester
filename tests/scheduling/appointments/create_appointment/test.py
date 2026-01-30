@@ -51,15 +51,10 @@ def test_create_appointment(page: Page, context: dict) -> None:
     # Step 3: Click New Button
     print("  Step 3: Clicking New button...")
     new_btn.click()
-    # Wait for the dropdown menu to appear
-    page.wait_for_timeout(500)
-    
-    # Step 4: Select Appointment from Menu
+    # Step 4: Select Appointment from Menu (wait for dropdown - meaningful event)
     print("  Step 4: Selecting Appointment...")
-    # CRITICAL: Use exact=True to avoid matching calendar items that contain "Appointment" in their text
-    # Without exact=True, it matches both the menu item AND calendar appointment entries
     appointment_option = inner_iframe.get_by_role('menuitem', name='Appointment', exact=True)
-    appointment_option.wait_for(state='visible', timeout=5000)
+    appointment_option.wait_for(state='visible', timeout=30000)
     appointment_option.click()
     dialog = outer_iframe.get_by_role('dialog')
     dialog.wait_for(state='visible', timeout=10000)
@@ -104,20 +99,20 @@ def test_create_appointment(page: Page, context: dict) -> None:
         address_field.wait_for(state='visible', timeout=2000)
         address_field.click()
         address_field.press_sequentially('123 Test Street', delay=30)
-        page.wait_for_timeout(300)
+        page.wait_for_timeout(300)  # Brief settle (allowed)
     except Exception:
         try:
             addr_placeholder = inner_iframe.get_by_placeholder(re.compile(r'Address', re.IGNORECASE)).first
             addr_placeholder.click()
             addr_placeholder.press_sequentially('123 Test Street', delay=30)
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(300)  # Brief settle (allowed)
         except Exception:
             pass
 
     # HEALED 2026-01-26: Dismiss Google Places autocomplete by blurring the address field (Escape closes the whole modal).
     # Click the Schedule button area to blur address and close pac-container, or Tab out.
     page.keyboard.press('Tab')
-    page.wait_for_timeout(600)
+    page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
     try:
         pac = page.locator('.pac-container')
         if pac.count() > 0:

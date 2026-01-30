@@ -53,6 +53,10 @@ If you see similar step sequences (2+ steps), EXTRACT to a new function.
 - **Expected Result**: What success looks like
 - **Test Data**: Any specific values needed
 
+### No Retries for Actions
+- Each step is performed **once** after the system is ready. Do not describe retry loops (e.g. "click Add matter; if form didn't open, click again").
+- Readiness is established by waiting for something (e.g. "Wait for Quick actions panel, then click Add matter").
+
 ### CRITICAL: Validate That the Action Actually Happened
 
 For any step that **changes state** (create, update, delete, cancel, add, remove), the test must **verify the outcome**, not only that the UI flow completed.

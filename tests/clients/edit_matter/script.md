@@ -141,7 +141,7 @@ page.wait_for_timeout(200)  # Brief settle for dialog animation
 ```python
 help_field = outer_iframe.get_by_role("textbox", name="How can we help you?")
 help_field.click()
-help_field.fill("")  # Clear existing content
+help_field.fill("")  # Clear existing content (allowed per project rules: fill for clear, then press_sequentially)
 help_field.press_sequentially(edit_data["help_request"], delay=20)
 ```
 
@@ -168,7 +168,7 @@ help_field.press_sequentially(edit_data["help_request"], delay=20)
 ```python
 instructions_field = outer_iframe.get_by_role("textbox", name="Special instructions/requests")
 instructions_field.click()
-instructions_field.fill("")  # Clear existing content
+instructions_field.fill("")  # Clear existing content (allowed per project rules: fill for clear, then press_sequentially)
 instructions_field.press_sequentially(edit_data["special_instructions"], delay=20)
 ```
 

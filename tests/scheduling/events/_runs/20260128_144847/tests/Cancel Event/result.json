@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Cancel Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 5803,
+  "error": "ValueError: Cancel Event control not found. Event may be in the past (completed); Cancel Event is only shown for future events. Ensure schedule_event sets a future date.",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260128_144847\\tests\\Cancel Event\\screenshot.png",
+  "saved_at": "2026-01-28T14:53:38.921304"
+}

@@ -23,6 +23,44 @@ from .heal import HealRequestGenerator
 from .storage import RunStorage
 
 
+def build_execution_plan(category: Category) -> List:
+    """
+    Build execution plan that interleaves tests and subcategories (same order as runner).
+    Subcategories with run_after are inserted after the named test or subcategory; others at end.
+    Used by GUI to display tests in exact run order.
+    """
+    from typing import Union
+    plan: List[Union[Test, Category]] = []
+    subcats_after: dict[str, List[Category]] = {}
+    subcats_at_end: List[Category] = []
+    for subcat in category.subcategories or []:
+        if subcat.run_after:
+            if subcat.run_after not in subcats_after:
+                subcats_after[subcat.run_after] = []
+            subcats_after[subcat.run_after].append(subcat)
+        else:
+            subcats_at_end.append(subcat)
+    for test in category.tests or []:
+        plan.append(test)
+        if test.id in subcats_after:
+            for subcat in subcats_after[test.id]:
+                plan.append(subcat)
+    # Insert subcategories that have run_after after the referenced subcategory (by path.name/id).
+    # Chains are supported: e.g. services -> appointments -> events (each has run_after the previous).
+    def subcat_key(s):
+        return s.path.name if s.path else s.name.lower().replace(" ", "_")
+
+    for subcat in subcats_at_end:
+        plan.append(subcat)
+        key = subcat_key(subcat)
+        to_append = list(subcats_after.get(key, []))
+        while to_append:
+            next_subcat = to_append.pop(0)
+            plan.append(next_subcat)
+            to_append.extend(subcats_after.get(subcat_key(next_subcat), []))
+    return plan
+
+
 class TestRunner:
     """
     Main test runner that orchestrates test execution.
@@ -141,12 +179,16 @@ class TestRunner:
             current = sub
         return chain
 
-    def run_all(self) -> RunResult:
+    def run_all(self, selection: Optional[List[str]] = None) -> RunResult:
         """
-        Run all categories.
+        Run all categories, or only the selected category paths when selection is provided.
+        
+        Args:
+            selection: Optional list of category paths to run (e.g. ["clients", "scheduling/events"]).
+                       When None, runs all top-level categories.
         
         Returns:
-            RunResult with results from all categories
+            RunResult with results from all run categories
         """
         categories = self.get_categories()
         
@@ -155,25 +197,65 @@ class TestRunner:
         # Start a new run in storage (pass config for run.json and runs_index)
         run_id = self.storage.start_run(config={"target": self.run_config} if self.run_config else None)
         
-        # Count total tests
-        total_tests = sum(len(c.tests) for c in categories)
-        
-        # Emit run started
-        self.events.emit(RunnerEvent.RUN_STARTED, {
-            "categories": [c.name for c in categories],
-            "total_categories": len(categories),
-            "total_tests": total_tests,
-            "run_id": run_id,
-        })
-        
-        # Run each category
-        for index, category in enumerate(categories):
-            category_result = self._run_category_internal(
-                category,
-                index + 1,
-                len(categories),
-            )
-            result.category_results.append(category_result)
+        if selection:
+            # Run only selected category paths
+            total_tests = 0
+            category_chains: List[Optional[List[Category]]] = []
+            for path in selection:
+                chain = self._resolve_category_path(path)
+                category_chains.append(chain)
+                if chain:
+                    total_tests += len(chain[-1].tests) if chain[-1].tests else 0
+            self.events.emit(RunnerEvent.RUN_STARTED, {
+                "categories": selection,
+                "total_categories": len(selection),
+                "total_tests": total_tests,
+                "run_id": run_id,
+            })
+            for index, path in enumerate(selection):
+                chain = category_chains[index]
+                if not chain:
+                    result.category_results.append(CategoryResult(
+                        category_name=path,
+                        category_path=Path(path),
+                        stopped_early=True,
+                        test_results=[TestResult(
+                            test_name="_path_resolve",
+                            test_path=Path(path),
+                            test_type="test",
+                            status="failed",
+                            duration_ms=0,
+                            error=f"Category path not found: {path}",
+                        )],
+                    ))
+                    continue
+                category = chain[0]
+                path_for_display = "/".join((c.path.name for c in chain if c.path))
+                category_result = self._run_category_internal(
+                    category,
+                    index + 1,
+                    len(selection),
+                    category_chain=chain,
+                )
+                if path_for_display and category_result:
+                    category_result.category_name = path_for_display
+                result.category_results.append(category_result)
+        else:
+            # Run all top-level categories (original behavior)
+            total_tests = sum(len(c.tests) for c in categories)
+            self.events.emit(RunnerEvent.RUN_STARTED, {
+                "categories": [c.name for c in categories],
+                "total_categories": len(categories),
+                "total_tests": total_tests,
+                "run_id": run_id,
+            })
+            for index, category in enumerate(categories):
+                category_result = self._run_category_internal(
+                    category,
+                    index + 1,
+                    len(categories),
+                )
+                result.category_results.append(category_result)
         
         result.completed_at = datetime.now()
         
@@ -492,7 +574,7 @@ class TestRunner:
                         )
                 else:
                     # Build execution plan: interleave tests and subcategories based on run_after
-                    execution_plan = self._build_execution_plan(category)
+                    execution_plan = build_execution_plan(category)
                     # If only one subcategory requested, use only that subcategory (don't filter the
                     # full plan: run_after can leave the requested subcategory out of the plan).
                     if subcategory_name:
@@ -866,47 +948,8 @@ class TestRunner:
         return result
     
     def _build_execution_plan(self, category: Category) -> List:
-        """
-        Build an execution plan that interleaves tests and subcategories.
-        
-        Subcategories with run_after specified will be inserted after the named test.
-        Subcategories without run_after will be added at the end.
-        
-        Args:
-            category: The category to build plan for
-            
-        Returns:
-            List of Test and Category objects in execution order
-        """
-        from typing import Union
-        
-        plan: List[Union[Test, Category]] = []
-        
-        # Create a map of test_id -> list of subcategories to run after it
-        subcats_after: dict[str, List[Category]] = {}
-        subcats_at_end: List[Category] = []
-        
-        for subcat in category.subcategories:
-            if subcat.run_after:
-                if subcat.run_after not in subcats_after:
-                    subcats_after[subcat.run_after] = []
-                subcats_after[subcat.run_after].append(subcat)
-            else:
-                subcats_at_end.append(subcat)
-        
-        # Build plan: tests with subcategories inserted at appropriate points
-        for test in category.tests:
-            plan.append(test)
-            
-            # Insert any subcategories that should run after this test
-            if test.id in subcats_after:
-                for subcat in subcats_after[test.id]:
-                    plan.append(subcat)
-        
-        # Add subcategories without run_after at the end
-        plan.extend(subcats_at_end)
-        
-        return plan
+        """Delegate to module-level build_execution_plan (same order as GUI)."""
+        return build_execution_plan(category)
     
     def _skip_remaining_items(
         self,

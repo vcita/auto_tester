@@ -67,19 +67,17 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     reschedule_btn = outer_iframe.get_by_role('button', name='Reschedule').first
     reschedule_btn.wait_for(state='visible', timeout=5000)
     reschedule_btn.click()
-    page.wait_for_timeout(1000)  # Wait for dialog to open
-    
-    # Step 7: Wait for Reschedule Dialog
+    # Step 7: Wait for Reschedule Dialog (meaningful event)
     print("  Step 7: Waiting for reschedule dialog...")
     dialog = outer_iframe.get_by_role('dialog')
-    dialog.wait_for(state='visible', timeout=10000)
+    dialog.wait_for(state='visible', timeout=30000)
     
     # Step 8: Open Start Time Dropdown
     print("  Step 8: Opening time dropdown...")
     # Click on the select button to open the time dropdown
     # VERIFIED: The second "select" button (nth(1)) opens the time picker
     outer_iframe.get_by_role('button', name='select').nth(1).click()
-    page.wait_for_timeout(500)  # Wait for dropdown to open
+    page.wait_for_timeout(300)  # Brief settle after click (allowed)
     
     # Step 9: Select New Time
     print("  Step 9: Selecting new time...")
@@ -88,7 +86,7 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     # that's unlikely to conflict with current appointment time
     new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
     new_time_option.click()
-    page.wait_for_timeout(500)  # Wait for selection to apply
+    page.wait_for_timeout(300)  # Brief settle after selection (allowed)
     
     # Step 10: Click Submit Button
     print("  Step 10: Submitting reschedule...")

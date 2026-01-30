@@ -46,8 +46,8 @@
 ### Part 3: Delete the Matter
 
 #### Step 5: Click the More Button
-- **Action**: After selection indicator is visible, wait 1.5s for bulk bar to stabilize, then click the "More" button. If click fails with element detached (Vue re-render), retry up to 3 times with fresh locator (12s timeout per attempt).
-- **Locator**: `page.get_by_role("button", name="More", exact=True)` — HEALED 2026-01-27: bulk bar can re-render; short wait + retry loop avoids timeout from detached element.
+- **Action**: After selection indicator is visible, wait for "More" button to be visible (event-based, long timeout), then click once (no retries).
+- **Locator**: `page.get_by_role("button", name="More", exact=True)` — wait for visible then single click.
 - **Wait for**: Dropdown menu to appear
 - **Expected**: Menu shows options including "Delete" under "MANAGE" section
 

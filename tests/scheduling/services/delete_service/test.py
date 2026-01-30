@@ -82,15 +82,15 @@ def test_delete_service(page: Page, context: dict) -> None:
                     previous_last_text = current_last_text
                 
                 last_service.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
             else:
                 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
                 add_button.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
         except:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
     
     # Now locate service in list and hover to reveal edit button
     service_row = iframe.get_by_role("button").filter(has_text=service_name)

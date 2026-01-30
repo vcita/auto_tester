@@ -99,16 +99,16 @@ def test_edit_matter(page: Page, context: dict) -> None:
     # Fill "How can we help you?" field
     help_field = outer_iframe.get_by_role("textbox", name="How can we help you?")
     help_field.click()
-    # Clear existing content and fill new value
-    help_field.fill("")  # Clear
+    # Clear existing content (allowed per project rules: fill for clear, then press_sequentially)
+    help_field.fill("")
     help_field.press_sequentially(edit_data["help_request"], delay=20)
     
     print(f"  Step 6: Clearing and filling 'Special instructions/requests'...")
     # Fill "Special instructions/requests" field
     instructions_field = outer_iframe.get_by_role("textbox", name="Special instructions/requests")
     instructions_field.click()
-    # Clear existing content and fill new value
-    instructions_field.fill("")  # Clear
+    # Clear existing content (allowed per project rules: fill for clear, then press_sequentially)
+    instructions_field.fill("")
     instructions_field.press_sequentially(edit_data["special_instructions"], delay=20)
     
     # ========== PART 4: Save Changes ==========

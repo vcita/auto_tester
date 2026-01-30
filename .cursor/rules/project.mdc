@@ -106,6 +106,14 @@ Plus `changelog.md` that logs all changes.
 - Tests can store/retrieve data (client IDs, meeting IDs, etc.)
 - Not persistent between runs
 
+## No Retries for Actions (CRITICAL)
+
+**Do not retry user actions.** Perform every action once, after validating (by waiting on something) that the system is ready to accept the action.
+
+- **Rule**: Wait for a specific condition that indicates readiness (element visible, URL changed, dialog closed, etc.), then perform the action once. If the action fails, the test fails.
+- **Do NOT**: Retry clicks, fills, or other user actions in a loop; do not "click again if form didn't open" or "retry More button if detached."
+- **Why**: Retries mask timing or readiness bugs. The correct fix is to wait for the right condition before acting, not to retry until something sticks.
+
 ## Key Principles
 
 1. **Black-box testing** - Never assume knowledge of vcita's codebase

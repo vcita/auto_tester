@@ -77,15 +77,15 @@ def test_edit_service(page: Page, context: dict) -> None:
                     previous_last_text = current_last_text
                 
                 last_service.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
             else:
                 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
                 add_button.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
         except:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
     
     # Now locate service in list and hover to reveal edit button
     service_row = iframe.get_by_role("button").filter(has_text=service_name)
@@ -121,7 +121,7 @@ def test_edit_service(page: Page, context: dict) -> None:
     price_field = iframe.get_by_role("spinbutton", name="Service price")
     price_field.click()
     price_field.fill("")  # Clear existing value
-    price_field.fill("75")
+    price_field.fill("75")  # fill is OK for number spinbutton
     
     # Step 6: Save changes
     print("  Step 6: Saving changes...")
@@ -134,8 +134,7 @@ def test_edit_service(page: Page, context: dict) -> None:
     
     # Step 7: Verify changes were saved
     print("  Step 7: Verifying changes were saved...")
-    # Small delay to ensure form values are populated after refresh
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(500)  # Brief settle after refresh (allowed)
     
     minutes_dropdown = iframe.get_by_role("listbox", name="Minutes :")
     expect(minutes_dropdown).to_contain_text("45 Minutes")

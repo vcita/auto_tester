@@ -61,9 +61,15 @@
 - **Timeout**: 30 seconds
 - **Note**: reCAPTCHA may appear and require manual solving
 
+### Step 8: Wait for Dashboard to Be Ready
+- **Action**: Wait for key UI
+- **Target**: "Quick actions" panel visible
+- **Timeout**: 30 seconds
+- **Reason**: Dashboard URL and DOM load first; the SPA (Vue) can take longer to render the Quick actions panel. Waiting here in login ensures setup is not considered complete until the dashboard is usable, so the first test (e.g. create_matter) does not sit waiting with no visible action.
+
 ## Success Verification
 - URL contains `/app/dashboard`
-- Page title contains "Dashboard"
+- "Quick actions" panel is visible (dashboard ready for interaction)
 
 ## Context Operations
 After successful login:

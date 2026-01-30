@@ -4,6 +4,10 @@
 
 Use these rules when processing a heal request from `.cursor/heal_requests/` or when asked to "fix", "heal", or "repair" a failing test.
 
+## No Retries for Actions (CRITICAL)
+
+When healing, **do not add retry loops** for user actions. The fix must be: wait for the right condition (element visible, bar stable, panel ready, etc.), then perform the action once. If the test was failing due to timing, add or adjust the **wait** that proves readiness; do not add "retry click" or "retry N times."
+
 ## Heal Request Location
 
 Heal requests are stored in: `.cursor/heal_requests/`

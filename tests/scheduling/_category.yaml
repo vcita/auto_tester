@@ -6,12 +6,7 @@ name: Scheduling
 description: Tests for scheduling functionality including services, calendar management, booking settings, online booking, and reminders
 
 # No direct tests in main category - all tests are in subcategories
-# Subcategories run in order based on their run_after settings:
-#   1. services (runs after _setup)
-#   2. calendar (runs after services)
-#   3. booking_settings (runs after calendar)
-#   4. online_booking (runs after booking_settings)
-#   5. reminders (runs after online_booking)
+# Subcategories run in order: services -> appointments -> events (via run_after chain)
 tests: []
 
 # Category metadata

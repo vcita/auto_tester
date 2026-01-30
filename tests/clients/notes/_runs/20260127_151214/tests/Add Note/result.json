@@ -1,0 +1,11 @@
+{
+  "test_name": "Notes/Add Note",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\clients\\notes\\add_note",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 0,
+  "error": "ValueError: No created_matter_id in context - create_matter test must run first",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\clients\\notes\\_runs\\20260127_151214\\tests\\Add Note\\screenshot.png",
+  "saved_at": "2026-01-27T15:12:34.818319"
+}

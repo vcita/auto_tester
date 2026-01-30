@@ -65,6 +65,8 @@ See `.cursor/rules/phase3_code.mdc` section "CRITICAL: Wait Strategy" for detail
 
 **CRITICAL: Only generate test.py AFTER you've completed the entire flow with MCP and verified it works end-to-end. Don't update test code until MCP flow succeeds.**
 
+**No retries for actions.** Each action is performed once, after waiting for a condition that shows the system is ready. Do not add retry loops (e.g. "if form not open, click again"). See `.cursor/rules/project.mdc` § No Retries for Actions.
+
 ---
 
 ## PHASE 3.5: Validate Test Adheres to Rules (BEFORE Running)

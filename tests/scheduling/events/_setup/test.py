@@ -78,7 +78,7 @@ def _scroll_services_list_to_end(page: Page) -> None:
             prev_height = sh
         except Exception:
             break
-        page.wait_for_timeout(400)
+        page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
 
 
 def setup_events(page: Page, context: dict) -> None:
@@ -195,11 +195,11 @@ def setup_events(page: Page, context: dict) -> None:
     iframe.get_by_role("button", name="Define the services your").click()
     page.wait_for_url("**/app/settings/services**", timeout=10000)
     iframe.get_by_role("heading", name="Settings / Services").wait_for(state="visible", timeout=10000)
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(500)  # Brief settle after navigation (allowed)
 
     # Scroll the services list to the end so every item is loaded, then find the new service.
     _scroll_services_list_to_end(page)
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(500)  # Brief settle after scroll (allowed)
 
     # Validate service actually appears on Services page (so Schedule Event can find it in dropdown)
     try:

@@ -89,15 +89,15 @@ def test_edit_group_event(page: Page, context: dict) -> None:
                     previous_last_text = current_last_text
                 
                 last_service.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
             else:
                 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
                 add_button.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
         except Exception as e:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
     
     # NOW find and click on the group event (all items should be loaded)
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
@@ -141,7 +141,7 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     # Wait for save to complete - the page refreshes
     name_field = iframe.get_by_role("textbox", name="Service name *")
     name_field.wait_for(state="visible", timeout=10000)
-    page.wait_for_timeout(500)  # Brief settle time after save
+    page.wait_for_timeout(500)  # Brief settle after save (allowed)
     
     # Step 8: Verify Changes by Re-checking Field Values
     print("  Step 7: Verifying changes were saved...")
@@ -232,15 +232,15 @@ def test_edit_group_event(page: Page, context: dict) -> None:
                     previous_last_text = current_last_text
                 
                 last_service.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
             else:
                 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
                 add_button.scroll_into_view_if_needed()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
         except Exception as e:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
     
     # Find the group event in the list (all items should be loaded)
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work

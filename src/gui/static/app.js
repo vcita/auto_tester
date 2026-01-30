@@ -11,8 +11,11 @@ const state = {
     currentTestFilter: null, // { category, testName } when filtering runs by test
     activeCenterTab: 'details', // Track which center panel tab is active (details or runs)
     isRunning: false,
-    eventSource: null
+    eventSource: null,
+    lastResults: {}  // tree_key -> "passed" | "failed" | "skipped" (from /api/last-results)
 };
+
+const STORAGE_ACTIVE_KEY = 'test-runner-active';  // localStorage: { [treeKey]: boolean }
 
 // ==================== DOM Elements ====================
 
@@ -32,7 +35,9 @@ function initializeElements() {
         btnRefresh: document.getElementById('btn-refresh'),
         statusIndicator: document.getElementById('status-indicator'),
         modal: document.getElementById('modal'),
-        modalBody: document.getElementById('modal-body')
+        modalBody: document.getElementById('modal-body'),
+        healRequestsList: document.getElementById('heal-requests-list'),
+        healRequestsRefresh: document.getElementById('heal-requests-refresh')
     };
     
     console.log('Elements initialized:', Object.keys(elements).map(k => `${k}: ${elements[k] ? 'found' : 'NOT FOUND'}`).join(', '));
@@ -95,7 +100,7 @@ async function fetchVideos() {
 
 async function fetchHealRequests() {
     try {
-        const response = await fetch('/api/heal-requests');
+        const response = await fetch('/api/heal-requests?t=' + Date.now());
         return await response.json();
     } catch (error) {
         console.error('Failed to fetch heal requests:', error);
@@ -196,9 +201,57 @@ async function runCategory(category) {
     }
 }
 
-async function runAllTests() {
+async function fetchLastResults() {
     try {
-        const response = await fetch('/api/run/all', { method: 'POST' });
+        const response = await fetch('/api/last-results');
+        if (!response.ok) return;
+        const data = await response.json();
+        state.lastResults = data.last_results || {};
+        return state.lastResults;
+    } catch (error) {
+        console.error('Failed to fetch last results:', error);
+        return {};
+    }
+}
+
+function getActiveFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_ACTIVE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+function setActiveInStorage(active) {
+    try {
+        localStorage.setItem(STORAGE_ACTIVE_KEY, JSON.stringify(active));
+    } catch (e) {
+        console.warn('Failed to save active state', e);
+    }
+}
+
+function isActive(treeKey) {
+    const stored = getActiveFromStorage();
+    if (stored && stored.hasOwnProperty(treeKey)) return !!stored[treeKey];
+    return true;  // default: active
+}
+
+function setActive(treeKey, active) {
+    const stored = getActiveFromStorage() || {};
+    stored[treeKey] = active;
+    setActiveInStorage(stored);
+}
+
+async function runAllTests(selection) {
+    try {
+        const body = selection && selection.length ? { selection } : {};
+        const response = await fetch('/api/run/all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
         return await response.json();
     } catch (error) {
         console.error('Failed to run all tests:', error);
@@ -265,6 +318,7 @@ function connectSSE() {
         updateRunningState(false);
         addLogEntry('success', `Tests complete: ${data.passed} passed, ${data.failed} failed, ${data.skipped} skipped`);
         loadRuns(); // Refresh runs list after completion
+        fetchLastResults().then(() => updateResultBadges());
     });
 
     state.eventSource.addEventListener('run_error', (event) => {
@@ -320,6 +374,45 @@ function connectSSE() {
 
 // ==================== Rendering Functions ====================
 
+function formatResultBadge(treeKey) {
+    const status = state.lastResults[treeKey];
+    if (!status) return '<span class="tree-status tree-result tree-result-none">—</span>';
+    const cls = status === 'passed' ? 'tree-result-passed' : status === 'failed' ? 'tree-result-failed' : 'tree-result-skipped';
+    const label = status.charAt(0).toUpperCase() + status.slice(1);
+    return `<span class="tree-status tree-result ${cls}">${label}</span>`;
+}
+
+function toggleTreeActive(event) {
+    event.stopPropagation();
+    const el = event.target;
+    if (!el.classList.contains('tree-checkbox')) return;
+    const treeKey = el.getAttribute('data-tree-key');
+    const runPath = el.getAttribute('data-run-path');
+    if (!treeKey) return;
+    setActive(treeKey, el.checked);
+}
+
+function getCheckedRunPaths() {
+    const paths = new Set();
+    document.querySelectorAll('.tree-checkbox:checked').forEach(cb => {
+        const runPath = cb.getAttribute('data-run-path');
+        if (runPath) paths.add(runPath);
+    });
+    return Array.from(paths);
+}
+
+function updateResultBadges() {
+    document.querySelectorAll('.tree-header .tree-result').forEach(span => {
+        const header = span.closest('.tree-header');
+        const cb = header && header.querySelector('.tree-checkbox');
+        if (!cb) return;
+        const treeKey = cb.getAttribute('data-tree-key');
+        const status = state.lastResults[treeKey];
+        span.className = 'tree-status tree-result' + (status ? ' tree-result-' + status : ' tree-result-none');
+        span.textContent = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : '—';
+    });
+}
+
 function renderTestTree(categories) {
     if (!elements.testTree) {
         console.error('testTree element not found in renderTestTree');
@@ -341,84 +434,176 @@ function renderTestTree(categories) {
             console.warn('Category missing id or name:', category);
             continue;
         }
+        const catChecked = isActive(category.id) ? ' checked' : '';
         html += `
             <div class="tree-category" data-category="${category.id}">
                 <div class="tree-header" onclick="toggleCategory('${category.id}')">
                     <span class="tree-toggle">▼</span>
+                    <input type="checkbox" class="tree-checkbox" data-tree-key="${category.id}" data-run-path="${category.id}"${catChecked} onclick="toggleTreeActive(event)">
                     <span class="tree-icon">📁</span>
                     <span class="tree-name">${category.name}</span>
+                    <span class="tree-status tree-result"></span>
                 </div>
                 <div class="tree-children" id="cat-${category.id}">
         `;
         
-        // Add setup if exists
-        if (category.has_setup) {
-            html += `
+        // Render in exact run order (execution_items) when available; otherwise legacy order
+        const items = category.execution_items && category.execution_items.length > 0
+            ? category.execution_items
+            : null;
+        if (items) {
+            for (const item of items) {
+                if (item.type === 'setup') {
+                    const treeKey = `${category.id}/_setup`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
                 <div class="tree-item">
-                    <div class="tree-header" onclick="selectTest('${category.id}', '_setup')">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '_setup')" data-test="${category.id}/_setup">
                         <span class="tree-toggle"></span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
                         <span class="tree-icon">⚙️</span>
                         <span class="tree-name">_setup</span>
+                        ${resultBadge}
                     </div>
-                </div>
-            `;
-        }
-        
-        // Add direct tests
-        for (const test of category.tests) {
-            const statusClass = test.status.toLowerCase();
-            html += `
+                </div>`;
+                } else if (item.type === 'teardown') {
+                    const treeKey = `${category.id}/_teardown`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
                 <div class="tree-item">
-                    <div class="tree-header" onclick="selectTest('${category.id}', '${test.id}')" data-test="${category.id}/${test.id}">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '_teardown')" data-test="${category.id}/_teardown">
                         <span class="tree-toggle"></span>
-                        <span class="tree-icon">🧪</span>
-                        <span class="tree-name">${test.name}</span>
-                        <span class="tree-status ${statusClass}">${test.status}</span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
+                        <span class="tree-icon">🧹</span>
+                        <span class="tree-name">_teardown</span>
+                        ${resultBadge}
                     </div>
-                </div>
-            `;
-        }
-        
-        // Add subcategories
-        for (const subcat of category.subcategories) {
-            html += `
+                </div>`;
+                } else if (item.type === 'test') {
+                    const treeKey = `${category.id}/${item.id}`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
+                <div class="tree-item">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '${item.id}')" data-test="${category.id}/${item.id}">
+                        <span class="tree-toggle"></span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
+                        <span class="tree-icon">🧪</span>
+                        <span class="tree-name">${item.name}</span>
+                        ${resultBadge}
+                    </div>
+                </div>`;
+                } else if (item.type === 'subcategory') {
+                    const subcat = item;
+                    const subcatTreeKey = `${category.id}/${subcat.id}`;
+                    const subcatChecked = isActive(subcatTreeKey) ? ' checked' : '';
+                    html += `
                 <div class="tree-category" data-subcategory="${subcat.id}">
                     <div class="tree-header" onclick="toggleSubcategory('${category.id}', '${subcat.id}')">
                         <span class="tree-toggle">▼</span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${category.id}/${subcat.id}"${subcatChecked} onclick="toggleTreeActive(event)">
                         <span class="tree-icon">📂</span>
                         <span class="tree-name">${subcat.name}</span>
+                        <span class="tree-status tree-result"></span>
                     </div>
-                    <div class="tree-children" id="subcat-${category.id}-${subcat.id}">
-            `;
-            
-            for (const test of subcat.tests) {
-                const statusClass = test.status.toLowerCase();
-                html += `
+                    <div class="tree-children" id="subcat-${category.id}-${subcat.id}">`;
+                    for (const test of subcat.tests || []) {
+                        const treeKey = `${category.id}/${subcat.id}/${test.id}`;
+                        const checked = isActive(treeKey) ? ' checked' : '';
+                        const resultBadge = formatResultBadge(treeKey);
+                        html += `
                     <div class="tree-item">
                         <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/${test.id}')" data-test="${category.id}/${subcat.id}/${test.id}">
                             <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
                             <span class="tree-icon">🧪</span>
                             <span class="tree-name">${test.name}</span>
-                            <span class="tree-status ${statusClass}">${test.status}</span>
+                            ${resultBadge}
                         </div>
-                    </div>
-                `;
+                    </div>`;
+                    }
+                    html += '</div></div>';
+                }
             }
-            
-            html += '</div></div>';
-        }
-        
-        // Add teardown if exists
-        if (category.has_teardown) {
-            html += `
+        } else {
+            // Legacy: setup, tests, subcategories, teardown
+            if (category.has_setup) {
+                const treeKey = `${category.id}/_setup`;
+                const checked = isActive(treeKey) ? ' checked' : '';
+                const resultBadge = formatResultBadge(treeKey);
+                html += `
                 <div class="tree-item">
-                    <div class="tree-header" onclick="selectTest('${category.id}', '_teardown')">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '_setup')" data-test="${category.id}/_setup">
                         <span class="tree-toggle"></span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
+                        <span class="tree-icon">⚙️</span>
+                        <span class="tree-name">_setup</span>
+                        ${resultBadge}
+                    </div>
+                </div>`;
+            }
+            for (const test of category.tests || []) {
+                const treeKey = `${category.id}/${test.id}`;
+                const checked = isActive(treeKey) ? ' checked' : '';
+                const resultBadge = formatResultBadge(treeKey);
+                html += `
+                <div class="tree-item">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '${test.id}')" data-test="${category.id}/${test.id}">
+                        <span class="tree-toggle"></span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
+                        <span class="tree-icon">🧪</span>
+                        <span class="tree-name">${test.name}</span>
+                        ${resultBadge}
+                    </div>
+                </div>`;
+            }
+            for (const subcat of category.subcategories || []) {
+                const subcatTreeKey = `${category.id}/${subcat.id}`;
+                const subcatChecked = isActive(subcatTreeKey) ? ' checked' : '';
+                html += `
+                <div class="tree-category" data-subcategory="${subcat.id}">
+                    <div class="tree-header" onclick="toggleSubcategory('${category.id}', '${subcat.id}')">
+                        <span class="tree-toggle">▼</span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${category.id}/${subcat.id}"${subcatChecked} onclick="toggleTreeActive(event)">
+                        <span class="tree-icon">📂</span>
+                        <span class="tree-name">${subcat.name}</span>
+                        <span class="tree-status tree-result"></span>
+                    </div>
+                    <div class="tree-children" id="subcat-${category.id}-${subcat.id}">`;
+                for (const test of subcat.tests || []) {
+                    const treeKey = `${category.id}/${subcat.id}/${test.id}`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
+                    <div class="tree-item">
+                        <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/${test.id}')" data-test="${category.id}/${subcat.id}/${test.id}">
+                            <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
+                            <span class="tree-icon">🧪</span>
+                            <span class="tree-name">${test.name}</span>
+                            ${resultBadge}
+                        </div>
+                    </div>`;
+                }
+                html += '</div></div>';
+            }
+            if (category.has_teardown) {
+                const treeKey = `${category.id}/_teardown`;
+                const checked = isActive(treeKey) ? ' checked' : '';
+                const resultBadge = formatResultBadge(treeKey);
+                html += `
+                <div class="tree-item">
+                    <div class="tree-header" onclick="selectTest('${category.id}', '_teardown')" data-test="${category.id}/_teardown">
+                        <span class="tree-toggle"></span>
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}"${checked} onclick="toggleTreeActive(event)">
                         <span class="tree-icon">🧹</span>
                         <span class="tree-name">_teardown</span>
+                        ${resultBadge}
                     </div>
-                </div>
-            `;
+                </div>`;
+            }
         }
         
         html += '</div></div>';
@@ -510,6 +695,7 @@ function renderVideos(videos) {
 }
 
 function renderHealRequests(healRequests) {
+    if (!elements.healList) return;
     if (!healRequests || healRequests.length === 0) {
         elements.healList.innerHTML = '<div class="empty-state"><span class="icon">🩹</span><p>No heal requests</p></div>';
         return;
@@ -531,6 +717,51 @@ function renderHealRequests(healRequests) {
         `;
     }
     elements.healList.innerHTML = html;
+}
+
+function renderRightPanelHealRequests(requests) {
+    if (!elements.healRequestsList) return;
+    if (!requests || requests.length === 0) {
+        elements.healRequestsList.innerHTML = '<div class="empty-state"><span class="icon">🩹</span><p>No heal requests</p></div>';
+        return;
+    }
+    let html = '<div class="heal-requests-table-header"><span>Date</span><span>Test</span><span>Category</span><span>Status</span></div>';
+    for (const req of requests) {
+        const date = new Date(req.modified).toLocaleString();
+        const testName = escapeHtml(req.test_name || req.filename || req.id);
+        const category = escapeHtml(req.category || '—');
+        const status = (req.status || 'open').toLowerCase();
+        const statusClass = status === 'resolved' || status === 'fixed' ? 'heal-status-resolved' : status === 'expired' || status === 'reported' ? 'heal-status-expired' : 'heal-status-open';
+        html += `
+            <div class="heal-request-row" data-heal-id="${escapeHtml(req.id)}" onclick="showHealRequest(this.getAttribute('data-heal-id'))" title="Click to view full content">
+                <span class="heal-date">${date}</span>
+                <span class="heal-test">${testName}</span>
+                <span class="heal-category">${category}</span>
+                <span class="heal-status ${statusClass}">${status}</span>
+            </div>
+        `;
+    }
+    elements.healRequestsList.innerHTML = html;
+}
+
+async function loadRightPanelHealRequests() {
+    if (!elements.healRequestsList) return;
+    elements.healRequestsList.innerHTML = '<div class="loading">Loading heal requests...</div>';
+    const data = await fetchHealRequests();
+    renderRightPanelHealRequests(data.heal_requests);
+}
+
+function switchRightPanelTab(tabId) {
+    document.querySelectorAll('.right-panel-tabs .tab').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('data-right-tab') === tabId);
+    });
+    document.querySelectorAll('.right-tab-content').forEach(el => {
+        const id = el.id.replace('right-tab-', '');
+        el.classList.toggle('active', id === tabId);
+    });
+    if (tabId === 'heal-requests') {
+        loadRightPanelHealRequests();
+    }
 }
 
 function renderRuns(runs, categoryFilter = null, testFilter = null) {
@@ -1130,7 +1361,7 @@ async function loadCategories() {
     
     elements.testTree.innerHTML = '<div class="loading">Loading tests...</div>';
     try {
-        const categories = await fetchCategories();
+        const [categories, _] = await Promise.all([fetchCategories(), fetchLastResults()]);
         console.log('Loaded categories:', categories);
         console.log('Number of categories:', categories?.length || 0);
         
@@ -1163,6 +1394,7 @@ async function loadVideos() {
 }
 
 async function loadHealRequests() {
+    if (!elements.healList) return;
     elements.healList.innerHTML = '<div class="loading">Loading...</div>';
     const data = await fetchHealRequests();
     renderHealRequests(data.heal_requests);
@@ -1250,7 +1482,8 @@ function setupEventHandlers() {
 
     elements.btnRunAll.addEventListener('click', async () => {
         if (!state.isRunning) {
-            await runAllTests();
+            const selection = getCheckedRunPaths();
+            await runAllTests(selection);
         }
     });
 
@@ -1268,6 +1501,17 @@ function setupEventHandlers() {
         });
     }
 
+    if (elements.healRequestsRefresh) {
+        elements.healRequestsRefresh.addEventListener('click', () => loadRightPanelHealRequests());
+    }
+
+    // Right panel tab switching (Run output / Heal requests)
+    document.querySelectorAll('.right-panel-tabs .tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.getAttribute('data-right-tab');
+            if (tabId) switchRightPanelTab(tabId);
+        });
+    });
 
     // Tab switching
     document.querySelectorAll('.tabs .tab').forEach(tab => {

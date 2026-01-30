@@ -36,6 +36,8 @@ Each action MUST include:
 - **Wait for**: What to expect after the action
 - **Fallback locators**: Alternative selectors for self-healing
 
+**No retries for actions.** Before each action, document what we wait for to ensure the system is ready; then the action is performed once. Do not document retry loops (e.g. "if form not open, click again").
+
 ### Locator Decision Process
 
 Before documenting a step, you MUST evaluate locator options:
@@ -71,6 +73,18 @@ Why:
 - Triggers all input events (keydown/keyup)
 - Works with autocomplete/combobox fields
 - More reliable across different field types
+
+### Exception: Clearing fields
+
+**You may use `fill("")` to clear a field before typing.** After clearing, use `press_sequentially()` for the new value:
+
+```python
+field.click()
+field.fill("")  # Clear existing content (allowed)
+field.press_sequentially(new_value, delay=20)
+```
+
+Document in script.md when this pattern is used (e.g. "Clear existing content then type new value").
 
 ### Exception: Rich Text Editors (contenteditable)
 
@@ -329,22 +343,16 @@ name_field.press_sequentially(name)
 
 ## CRITICAL: Wait Strategy
 
-**No arbitrary time waits.** Always wait for a concrete event (element visible/hidden, URL, list loaded, etc.) with a timeout. Never assume "wait X seconds" is enough.
+**Prefer long waits on meaningful events.** Always wait for something specific: a page to appear, a button, a message, a dropdown menu, a dialog, a list item, a URL change, etc. Use event-based waits with **long timeouts (30-45 seconds)**. Long waits on meaningful events are preferred—they are robust on slow systems and continue as soon as the condition is met.
 
-**NEVER use `wait_for_timeout()` alone.** Every action that changes UI state must wait for a specific element or condition.
+**Avoid arbitrary short time waits.** Do not use fixed short delays (e.g. "wait 2 seconds") in place of waiting for a specific UI event. Arbitrary short waits fail when the system is slow and make tests flaky. Wait for a concrete thing (element visible, dialog closed, URL changed) with a long timeout.
 
-**CRITICAL: Long Timeouts for Robust Tests**
+**NEVER use `wait_for_timeout()` alone for action completion.** Every action that changes UI state must wait for a specific element or condition.
 
-Tests must be robust and work even when the system is slow. Use **long timeouts (30-45 seconds) on meaningful event-based waits**:
-
-- **Continues immediately when condition is met** - If element appears in 2 seconds, test continues in 2 seconds
-- **Only waits full duration if condition never appears** - If element never appears, we know there's a real failure
-- **Makes tests stable** - Works on slow systems without being flaky on fast systems
-
-**Use long timeouts (30-45s) for all event-based waits:**
-- Element visibility: `locator.wait_for(state="visible", timeout=30000)`
+**Long timeouts (30-45s) on meaningful events:**
+- Element visibility (page, button, message, dropdown): `locator.wait_for(state="visible", timeout=30000)`
 - URL navigation: `page.wait_for_url("**/dashboard**", timeout=30000)`
-- Dialog operations: `dialog.wait_for(state="visible", timeout=30000)`
+- Dialog operations: `dialog.wait_for(state="visible", timeout=30000)` or `state="hidden"`
 - List/item appearance: `item.wait_for(state="visible", timeout=30000)`
 
 **For polling loops** (when direct event-based wait isn't possible):
@@ -383,8 +391,8 @@ Only use `wait_for_timeout()` with small values (100-300ms) for:
 dialog.wait_for(state="visible", timeout=10000)
 page.wait_for_timeout(200)  # Brief animation settle
 
-# WRONG: Fixed delay alone
-page.wait_for_timeout(2000)  # Bad - no element verification
+# WRONG: Arbitrary short wait instead of waiting for something specific
+page.wait_for_timeout(2000)  # Bad - if system is slow, 2s may not be enough; wait for dialog/element with long timeout
 ```
 
 ### Document in Script

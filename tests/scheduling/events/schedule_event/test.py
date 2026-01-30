@@ -142,8 +142,9 @@ def test_schedule_event(page: Page, context: dict) -> None:
     calendar_menu = page.get_by_text("Calendar", exact=True)
     calendar_menu.click()
     event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
-    event_list_item.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when item appears
-    event_list_item.first.evaluate('el => el.click()')
+    # HEALED 2026-01-27: Submenu item can be attached but hidden when Calendar submenu is collapsed; wait for attached then force click.
+    event_list_item.wait_for(state='attached', timeout=10000)
+    event_list_item.first.evaluate('el => el.click()')  # Force click (sidebar may be collapsed)
     page.wait_for_url("**/app/event-list**", timeout=15000)
     page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)  # Long timeout for slow systems, continues immediately when iframe appears
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')

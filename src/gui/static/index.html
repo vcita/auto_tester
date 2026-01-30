@@ -87,19 +87,34 @@
             <!-- Resize Handle for Right Panel -->
             <div class="resize-handle resize-handle-right" id="resize-handle-right"></div>
             
-            <!-- Right Panel - Current Run Output -->
+            <!-- Right Panel - Run Output / Heal Requests -->
             <aside class="panel panel-right" id="panel-right">
                 <div class="panel-header">
-                    <h2>Current Run Output</h2>
+                    <div class="tabs right-panel-tabs">
+                        <button class="tab active" data-right-tab="output">Run output</button>
+                        <button class="tab" data-right-tab="heal-requests">Heal requests</button>
+                    </div>
                 </div>
                 <div class="panel-content">
-                    <div class="results-header-info">
-                        <span class="results-header-note">Live test execution results</span>
+                    <!-- Run output view -->
+                    <div id="right-tab-output" class="right-tab-content active">
+                        <div class="results-header-info">
+                            <span class="results-header-note">Live test execution results</span>
+                        </div>
+                        <div class="results-log" id="results-log">
+                            <div class="placeholder">
+                                <p>Run tests to see results here</p>
+                                <p class="results-note">This shows real-time output from the current test run.</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="results-log" id="results-log">
-                        <div class="placeholder">
-                            <p>Run tests to see results here</p>
-                            <p class="results-note">This shows real-time output from the current test run.</p>
+                    <!-- Heal requests list view -->
+                    <div id="right-tab-heal-requests" class="right-tab-content">
+                        <div class="heal-requests-header">
+                            <button id="heal-requests-refresh" class="btn btn-icon" title="Refresh">&#8635;</button>
+                        </div>
+                        <div id="heal-requests-list" class="heal-requests-list">
+                            <div class="loading">Loading heal requests...</div>
                         </div>
                     </div>
                 </div>

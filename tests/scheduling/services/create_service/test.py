@@ -25,19 +25,68 @@ def test_create_service(page: Page, context: dict) -> None:
     - created_service_price: Price of the service
     """
     
-    # Step 1: Verify on Services page (navigate via UI if not - e.g. after Events subcategory we're on event-list)
+    # Step 1: Verify on Services page (navigate via UI if not - e.g. after Events subcategory we're on dashboard)
     print("  Step 1: Verifying on Services page...")
     if "/app/settings/services" not in page.url:
-        # HEALED 2026-01-27: Scheduling runs Events then Services; after Events we're on event-list. Navigate via UI.
+        # HEALED 2026-01-27: After Events teardown with error page recovery, we should be on dashboard.
+        # Navigate via UI: Settings → Services button in iframe.
         print("  Step 1a: Not on Services page - navigating via Settings...")
-        page.get_by_text("Settings").click()
-        page.wait_for_url("**/app/settings**", timeout=10000)
-        page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+        # HEALED 2026-01-27: After error page recovery, we're on dashboard. Settings should be visible.
+        # Wait for page to be ready
+        page.wait_for_load_state("domcontentloaded")
+        
+        # Find and click Settings link
+        settings_link = page.get_by_text("Settings", exact=True)
+        settings_link.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when visible
+        # HEALED 2026-01-27: Ensure Settings link is actually clickable (not just visible)
+        settings_link.wait_for(state="attached", timeout=10000)
+        # Scroll into view if needed
+        settings_link.scroll_into_view_if_needed()
+        page.wait_for_timeout(200)  # Brief settle before click (allowed)
+        
+        # HEALED 2026-01-27: Verify current URL before clicking to understand state
+        current_url_before = page.url
+        print(f"  Step 1a: Current URL before Settings click: {current_url_before}")
+        
+        # Click Settings and wait for navigation
+        settings_link.click()
+        
+        # HEALED 2026-01-27: Wait for navigation with multiple strategies
+        # Strategy 1: Wait for URL change with domcontentloaded
+        try:
+            page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")  # Long timeout, continues immediately when URL matches
+            print("  Step 1a: Successfully navigated to Settings")
+        except Exception as url_error:
+            # Strategy 2: Check if URL already changed (navigation might have been instant)
+            page.wait_for_timeout(500)  # Brief wait for any pending navigation (allowed)
+            current_url_after = page.url
+            print(f"  Step 1a: URL after click: {current_url_after}")
+            if "/app/settings" in current_url_after:
+                print("  Step 1a: Already on settings page after click")
+            else:
+                # Strategy 3: Check if Settings link click opened a menu instead of navigating
+                # If we're still on dashboard, Settings might be a menu that needs to be expanded
+                if "/app/dashboard" in current_url_after:
+                    print("  Step 1a: Still on dashboard - Settings might be a menu, trying to find Settings page link...")
+                    # Try to find a Settings submenu item or direct Settings page link
+                    try:
+                        # Check if there's a Settings submenu that opened
+                        settings_submenu = page.locator('[data-qa*="settings"], [href*="settings"]').first
+                        if settings_submenu.count() > 0:
+                            settings_submenu.click()
+                            page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")
+                        else:
+                            raise url_error
+                    except Exception:
+                        raise url_error
+                else:
+                    raise url_error
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
         iframe = page.frame_locator('iframe[title="angularjs"]')
         services_button = iframe.get_by_role("button", name="Define the services your")
-        services_button.wait_for(state="visible", timeout=10000)
+        services_button.wait_for(state="visible", timeout=15000)
         services_button.click()
-        page.wait_for_url("**/app/settings/services**", timeout=10000)
+        page.wait_for_url("**/app/settings/services**", timeout=30000, wait_until="domcontentloaded")  # Long timeout, continues immediately when URL matches
 
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')

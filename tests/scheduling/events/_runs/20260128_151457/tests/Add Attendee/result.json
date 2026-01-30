@@ -1,0 +1,11 @@
+{
+  "test_name": "Events/Add Attendee",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 20328,
+  "error": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_role(\"button\", name=\"Send\") to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_runs\\20260128_151457\\tests\\Add Attendee\\screenshot.png",
+  "saved_at": "2026-01-28T15:19:13.502974"
+}

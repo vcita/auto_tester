@@ -1,5 +1,17 @@
 # Changelog - Create Matter
 
+## [2.9.0] - 2026-01-30
+
+### Fixed (Healed)
+- **Could not find form frame with 'First Name' field** / **iframe reported hidden** (form never opened)
+  - **Error**: `Exception: Could not find form frame with 'First Name' field`; later runs: `TimeoutError: Locator.wait_for: Timeout 30000ms exceeded` waiting for iframe to be visible or for Quick actions inside frame.
+  - **Root cause**: (1) Click was on the inner text node; the click handler is on the parent (cursor=pointer). (2) Multiple iframes with `title="angularjs"` exist; the first can be hidden, so `frame_locator('iframe[title="angularjs"]')` attached to the wrong frame and content never became visible.
+  - **Fix applied**:
+    1. **Page-level Quick actions**: Use `page.get_by_text("Quick actions", exact=True).locator("../..")` so Playwright finds the visible panel in any frame (no dependency on which iframe).
+    2. **Click parent**: Use `add_matter_locator.locator("..")` and click that; the parent is the clickable container (MCP confirmed ref=e238 opens form).
+  - **Files updated**: test.py (Steps 2–3), script.md (Step 1).
+  - **Verified**: Category run — Create Matter and full Clients category (7 tests) passed.
+
 ## [2.8.0] - 2026-01-27
 
 ### Fixed (Healed)

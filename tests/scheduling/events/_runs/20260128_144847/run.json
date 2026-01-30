@@ -1,0 +1,103 @@
+{
+  "category_name": "Events",
+  "category_path": "scheduling\\events",
+  "status": "partial",
+  "passed": 5,
+  "failed": 1,
+  "skipped": 0,
+  "total": 6,
+  "duration_ms": 282305,
+  "stopped_early": false,
+  "setup_result": {
+    "test_name": "Events/_setup",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_setup",
+    "test_type": "setup",
+    "status": "passed",
+    "duration_ms": 68428,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "test_results": [
+    {
+      "test_name": "Events/Schedule Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\schedule_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 89988,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/View Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\view_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 11521,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Add Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\add_attendee",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 24590,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Remove Attendee",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\remove_attendee",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 10631,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Edit Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\edit_event",
+      "test_type": "test",
+      "status": "passed",
+      "duration_ms": 12835,
+      "error": null,
+      "error_type": null,
+      "screenshot": null
+    },
+    {
+      "test_name": "Events/Cancel Event",
+      "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\cancel_event",
+      "test_type": "test",
+      "status": "failed",
+      "duration_ms": 5803,
+      "error": "ValueError: Cancel Event control not found. Event may be in the past (completed); Cancel Event is only shown for future events. Ensure schedule_event sets a future date.",
+      "error_type": "ValueError",
+      "screenshot": ".temp_screenshots\\cancel_event_20260128_145337.png"
+    }
+  ],
+  "teardown_result": {
+    "test_name": "Events/_teardown",
+    "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\events\\_teardown",
+    "test_type": "teardown",
+    "status": "passed",
+    "duration_ms": 58509,
+    "error": null,
+    "error_type": null,
+    "screenshot": null
+  },
+  "run_id": "20260128_144847",
+  "saved_at": "2026-01-28T14:54:37.610653",
+  "config": {
+    "target": {
+      "base_url": "https://www.vcita.com",
+      "auth": {
+        "username": "itzik+autotest.1769462440@vcita.com"
+      }
+    }
+  }
+}

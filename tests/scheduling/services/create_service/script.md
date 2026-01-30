@@ -11,20 +11,38 @@ Create a new 1-on-1 service with name, duration, and price. After creation, navi
 
 ## Step 1: Verify on Services Page
 
-- **Action**: Verify
-- **Target**: Already on Services page from setup
+- **Action**: Verify and Navigate if needed
+- **Target**: Already on Services page from setup, or navigate via UI if not
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # Verify we're on Services page (setup should have left us here)
 if "/app/settings/services" not in page.url:
-    raise ValueError(f"Expected to be on Services page, but URL is {page.url}")
+    # HEALED 2026-01-27: After Events teardown with error page recovery, we should be on dashboard.
+    # Navigate via UI: Settings → Services button in iframe.
+    print("  Step 1a: Not on Services page - navigating via Settings...")
+    # HEALED 2026-01-27: After error page recovery in teardown, we're on dashboard. Settings should be visible.
+    # Wait for page to be ready
+    page.wait_for_load_state("domcontentloaded")
+    
+    # Find and click Settings link
+    settings_link = page.get_by_text("Settings", exact=True)
+    settings_link.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when visible
+    settings_link.click()
+    # HEALED 2026-01-27: Wait for navigation with 'domcontentloaded' instead of default 'load' for faster completion.
+    page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")  # Long timeout, continues immediately when URL matches
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
+    iframe = page.frame_locator('iframe[title="angularjs"]')
+    services_button = iframe.get_by_role("button", name="Define the services your")
+    services_button.wait_for(state="visible", timeout=15000)
+    services_button.click()
+    page.wait_for_url("**/app/settings/services**", timeout=30000)
 
 page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 iframe = page.frame_locator('iframe[title="angularjs"]')
 ```
 
-- **Wait for**: iframe with angularjs title is visible
+- **Wait for**: iframe with angularjs title is visible, or navigate via Settings if not on Services page
 
 ---
 

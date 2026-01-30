@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Edit Group Event",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\edit_group_event",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 13141,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-27T19:13:03.444576"
+}

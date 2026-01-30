@@ -4,6 +4,8 @@ Fix a failing test by following the systematic debugging and healing process.
 
 Follow the rules in `.cursor/rules/heal.mdc` to heal this test.
 
+**No retries for actions.** When fixing failures, add or adjust waits so the system is ready before each action; do not add retry loops for clicks, fills, or navigation. See `.cursor/rules/project.mdc` § No Retries for Actions.
+
 ---
 
 ## IMPORTANT: Same account and URLs for MCP

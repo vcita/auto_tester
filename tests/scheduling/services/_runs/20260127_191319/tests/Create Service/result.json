@@ -1,0 +1,11 @@
+{
+  "test_name": "Services/Create Service",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\create_service",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 60025,
+  "error": "ValueError: Could not find Settings link after navigating to dashboard: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Dashboard\", exact=True) to be visible\n",
+  "error_type": "ValueError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\services\\_runs\\20260127_191319\\tests\\Create Service\\screenshot.png",
+  "saved_at": "2026-01-27T19:17:00.259579"
+}
