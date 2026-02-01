@@ -106,8 +106,12 @@ def setup_events(page: Page, context: dict) -> None:
     # Step 0: Login if not already logged in
     if "logged_in_user" not in context:
         print("  Setup Step 0: Logging in...")
-        username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-        password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+        username = context.get("username")
+        password = context.get("password")
+        if not username or not password:
+            raise ValueError(
+                "username and password not in context. Set target.auth.username and target.auth.password in config.yaml."
+            )
         fn_login(page, context, username=username, password=password)
 
     # Parent (Scheduling) setup leaves us on Settings > Services; ensure iframe is ready

@@ -29,11 +29,9 @@ Manually create a 1-on-1 appointment for a client using a predefined service fro
 7. Click "Select" on the test service
 8. Keep default date/time settings
 9. Click "Schedule appointment" button
-10. Verify the success message "Appointment scheduled" appears
-11. Verify the appointment appears in the calendar view
+10. Verify the appointment appears in the calendar view
 
 ## Success Criteria
 
 - Appointment is created successfully
-- Success toast message is shown
-- Appointment visible in calendar grid
+- Appointment visible in calendar grid (actual data verification)

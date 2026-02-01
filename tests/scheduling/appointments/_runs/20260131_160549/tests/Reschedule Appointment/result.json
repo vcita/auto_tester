@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Reschedule Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 12754,
+  "error": "AssertionError: Time did not change! Still showing: \n\nSat, January 31, 10:00am \u2013 11:00am\n\n\nSelect a date for this appointment\n\n",
+  "error_type": "AssertionError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260131_160549\\tests\\Reschedule Appointment\\screenshot.png",
+  "saved_at": "2026-01-31T16:08:14.783739"
+}

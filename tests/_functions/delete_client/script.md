@@ -38,28 +38,31 @@ page.wait_for_url("**/app/clients", timeout=10000)
 ### Step 2: Search for Client
 
 - **Action**: Type
-- **Target**: Search field
+- **Target**: List filter search field (not the global header search)
 - **Value**: `{name}`
 
 **LOCATOR DECISION:**
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `page.get_by_role('searchbox', name='Search by name, email, or phone number')` | Full accessible name | None |
+| `page.get_by_role('searchbox', name='Search by name, email, or phone number')` | Full accessible name | Fails on Properties page: list searchbox has no/missing aria-label |
+| Wait for list toolbar (Filters), then `page.get_by_role('searchbox').nth(1)` | Works on Properties; 1st searchbox = header, 2nd = list filter | Assumes toolbar order |
 
-**CHOSEN**: `page.get_by_role('searchbox', name='Search by name, email, or phone number')` - Unique.
+**CHOSEN**: Wait for "Filters" button (list toolbar), then `page.get_by_role('searchbox').nth(1)` - HEALED 2026-01-31 for appointments teardown (list searchbox not found by name).
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-search_field = page.get_by_role('searchbox', name='Search by name, email, or phone number')
+# Wait for list toolbar so list searchbox is present
+page.get_by_role("button", name="Filters").wait_for(state="visible", timeout=30000)
+search_field = page.get_by_role("searchbox").nth(1)
 search_field.click()
 page.wait_for_timeout(100)
 search_field.press_sequentially(name, delay=30)
 page.wait_for_timeout(1000)  # Allow search results to update
 ```
 
-- **How verified**: Verified in MCP
-- **Wait for**: Search results filtered
+- **How verified**: MCP on Properties page; list searchbox has no aria-label, 2nd searchbox is list filter
+- **Wait for**: List toolbar (Filters) then search results filtered
 
 ### Step 3: Click on Client in List
 
@@ -105,54 +108,51 @@ iframe = page.frame_locator('iframe[title="angularjs"]')
 more_btn = iframe.get_by_role('button', name='More icon-caret-down')
 more_btn.wait_for(state='visible', timeout=10000)
 more_btn.click()
+# Menu is in iframe on detail page (MCP 2026-01-31: menuitem "Delete property" in menu).
 menu = iframe.get_by_role('menu')
-menu.wait_for(state='visible', timeout=5000)
+menu.wait_for(state='visible', timeout=10000)
+delete_option = menu.get_by_text('Delete')
+delete_option.wait_for(state='visible', timeout=8000)
+delete_option.click()
+# Confirmation dialog: HEALED 2026-01-31 — dialog is in SAME iframe as More/menu. Screenshot showed dialog
+# visible but page.get_by_role("dialog") timed out. Use iframe for dialog and OK.
+iframe.get_by_role("dialog").wait_for(state="visible", timeout=30000)
+confirm_btn = iframe.get_by_role("dialog").get_by_role("button", name=re.compile(r"^(Delete|OK|Ok)$", re.IGNORECASE)).first
+confirm_btn.wait_for(state="visible", timeout=10000)
+confirm_btn.click()
+iframe.get_by_role("dialog").wait_for(state="hidden", timeout=10000)
 ```
 
-- **How verified**: Clicked in MCP, dropdown menu appeared
-- **Wait for**: Menu becomes visible
+- **How verified**: Failure screenshot showed Confirm dialog visible but page.get_by_role("dialog") timed out; dialog is in same iframe as More/menu. Use iframe for dialog and OK so the visible dialog is found.
+- **Wait for**: Menu visible, Delete option visible, dialog visible in iframe, confirm button visible; then dialog hidden after click.
 
 ### Step 5: Select Delete &lt;entity&gt;
 
 - **Action**: Click
 - **Target**: "Delete property" / "Delete client" / "Delete patient" menu item (text varies by vertical)
 
-**Entity-agnostic**: Menuitem name is "Delete property", "Delete client", "Delete patient", etc. Use filter with regex.
+**Entity-agnostic**: Text is "Delete property", "Delete client", etc. Scope to **menu** in iframe; use menuitem with regex `^Delete\s` so we match the option (MCP: role=menuitem).
 
-**CHOSEN**: `iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE)).first`
+**CHOSEN**: `iframe.get_by_role('menu').get_by_text('Delete')` — menu in iframe on detail page; "Delete" matches "Delete property" / "Delete client".
 
-**VERIFIED PLAYWRIGHT CODE**:
-```python
-delete_option = iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))
-delete_option.first.click()
-dialog = iframe.get_by_role('dialog')
-dialog.wait_for(state='visible', timeout=5000)
-```
-
-- **Wait for**: Dialog becomes visible
+- **Wait for**: Delete option in menu visible, then dialog becomes visible
 
 ### Step 6: Confirm Deletion
 
 - **Action**: Click
-- **Target**: "Ok" button in confirmation dialog
+- **Target**: Confirm button in confirmation dialog (approve delete)
 
 **LOCATOR DECISION:**
 
-| Option | Pros | Cons |
-|--------|------|------|
-| `iframe.get_by_role('button', name='Ok')` | Unique in dialog | None |
+- HEALED 2026-01-31: Confirmation dialog uses **"Delete"** in some verticals and **"Ok"** in others (e.g. Properties). MCP exploration 2026-01-31: Properties vertical shows "Ok" and "Cancel".
+- Scope to **dialog** and accept confirm label: Delete, Ok, or OK (not Cancel). Regex: `r"^(Delete|O[kK])$"`.
 
-**CHOSEN**: `iframe.get_by_role('button', name='Ok')` - Unique.
+**CHOSEN**: After dialog_content visible, use **page** for dialog and confirm button: `page.get_by_role('dialog').get_by_role('button', name=re.compile(r"^(Delete|OK|Ok)$", re.IGNORECASE)).first` — so the visible dialog is found when multiple angularjs iframes exist (first can be hidden).
 
-**VERIFIED PLAYWRIGHT CODE**:
-```python
-ok_btn = iframe.get_by_role('button', name='Ok')
-ok_btn.click()
-page.wait_for_url("**/app/clients", timeout=10000)
-```
+**VERIFIED PLAYWRIGHT CODE**: See Step 4 block above (wait for dialog by role, click confirm, wait for dialog hidden).
 
-- **How verified**: Would redirect to Properties list after deletion
-- **Wait for**: URL is Properties list (no client ID)
+- **How verified**: MCP 2026-01-31: Wait for dialog by role avoids timeout when dialog is in iframe; single confirm button (Ok/Delete). Accepting both "Delete" and "Ok" covers Properties (Ok) and other verticals (Delete).
+- **Wait for**: Dialog visible (by role), confirm button visible, then dialog hidden after click.
 
 ## Success Verification
 

@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/_teardown",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_teardown",
+  "test_type": "teardown",
+  "status": "passed",
+  "duration_ms": 42617,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-31T17:40:47.480956"
+}

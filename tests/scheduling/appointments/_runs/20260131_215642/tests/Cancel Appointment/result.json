@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Cancel Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\cancel_appointment",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 23330,
+  "error": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_text(\"Cancelled\", exact=True) to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260131_215642\\tests\\Cancel Appointment\\screenshot.png",
+  "saved_at": "2026-01-31T21:59:19.658311"
+}

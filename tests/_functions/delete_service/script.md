@@ -15,27 +15,43 @@
 
 ## Actions
 
-### Step 1: Navigate to Settings
+### Step 1: Navigate to Settings – HEALED 2026-01-31
 
 - **Action**: Click
-- **Target**: Settings menu item in sidebar
+- **Target**: Settings menu item in sidebar. When called from teardown after calendar tests, browser is on calendar page; navigate to dashboard first so sidebar is in a known state, then click Settings.
 
 **LOCATOR DECISION:**
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `page.get_by_text('Settings')` | Simple, unique text | None |
+| `page.get_by_text('Settings')` | Simple | Can match multiple; no wait → timeout when sidebar not ready |
+| Navigate to dashboard first when on calendar, then `page.get_by_text("Settings", exact=True)` | Reliable from calendar; same pattern as events _teardown | One extra step when on calendar |
 
-**CHOSEN**: `page.get_by_text('Settings')` - Unique and simple.
+**CHOSEN**: When URL contains `/app/calendar`, navigate to dashboard first (Dashboard link, wait visible, click, wait_for_url dashboard). Then `page.get_by_text("Settings", exact=True)` with wait_for(state="visible", timeout=30000), scroll_into_view_if_needed(), then click.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.get_by_text('Settings').click()
-page.wait_for_url("**/app/settings", timeout=10000)
+page.wait_for_load_state("domcontentloaded")
+if "/app/calendar" in page.url:
+    print("  Step 1a: On calendar - navigating to dashboard first...")
+    dashboard_link = page.get_by_text("Dashboard", exact=True)
+    dashboard_link.wait_for(state="visible", timeout=30000)
+    dashboard_link.scroll_into_view_if_needed()
+    page.wait_for_timeout(200)  # Brief settle (allowed)
+    dashboard_link.click()
+    page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+    page.wait_for_load_state("domcontentloaded")
+# Sidebar is in main document.
+settings_link = page.get_by_text("Settings", exact=True)
+settings_link.wait_for(state="visible", timeout=30000)
+settings_link.scroll_into_view_if_needed()
+page.wait_for_timeout(200)  # Brief settle (allowed)
+settings_link.click()
+page.wait_for_url("**/app/settings**", timeout=30000)
 ```
 
-- **How verified**: Clicked in MCP, navigated to Settings page
-- **Wait for**: URL contains "/app/settings"
+- **How verified**: From calendar, going to dashboard first ensures sidebar is visible; then Settings click works. Same pattern as events _teardown.
+- **Wait for**: If on calendar: dashboard URL; then Settings visible and URL contains "/app/settings"
 
 ### Step 2: Click Services button
 
@@ -55,28 +71,41 @@ page.wait_for_url("**/app/settings/services", timeout=10000)
 
 ### Step 3: Click on Service in List
 
-- **Action**: Click
-- **Target**: Service button matching the name
+- **Action**: Scroll to find service (list uses endless scroll), then click service button matching the name
 
 **LOCATOR DECISION:**
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `iframe.get_by_role('button').filter(has_text=name)` | Dynamic, matches by name | None |
-| `iframe.get_by_role('button', name=f'icon-twousers {name}')` | Full accessible name | Too specific |
+| `iframe.get_by_role('button').filter(has_text=name)` | Dynamic, matches by name | Service may be below fold — must scroll first |
+| Scroll then same locator | Same as delete_service category test; finds service | Requires scroll loop |
 
-**CHOSEN**: `iframe.get_by_role('button').filter(has_text=name)` - Flexible matching.
+**CHOSEN**: Wait for "My Services", scroll loop (up to 10 times) until service button is found or end of list (same pattern as tests/scheduling/services/delete_service/test.py). Then `iframe.get_by_role('button').filter(has_text=name)` with wait 30s and click.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-service_in_list = iframe.get_by_role('button').filter(has_text=name)
-service_in_list.wait_for(state='visible', timeout=10000)
+# HEALED 2026-01-31: Services list uses endless scroll - scroll to find service (same as delete_service category test).
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=15000)
+max_scrolls = 10
+previous_last_text = ""
+no_change_count = 0
+for scroll_attempt in range(max_scrolls):
+    # Check if service is visible
+    service_row = iframe.get_by_role("button").filter(has_text=name)
+    if service_row.count() > 0:
+        break
+    # Scroll last visible service into view to load more
+    all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|..."))
+    # ... scroll last_service.scroll_into_view_if_needed(); page.wait_for_timeout(300)
+    # (or Add 1 on 1 Appointment if no services match)
+service_in_list = iframe.get_by_role("button").filter(has_text=name)
+service_in_list.wait_for(state="visible", timeout=30000)
 service_in_list.click()
 page.wait_for_url("**/app/settings/services/**", timeout=10000)
 ```
 
-- **How verified**: Clicked in MCP, navigated to service edit page
-- **Wait for**: URL contains service ID
+- **How verified**: MCP: Services list shows many services; new appointment test service is below fold. delete_service category test scrolls to find service; same pattern applied to fn_delete_service.
+- **Wait for**: My Services visible, then service button visible (after scroll), then URL contains service ID
 
 ### Step 4: Click Delete Button
 

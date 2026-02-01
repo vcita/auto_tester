@@ -4,16 +4,40 @@ instead of redirecting to /app/clients.
 
 This script follows the exact steps from tests/_functions/delete_client/test.py
 to reproduce the product bug.
+
+Credentials and base URL: from config.yaml target.base_url and target.auth only.
 """
 
 import re
 import time
+import yaml
+from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-# Configuration from config.yaml
-BASE_URL = "https://www.vcita.com"
-USERNAME = "itzik+autotest.1769462440@vcita.com"
-PASSWORD = "vcita123"
+_project_root = Path(__file__).resolve().parent
+
+
+def _load_config():
+    """Load target.base_url and target.auth from config.yaml. No fallbacks."""
+    config_path = _project_root / "config.yaml"
+    if not config_path.exists():
+        raise ValueError("config.yaml not found.")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    target = config.get("target") or {}
+    base_url = (target.get("base_url") or "").rstrip("/")
+    auth = target.get("auth") or {}
+    username = auth.get("username")
+    password = auth.get("password")
+    if not base_url or not username or not password:
+        raise ValueError(
+            "Set target.base_url, target.auth.username and target.auth.password in config.yaml."
+        )
+    return base_url, username, password
+
+
+# Load once at import (or on first use if you prefer lazy load)
+BASE_URL, USERNAME, PASSWORD = _load_config()
 
 # Test client name - you can modify this to use an existing client
 # or the script will create one first

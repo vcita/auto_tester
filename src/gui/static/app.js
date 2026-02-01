@@ -29,7 +29,6 @@ function initializeElements() {
         resultsLog: document.getElementById('results-log'),
         runsList: document.getElementById('runs-list'),
         runsRefresh: document.getElementById('runs-refresh'),
-        btnRunSelected: document.getElementById('btn-run-selected'),
         btnRunAll: document.getElementById('btn-run-all'),
         btnSwitchSetup: document.getElementById('btn-switch-setup'),
         btnRefresh: document.getElementById('btn-refresh'),
@@ -199,6 +198,14 @@ async function runCategory(category) {
         console.error('Failed to run category:', error);
         return null;
     }
+}
+
+/** Run a category or subcategory from the tree (run path e.g. "scheduling" or "scheduling/events"). Stops propagation so header click doesn't toggle. */
+async function runCategoryFromTree(event, runPath) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (state.isRunning) return;
+    await runCategory(runPath);
 }
 
 async function fetchLastResults() {
@@ -435,6 +442,7 @@ function renderTestTree(categories) {
             continue;
         }
         const catChecked = isActive(category.id) ? ' checked' : '';
+        const catRunPath = category.id;
         html += `
             <div class="tree-category" data-category="${category.id}">
                 <div class="tree-header" onclick="toggleCategory('${category.id}')">
@@ -442,6 +450,7 @@ function renderTestTree(categories) {
                     <input type="checkbox" class="tree-checkbox" data-tree-key="${category.id}" data-run-path="${category.id}"${catChecked} onclick="toggleTreeActive(event)">
                     <span class="tree-icon">📁</span>
                     <span class="tree-name">${category.name}</span>
+                    <button type="button" class="tree-run-btn" title="Run ${category.name}" onclick="runCategoryFromTree(event, '${catRunPath.replace(/'/g, "\\'")}')">&#9654;</button>
                     <span class="tree-status tree-result"></span>
                 </div>
                 <div class="tree-children" id="cat-${category.id}">
@@ -499,16 +508,33 @@ function renderTestTree(categories) {
                     const subcat = item;
                     const subcatTreeKey = `${category.id}/${subcat.id}`;
                     const subcatChecked = isActive(subcatTreeKey) ? ' checked' : '';
+                    const subcatRunPath = `${category.id}/${subcat.id}`;
                     html += `
                 <div class="tree-category" data-subcategory="${subcat.id}">
                     <div class="tree-header" onclick="toggleSubcategory('${category.id}', '${subcat.id}')">
                         <span class="tree-toggle">▼</span>
-                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${category.id}/${subcat.id}"${subcatChecked} onclick="toggleTreeActive(event)">
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${subcatRunPath}"${subcatChecked} onclick="toggleTreeActive(event)">
                         <span class="tree-icon">📂</span>
                         <span class="tree-name">${subcat.name}</span>
+                        <button type="button" class="tree-run-btn" title="Run ${subcat.name}" onclick="runCategoryFromTree(event, '${subcatRunPath.replace(/'/g, "\\'")}')">&#9654;</button>
                         <span class="tree-status tree-result"></span>
                     </div>
                     <div class="tree-children" id="subcat-${category.id}-${subcat.id}">`;
+                    if (subcat.has_setup) {
+                        const treeKey = `${category.id}/${subcat.id}/_setup`;
+                        const checked = isActive(treeKey) ? ' checked' : '';
+                        const resultBadge = formatResultBadge(treeKey);
+                        html += `
+                    <div class="tree-item">
+                        <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/_setup')" data-test="${category.id}/${subcat.id}/_setup">
+                            <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
+                            <span class="tree-icon">⚙️</span>
+                            <span class="tree-name">_setup</span>
+                            ${resultBadge}
+                        </div>
+                    </div>`;
+                    }
                     for (const test of subcat.tests || []) {
                         const treeKey = `${category.id}/${subcat.id}/${test.id}`;
                         const checked = isActive(treeKey) ? ' checked' : '';
@@ -520,6 +546,21 @@ function renderTestTree(categories) {
                             <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
                             <span class="tree-icon">🧪</span>
                             <span class="tree-name">${test.name}</span>
+                            ${resultBadge}
+                        </div>
+                    </div>`;
+                    }
+                    if (subcat.has_teardown) {
+                        const treeKey = `${category.id}/${subcat.id}/_teardown`;
+                        const checked = isActive(treeKey) ? ' checked' : '';
+                        const resultBadge = formatResultBadge(treeKey);
+                        html += `
+                    <div class="tree-item">
+                        <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/_teardown')" data-test="${category.id}/${subcat.id}/_teardown">
+                            <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
+                            <span class="tree-icon">🧹</span>
+                            <span class="tree-name">_teardown</span>
                             ${resultBadge}
                         </div>
                     </div>`;
@@ -562,16 +603,33 @@ function renderTestTree(categories) {
             for (const subcat of category.subcategories || []) {
                 const subcatTreeKey = `${category.id}/${subcat.id}`;
                 const subcatChecked = isActive(subcatTreeKey) ? ' checked' : '';
+                const subcatRunPath = `${category.id}/${subcat.id}`;
                 html += `
                 <div class="tree-category" data-subcategory="${subcat.id}">
                     <div class="tree-header" onclick="toggleSubcategory('${category.id}', '${subcat.id}')">
                         <span class="tree-toggle">▼</span>
-                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${category.id}/${subcat.id}"${subcatChecked} onclick="toggleTreeActive(event)">
+                        <input type="checkbox" class="tree-checkbox" data-tree-key="${subcatTreeKey}" data-run-path="${subcatRunPath}"${subcatChecked} onclick="toggleTreeActive(event)">
                         <span class="tree-icon">📂</span>
                         <span class="tree-name">${subcat.name}</span>
+                        <button type="button" class="tree-run-btn" title="Run ${subcat.name}" onclick="runCategoryFromTree(event, '${subcatRunPath.replace(/'/g, "\\'")}')">&#9654;</button>
                         <span class="tree-status tree-result"></span>
                     </div>
                     <div class="tree-children" id="subcat-${category.id}-${subcat.id}">`;
+                if (subcat.has_setup) {
+                    const treeKey = `${category.id}/${subcat.id}/_setup`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
+                    <div class="tree-item">
+                        <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/_setup')" data-test="${category.id}/${subcat.id}/_setup">
+                            <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
+                            <span class="tree-icon">⚙️</span>
+                            <span class="tree-name">_setup</span>
+                            ${resultBadge}
+                        </div>
+                    </div>`;
+                }
                 for (const test of subcat.tests || []) {
                     const treeKey = `${category.id}/${subcat.id}/${test.id}`;
                     const checked = isActive(treeKey) ? ' checked' : '';
@@ -583,6 +641,21 @@ function renderTestTree(categories) {
                             <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
                             <span class="tree-icon">🧪</span>
                             <span class="tree-name">${test.name}</span>
+                            ${resultBadge}
+                        </div>
+                    </div>`;
+                }
+                if (subcat.has_teardown) {
+                    const treeKey = `${category.id}/${subcat.id}/_teardown`;
+                    const checked = isActive(treeKey) ? ' checked' : '';
+                    const resultBadge = formatResultBadge(treeKey);
+                    html += `
+                    <div class="tree-item">
+                        <div class="tree-header" onclick="selectTest('${category.id}', '${subcat.id}/_teardown')" data-test="${category.id}/${subcat.id}/_teardown">
+                            <span class="tree-toggle"></span>
+                            <input type="checkbox" class="tree-checkbox" data-tree-key="${treeKey}" data-run-path="${category.id}/${subcat.id}"${checked} onclick="toggleTreeActive(event)">
+                            <span class="tree-icon">🧹</span>
+                            <span class="tree-name">_teardown</span>
                             ${resultBadge}
                         </div>
                     </div>`;
@@ -1105,8 +1178,8 @@ function formatDuration(ms) {
 function updateRunningState(isRunning) {
     state.isRunning = isRunning;
     
-    elements.btnRunSelected.disabled = isRunning || !state.selectedCategory;
     elements.btnRunAll.disabled = isRunning;
+    document.querySelectorAll('.tree-run-btn').forEach(btn => { btn.disabled = isRunning; });
     
     const indicator = elements.statusIndicator;
     indicator.className = 'status-indicator ' + (isRunning ? 'status-running' : 'status-idle');
@@ -1173,11 +1246,8 @@ function toggleCategory(categoryId) {
     children.classList.toggle('collapsed');
     toggle.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
     
-    // Select category for running
     state.selectedCategory = categoryId;
     state.selectedTest = null;
-    elements.btnRunSelected.disabled = state.isRunning;
-    elements.btnRunSelected.textContent = `Run ${categoryId}`;
 }
 
 function toggleSubcategory(categoryId, subcatId) {
@@ -1200,10 +1270,6 @@ async function selectTest(category, testPath) {
     if (element) {
         element.classList.add('selected');
     }
-    
-    // Enable run button
-    elements.btnRunSelected.disabled = state.isRunning;
-    elements.btnRunSelected.innerHTML = `<span class="icon">▶</span> Run ${category}`;
     
     // Load test details first - it contains the test name we need
     elements.testDetails.innerHTML = '<div class="loading">Loading...</div>';
@@ -1469,16 +1535,10 @@ async function refreshArtifacts() {
 // ==================== Event Handlers ====================
 
 function setupEventHandlers() {
-    if (!elements.btnRunSelected || !elements.btnRunAll || !elements.btnRefresh) {
+    if (!elements.btnRunAll || !elements.btnRefresh) {
         console.error('Elements not initialized, cannot setup event handlers');
         return;
     }
-    
-    elements.btnRunSelected.addEventListener('click', async () => {
-        if (state.selectedCategory && !state.isRunning) {
-            await runCategory(state.selectedCategory);
-        }
-    });
 
     elements.btnRunAll.addEventListener('click', async () => {
         if (!state.isRunning) {

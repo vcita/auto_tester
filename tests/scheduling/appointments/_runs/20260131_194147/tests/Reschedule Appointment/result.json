@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Reschedule Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+  "test_type": "test",
+  "status": "failed",
+  "duration_ms": 39646,
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_text(\"10:00am\", exact=True)\n    - locator resolved to <li tabindex=\"-1\" role=\"option\" class=\"k-item\" unselectable=\"on\">10:00am</li>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    57 \u00d7 waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260131_194147\\tests\\Reschedule Appointment\\screenshot.png",
+  "saved_at": "2026-01-31T19:44:31.884578"
+}

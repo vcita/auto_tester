@@ -352,6 +352,33 @@ body {
     white-space: nowrap;
 }
 
+.tree-run-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--border-radius);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity var(--transition), background-color var(--transition), color var(--transition);
+}
+.tree-run-btn:hover:not(:disabled) {
+    opacity: 1;
+    background-color: var(--color-primary);
+    color: white;
+}
+.tree-run-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .tree-checkbox {
     margin: 0 6px 0 0;
     cursor: pointer;

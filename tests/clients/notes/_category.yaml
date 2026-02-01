@@ -5,9 +5,7 @@
 name: Notes
 description: Tests for managing notes on matters (add, edit, delete)
 
-# Run this subcategory after edit_contact in the parent category
-# This ensures a matter exists (from create_matter) before we add notes
-run_after: edit_contact
+# Run order is defined in parent clients/_category.yaml (execution_order: notes after edit_contact)
 
 # Execution order - tests run sequentially in this order
 tests:

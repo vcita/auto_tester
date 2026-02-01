@@ -6,6 +6,8 @@ Follow the rules in `.cursor/rules/heal.mdc` to heal this test.
 
 **No retries for actions.** When fixing failures, add or adjust waits so the system is ready before each action; do not add retry loops for clicks, fills, or navigation. See `.cursor/rules/project.mdc` § No Retries for Actions.
 
+**Protocol: /heal_test must always end with a successful run of the relevant test/category with the runner.** Run the category (e.g. `python main.py run --category scheduling/appointments`) and do not consider healing complete until the runner reports the test or full category as passed. If the run fails again, continue the healing process (retry up to 5 times or mark UNRESOLVED). Only when the runner run succeeds is healing done.
+
 ---
 
 ## IMPORTANT: Same account and URLs for MCP
@@ -20,15 +22,19 @@ When debugging with MCP you **MUST** use the **same account** that ran the faile
 
 ## STEP 1: Understand What Happened (Logs/Screenshots/Recordings)
 
+**Look at the screenshot EVERY TIME a run ends unsuccessfully.** Before any fix or theory, open and analyze the failure screenshot so you understand the actual UI state at the moment of failure.
+
 **Follow `.cursor/rules/heal.mdc` sections:**
 - **"MANDATORY FIRST STEP: Read the Changelog"** - Read changelog.md to learn from past attempts
 - **"MANDATORY SECOND STEP: Screenshot AND Video Analysis"** - Analyze visual evidence
 
 **Key actions:**
 1. Locate heal request in `.cursor/heal_requests/` (format: `heal_[test_id]_[timestamp].md`)
-2. Analyze screenshot and video (if available) from heal request
+2. **Look at the screenshot EVERY TIME a run ends unsuccessfully.** Open and analyze the failure screenshot (path in heal request under "## Screenshot") before any fix or theory; the screenshot shows what was actually on screen when the test failed.
+3. Analyze video (if available) from heal request
 3. Read error message and current test files (test.py, script.md, steps.md)
-4. **After processing snapshot/logs: Read the changelog** - `tests/{category}/{test_name}/changelog.md`
+4. **Check for similar tests** — See `.cursor/rules/project.mdc` § Check Similar Tests When Building or Healing. Search for tests or functions that exercise the same UI flow or product area (e.g. list-page delete vs detail-page delete, same entity). Read their steps.md, script.md, and test.py to see how they find elements, handle dialogs, and verify outcomes. Use the working test's approach as the first reference when fixing locators or flow; only invent new selectors if the similar test's approach does not fit (e.g. different page/iframe context).
+5. **After processing snapshot/logs: Read the changelog** - `tests/{category}/{test_name}/changelog.md`
    - Check for any recent changes that might have caused the issue
    - Look for patterns in past healing attempts
    - Note any related fixes or modifications that could be relevant
@@ -416,15 +422,15 @@ Example status update location:
 
 ## STEP 7: Validate Fix and Retry if Needed
 
-**CRITICAL: After fixing the test, you MUST validate it works by running the category again.**
+**CRITICAL: After fixing the test, you MUST validate it works by running the category again. /heal_test must always end with a successful run of the relevant test/category with the runner.**
 
 1. **Run the test category** to validate the fix:
-   - Execute the full category that contains this test
+   - Execute the full category that contains this test (e.g. `python main.py run --category scheduling/appointments`)
    - Verify the test now passes
    - Check for any regressions in other tests
 
 2. **If test passes**: 
-   - Healing complete
+   - Healing complete (runner run succeeded)
    - Proceed to STEP 8 (Clean Up)
 
 3. **If test fails again**:
@@ -467,11 +473,11 @@ Example status update location:
 
 ## STEP 8: Clean Up
 
-**Only proceed if test is fixed and validated:**
+**Only proceed if test is fixed and validated by a successful runner run:**
 
-1. **Delete the heal request** from `.cursor/heal_requests/` (only if test is fixed)
-2. **Verify the fix** - The test should pass in subsequent runs
-3. **If test passes**: Healing complete ✅
+1. **Delete the heal request** from `.cursor/heal_requests/` (only if test is fixed and runner run passed)
+2. **Verify the fix** - The test passed when run with the runner (e.g. `python main.py run --category ...`)
+3. **If test passes**: Healing complete ✅ (protocol satisfied: ended with successful run)
 4. **If test marked as UNRESOLVED**: Keep heal request for manual review
 
 ---
@@ -481,6 +487,7 @@ Example status update location:
 **Follow `.cursor/rules/heal.mdc` section "Quality Checklist"** for complete verification list.
 
 **Key items:**
+- [ ] **Look at the screenshot EVERY TIME a run ends unsuccessfully** — open and analyze the failure screenshot before any fix or theory (path in heal request under "## Screenshot")
 - [ ] Screenshot/video analyzed
 - [ ] Changelog was read after processing snapshot/logs (check for recent changes)
 - [ ] **Used `--until-test` to dump context to until_test_context.json** (or replicated state in MCP from steps/script)
@@ -493,7 +500,7 @@ Example status update location:
 - [ ] changelog.md updated
 - [ ] Heal request updated
 - [ ] Failed run log updated
-- [ ] **Category re-run to validate fix**
+- [ ] **Category/test re-run to validate fix** — /heal_test must end with a **successful** run of the relevant test/category with the runner (`python main.py run --category ...`); healing is not complete until the runner reports pass
 - [ ] If test failed again: Retried healing process (up to 5 times)
 - [ ] If unresolved after 5 attempts: Created and ran debug_<category>_<test_name>.py from skeleton; documented findings; then marked UNRESOLVED with estimation
 - [ ] Heal request deleted (only if test is fixed) OR marked as "UNRESOLVED"

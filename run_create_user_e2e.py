@@ -5,14 +5,11 @@ End-to-end test for the create_user function.
 Usage (from project root):
   python run_create_user_e2e.py
 
-  Optional env:
-  - VCITA_CREATE_USER_EMAIL: email for signup (default: itzik+autotest.e2e.<timestamp>@vcita.com)
-  - VCITA_TEST_PHONE: phone for Welcome dialog (default: 0526111116 for Israel)
+Uses config.yaml for base_url and target.auth.password. New user email is generated (itzik+autotest.e2e.<timestamp>@vcita.com).
 """
-import os
 import sys
 import time
-
+import yaml
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent
@@ -21,13 +18,21 @@ sys.path.insert(0, str(project_root))
 from playwright.sync_api import sync_playwright
 
 
+def _load_config():
+    path = project_root / "config.yaml"
+    if not path.exists():
+        raise ValueError("config.yaml not found.")
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
 def main():
-    email = os.environ.get(
-        "VCITA_CREATE_USER_EMAIL",
-        f"itzik+autotest.e2e.{int(time.time())}@vcita.com",
-    )
-    phone = os.environ.get("VCITA_TEST_PHONE", "0526111116")
-    password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    config = _load_config()
+    target = config.get("target") or {}
+    auth = target.get("auth") or {}
+    password = auth.get("password") or "vcita123"
+    email = f"itzik+autotest.e2e.{int(time.time())}@vcita.com"
+    phone = "0526111116"
 
     def out(msg, end="\n"):
         print(msg, end=end, flush=True)

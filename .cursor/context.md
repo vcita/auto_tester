@@ -97,11 +97,24 @@ iframe = page.frame_locator('iframe[title="angularjs"]')
 # Then use iframe.get_by_role(...) etc.
 ```
 
-### 5. Subcategory Execution Order
-Use `run_after` in `_category.yaml` to control when subcategories run:
+### 5. Execution Order (parent _category.yaml)
+Define the full run order in the **parent** category's `_category.yaml` with `execution_order`: a list of test ids and subcategory folder names in run order.
 ```yaml
-# In notes/_category.yaml
-run_after: edit_contact  # Runs after edit_contact completes
+# In clients/_category.yaml - full sequence: tests and subcategories
+execution_order:
+  - create_matter
+  - edit_matter
+  - edit_contact
+  - notes      # subcategory folder name
+  - delete_matter
+```
+For categories with only subcategories (e.g. scheduling):
+```yaml
+# In scheduling/_category.yaml
+execution_order:
+  - services
+  - appointments
+  - events
 ```
 
 ---

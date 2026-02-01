@@ -145,10 +145,11 @@ def cmd_run(args):
     config = load_config()
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     
-    # Check for headless mode, keep-open flag, and until-test
+    # Check for headless mode, keep-open flag, until-test, and debug-test
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
     until_test = getattr(args, 'until_test', None)
+    debug_test = getattr(args, 'debug_test', None)
     
     try:
         # Create runner
@@ -157,6 +158,7 @@ def cmd_run(args):
             headless=headless,
             keep_open=keep_open,
             until_test=until_test,
+            debug_test=debug_test,
             config=config,
         )
         
@@ -401,7 +403,6 @@ def cmd_stress_test(args):
 
 def cmd_create_user(args):
     """Create a new user in vcita (signup + onboarding) and update config.yaml with that account. System is then ready to run tests."""
-    import os
     import time
     config_path = Path(__file__).parent / "config.yaml"
     if not config_path.exists():
@@ -417,12 +418,14 @@ def cmd_create_user(args):
     email = getattr(args, "email", None) or f"itzik+autotest.{int(time.time())}@vcita.com"
     if getattr(args, "email", None) is None:
         console.print(f"[dim]Generated email: {email}[/dim]")
-    password = getattr(args, "password", None) or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    # Password for new user: args, then current config (target.auth.password), then default
+    auth = target.get("auth") or {}
+    password = getattr(args, "password", None) or auth.get("password") or "vcita123"
     base_url = getattr(args, "base_url", None) or target.get("base_url") or "https://app.vcita.com"
     if getattr(args, "base_url", None) is not None:
         target["base_url"] = args.base_url
 
-    address = getattr(args, "address", None) or os.environ.get("VCITA_TEST_ADDRESS", "123 Test Street")
+    address = getattr(args, "address", None) or "123 Test Street"
     console.print("[cyan]Creating user in vcita (signup + onboarding)...[/cyan]")
     console.print(f"  email: {email}")
     console.print(f"  address: {address}")
@@ -478,8 +481,7 @@ def _run_create_user_then_update_config(
         video_path = None
         try:
             from tests._functions.create_user.test import fn_create_user
-            import os
-            phone = os.environ.get("VCITA_TEST_PHONE", "0526111116")
+            phone = "0526111116"  # Default for Welcome dialog; override via fn_create_user params if needed
             fn_create_user(
                 page,
                 run_context,
@@ -552,7 +554,7 @@ def main():
         "--create-user-password",
         dest="create_user_password",
         default=None,
-        help="Password for new user when using --create-user (default: VCITA_TEST_PASSWORD or vcita123)"
+        help="Password for new user when using --create-user (default: config target.auth.password or vcita123)"
     )
     run_parser.add_argument(
         "--headless",
@@ -567,6 +569,10 @@ def main():
     run_parser.add_argument(
         "--until-test",
         help="Stop before this test; dump context to until_test_context.json in run dir and leave browser open for manual debugging. For MCP debugging, start a new MCP session and use the dump. Test name can be full path (e.g., 'Events/Schedule Event') or just the test name."
+    )
+    run_parser.add_argument(
+        "--debug-test",
+        help="Run the category until this test (inclusive), then run this test with a pause (Enter) after each minor action so you can see exactly what happens. Uses tests.debug_utils.step_callback_with_enter. Test name can be full path (e.g., 'Appointments/_teardown', 'Create Appointment') or just the test name."
     )
     run_parser.add_argument(
         "--subcategory",
@@ -628,8 +634,8 @@ def main():
     # Create user command - create a new user in vcita and update config so tests run with that account
     create_user_parser = subparsers.add_parser("create_user", help="Create a new user in vcita (signup + onboarding) and update config.yaml. Opens browser.")
     create_user_parser.add_argument("--email", default=None, help="Account email (default: itzik+autotest.<timestamp>@vcita.com)")
-    create_user_parser.add_argument("--password", default=None, help="Password (default: env VCITA_TEST_PASSWORD or vcita123)")
-    create_user_parser.add_argument("--address", default=None, help="Business address in Welcome dialog (default: env VCITA_TEST_ADDRESS or 123 Test Street)")
+    create_user_parser.add_argument("--password", default=None, help="Password for new user (default: config target.auth.password or vcita123)")
+    create_user_parser.add_argument("--address", default=None, help="Business address in Welcome dialog (default: 123 Test Street)")
     create_user_parser.add_argument("--base-url", dest="base_url", default=None, help="Base URL (default: from config; login URL = base_url + '/login')")
 
     # Stress test command - run categories multiple times

@@ -33,10 +33,13 @@ if "/app/calendar" not in page.url:
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+client_name = context.get("created_appointment_client")
 page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-page.wait_for_timeout(2000)  # Wait for calendar to load
+# Wait for calendar to load (event-based: appointment visible)
+appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+appointment.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 3: Click on Appointment in Calendar
@@ -81,7 +84,10 @@ heading.wait_for(state='visible', timeout=10000)
 add_note_btn = outer_iframe.get_by_role('button', name='Add note')
 add_note_btn.wait_for(state='visible', timeout=5000)
 add_note_btn.click()
-page.wait_for_timeout(1000)  # Wait for note dialog to open
+# Wait for note dialog (event-based: note iframe and contenteditable)
+note_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
+note_area = note_iframe.locator('[contenteditable="true"]')
+note_area.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 6: Enter Note Text
@@ -96,7 +102,7 @@ page.wait_for_timeout(1000)  # Wait for note dialog to open
 note_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
 note_area = note_iframe.locator('[contenteditable="true"]')
 note_area.click()
-page.wait_for_timeout(500)
+page.wait_for_timeout(200)  # Brief settle for editor focus (allowed)
 page.keyboard.type(test_note)
 ```
 
@@ -110,7 +116,9 @@ page.keyboard.type(test_note)
 save_btn = note_iframe.get_by_role('button', name='Save')
 save_btn.wait_for(state='visible', timeout=5000)
 save_btn.click()
-page.wait_for_timeout(2000)  # Wait for save to complete
+# Wait for save to complete (event-based: saved note visible)
+saved_note = outer_iframe.get_by_role('button').filter(has_text=test_note)
+saved_note.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 8: Verify Note Saved (Actual Data Verification)

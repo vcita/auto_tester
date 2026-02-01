@@ -79,15 +79,15 @@ for scroll_attempt in range(max_scrolls):
                 previous_last_text = current_last_text
             
             last_service.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed) - then check service in next iteration
         else:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed)
     except:
         add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
         add_button.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)
+        page.wait_for_timeout(300)  # Brief settle (allowed)
 
 # Now locate service in list and hover to reveal edit button
 service_row = iframe.get_by_role("button").filter(has_text=service_name)
@@ -161,7 +161,7 @@ minutes_option.click()
 price_field = iframe.get_by_role("spinbutton", name="Service price")
 price_field.click()
 price_field.fill("")  # Clear existing value
-price_field.fill("75")
+price_field.fill("75")  # fill is OK for number spinbutton
 ```
 
 - **How verified**: Cleared and typed new value in MCP

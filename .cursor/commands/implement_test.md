@@ -20,6 +20,7 @@ When accessing vcita during MCP exploration:
 Follow .cursor/rules/phase1_steps.mdc
 
 - Check tests/_functions/_functions.yaml for existing functions to reuse
+- **Check for similar tests** — See `.cursor/rules/project.mdc` § Check Similar Tests When Building or Healing. Before writing steps or exploring, search for tests that do the same or a very similar user flow (e.g. delete matter, create appointment, cancel event). Read their steps.md, script.md, and test.py to reuse flow, locator strategies, and patterns. Use them as the reference for flow and locators; only explore from scratch where no similar test exists.
 - Research the feature at the vcita support / knowledge center
 - Write human-readable steps describing WHAT to do
 
@@ -27,6 +28,7 @@ Follow .cursor/rules/phase1_steps.mdc
 
 Follow .cursor/rules/phase2_script.mdc
 
+- **Align with similar tests** — When exploring, use the same locator and flow patterns as any similar working test you found in PHASE 1 (e.g. dialog by "Delete .+?", confirm button Ok/Delete, page vs iframe). Document in script.md when a locator was chosen to match test X or function Y.
 - Use Playwright MCP to explore and validate each step
 - Document LOCATOR DECISION tables for every interactive element
 - Record VERIFIED PLAYWRIGHT CODE from MCP tool output

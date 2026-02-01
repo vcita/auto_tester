@@ -47,7 +47,9 @@ new_btn.wait_for(state='visible', timeout=10000)
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 new_btn.click()
-page.wait_for_timeout(500)  # Wait for dropdown menu
+# Wait for dropdown menu (event-based)
+menu = inner_iframe.get_by_role('menu')
+menu.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 4: Select Appointment from Menu
@@ -75,9 +77,11 @@ dialog.wait_for(state='visible', timeout=10000)
 ```python
 search_field = outer_iframe.get_by_role('textbox', name='Search by name, email or tag')
 search_field.click()
-page.wait_for_timeout(100)
+page.wait_for_timeout(100)  # Brief delay for focus (allowed)
 search_field.press_sequentially(client_name, delay=30)
-page.wait_for_timeout(500)  # Allow search results to update
+# Wait for search results (event-based)
+client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
+client_option.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 6: Select the Client
@@ -90,7 +94,9 @@ page.wait_for_timeout(500)  # Allow search results to update
 client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
 client_option.wait_for(state='visible', timeout=5000)
 client_option.click()
-page.wait_for_timeout(1000)  # Wait for service panel to load
+# Wait for service panel (event-based)
+custom_service_btn = inner_iframe.get_by_role('button', name='Custom service')
+custom_service_btn.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 7: Click Custom Service Button
@@ -112,7 +118,9 @@ page.wait_for_timeout(1000)  # Wait for service panel to load
 custom_service_btn = inner_iframe.get_by_role('button', name='Custom service')
 custom_service_btn.wait_for(state='visible', timeout=5000)
 custom_service_btn.click()
-page.wait_for_timeout(1000)  # Wait for custom service form to load
+# Wait for custom service form (event-based)
+title_field = inner_iframe.get_by_role('textbox', name='Appointment title')
+title_field.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 8: Enter Custom Meeting Title
@@ -124,7 +132,8 @@ page.wait_for_timeout(1000)  # Wait for custom service form to load
 ```python
 title_field = inner_iframe.get_by_role('textbox', name='Appointment title')
 title_field.wait_for(state='visible', timeout=5000)
-title_field.fill(custom_title)
+title_field.click()
+title_field.press_sequentially(custom_title, delay=30)
 ```
 
 ### Step 9: Select Location
@@ -138,13 +147,13 @@ title_field.fill(custom_title)
 location_dropdown = inner_iframe.get_by_role('button').filter(has_text=re.compile(r'^arrow_drop_down$'))
 location_dropdown.wait_for(state='visible', timeout=5000)
 location_dropdown.click()
-page.wait_for_timeout(500)  # Wait for dropdown to open
-
-# Select "My business address"
+# Wait for dropdown option (event-based)
 my_business_option = inner_iframe.get_by_role('option', name='My business address')
 my_business_option.wait_for(state='visible', timeout=10000)
 my_business_option.click()
-page.wait_for_timeout(500)  # Wait for selection to apply
+# Wait for selection to apply (event-based: Address field appears when location is set)
+address_field = inner_iframe.get_by_role('textbox', name='Address')
+address_field.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 9b: Fill required Address field (HEALED)
@@ -158,11 +167,12 @@ page.wait_for_timeout(500)  # Wait for selection to apply
 # HEALED: Modal has a required "Address" field that must be filled before Schedule appointment
 address_field = inner_iframe.get_by_role('textbox', name='Address')
 address_field.wait_for(state='visible', timeout=5000)
-address_field.fill('My business address')
-page.wait_for_timeout(300)
+address_field.click()
+address_field.press_sequentially('My business address', delay=30)
+page.wait_for_timeout(300)  # Brief settle (allowed)
 # Dismiss Google Places autocomplete by blurring (Tab); Escape would close the whole modal.
 page.keyboard.press('Tab')
-page.wait_for_timeout(600)
+page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
 ```
 
 ### Step 10: Click Schedule Appointment
@@ -184,9 +194,7 @@ schedule_btn.click()
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.wait_for_timeout(3000)  # Allow calendar to refresh
-
-# The custom appointment appears as a menuitem containing both client name and custom title
+# Wait for appointment to appear in calendar (event-based)
 appointment_in_calendar = inner_iframe.get_by_role('menuitem').filter(has_text=custom_title)
 appointment_in_calendar.wait_for(state='visible', timeout=15000)
 ```

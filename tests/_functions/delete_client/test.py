@@ -1,13 +1,12 @@
 # Auto-generated from script.md
-# Last updated: 2026-01-23
+# Last updated: 2026-01-31
 # Source: tests/_functions/delete_client/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
 import re
+from typing import Callable, Optional
+
 from playwright.sync_api import Page, expect
-
-from tests._functions._config import get_base_url
-
 
 def _check_for_error_page(page: Page) -> tuple[bool, str]:
     """
@@ -36,7 +35,9 @@ def _check_for_error_page(page: Page) -> tuple[bool, str]:
         return False, f"Check failed: {e}"
 
 
-def fn_delete_client(page: Page, context: dict, **params) -> None:
+def fn_delete_client(
+    page: Page, context: dict, step_callback: Optional[Callable[[str], None]] = None, **params
+) -> None:
     """
     Delete a client (matter/property) by navigating to their detail page.
     
@@ -45,6 +46,7 @@ def fn_delete_client(page: Page, context: dict, **params) -> None:
     Parameters:
     - name (optional): Name of the client to delete (defaults to context value)
     - id (optional): ID of the client to delete (defaults to context value)
+    - step_callback (optional): If set, called with a short message before each minor action (for debugging).
     
     Clears from context:
     - created_client_id
@@ -62,116 +64,88 @@ def fn_delete_client(page: Page, context: dict, **params) -> None:
     
     if not name:
         raise ValueError("Client name is required for deletion")
+    # Use context["step_callback"] when set (e.g. by runner --debug-test) so teardown pauses after each action
+    if step_callback is None:
+        step_callback = context.get("step_callback")
+    
+    def _pause(msg: str) -> None:
+        if step_callback:
+            step_callback(msg)
+        else:
+            print(f"  {msg}")
     
     # Step 1: Navigate to matter list (Properties/Clients/Patients - sidebar label varies by vertical)
     # Entity-agnostic: use same sidebar position as delete_matter (.menu-items-group > div:nth-child(4))
-    base_url = get_base_url(context, params)
-    print("  Step 1: Navigating to matter list...")
-    # Ensure we're on app first
-    if not (base_url in page.url and "/app/" in page.url):
-        page.goto(f"{base_url}/app/dashboard")
+    _pause("Step 1a: Ensure on dashboard (navigate via sidebar if needed)")
+    # Ensure we're on dashboard first. Use UI only (no page.goto to internal URLs).
+    if "/app/dashboard" not in page.url:
         page.wait_for_load_state("domcontentloaded")
+        dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
+        dashboard_link.wait_for(state="visible", timeout=30000)
+        dashboard_link.scroll_into_view_if_needed()
+        page.wait_for_timeout(200)  # Brief settle (allowed)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)
     
+    _pause("Step 1b: Click matter list in sidebar (4th menu item)")
+    # HEALED 2026-01-31: Longer timeout for sidebar when arriving from dashboard (e.g. after appointments teardown).
     matter_list_nav = page.locator(".menu-items-group > div:nth-child(4)")
-    matter_list_nav.wait_for(state="visible", timeout=10000)
+    matter_list_nav.wait_for(state="visible", timeout=30000)
     matter_list_nav.click()
+    _pause("Step 1c: Wait for clients URL")
     page.wait_for_url("**/app/clients", timeout=10000)
     
-    # Wait for the page to load
-    page.wait_for_timeout(1000)
+    # Wait for list toolbar so list searchbox is present (list searchbox has no/missing aria-label on Properties)
+    _pause("Step 1d: Wait for list toolbar (Filters)")
+    page.get_by_role("button", name="Filters").wait_for(state="visible", timeout=30000)
     
-    # Step 2: Search for Client
-    print(f"  Step 2: Searching for client: {name}")
-    search_field = page.get_by_role('searchbox', name='Search by name, email, or phone number')
+    _pause("Step 2a: Click search field")
+    # Step 2: Search for Client (list filter searchbox is 2nd searchbox; 1st is global header "Search")
+    # HEALED 2026-01-31: List searchbox has no "Search by name, email, or phone number" on Properties page
+    search_field = page.get_by_role("searchbox").nth(1)
     search_field.click()
     page.wait_for_timeout(100)
+    _pause("Step 2b: Type client name in search")
     search_field.press_sequentially(name, delay=30)
     page.wait_for_timeout(1000)  # Allow search results to update
     
+    _pause("Step 3a: Click client row to open detail page")
     # Step 3: Click on Client in List
-    print("  Step 3: Opening client detail page...")
     client_row = page.get_by_role('row').filter(has_text=name)
     client_row.wait_for(state='visible', timeout=5000)
     client_row.click()
+    _pause("Step 3b: Wait for client detail URL")
     page.wait_for_url("**/app/clients/**", timeout=10000)
     
-    # Step 4: Click More Dropdown
-    print("  Step 4: Opening More menu...")
+    _pause("Step 4a: Wait for iframe, then click More button")
+    # Step 4: Click More Dropdown (detail page: menu stays inside iframe, unlike list-page delete_matter)
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     more_btn = iframe.get_by_role('button', name='More icon-caret-down')
     more_btn.wait_for(state='visible', timeout=10000)
     more_btn.click()
+    # Menu is in iframe on detail page (MCP: menuitem "Delete property" inside menu).
     menu = iframe.get_by_role('menu')
-    menu.wait_for(state='visible', timeout=5000)
-    
-    # Step 5: Select Delete <entity> (menuitem text varies: "Delete property", "Delete client", "Delete patient", etc.)
-    print("  Step 5: Clicking Delete matter...")
-    delete_option = iframe.get_by_role("menuitem").filter(has_text=re.compile(r"^Delete ", re.IGNORECASE))
-    delete_option.first.click()
-    dialog = iframe.get_by_role('dialog')
-    dialog.wait_for(state='visible', timeout=5000)
-    
-    # Step 6: Confirm Deletion
-    print("  Step 6: Confirming deletion...")
-    
-    # DEBUG: Wait and check before clicking Ok
-    print("  [DEBUG] Waiting 5 seconds before clicking Ok button...")
-    page.wait_for_timeout(5000)
+    menu.wait_for(state='visible', timeout=10000)
+    delete_option = menu.get_by_text('Delete')
+    delete_option.wait_for(state='visible', timeout=8000)
+    delete_option.click()
+    # Confirmation dialog: HEALED 2026-01-31 — dialog is INSIDE the same iframe as More/menu (screenshot showed
+    # dialog visible but page.get_by_role("dialog") timed out). Use iframe for dialog and OK so we find it.
+    _pause("Step 5b: Wait for confirm dialog")
+    iframe.get_by_role("dialog").wait_for(state="visible", timeout=30000)
+    _pause("Step 6a: Click confirm button in delete dialog")
+    confirm_btn = iframe.get_by_role("dialog").get_by_role("button", name=re.compile(r"^(Delete|OK|Ok)$", re.IGNORECASE)).first
+    confirm_btn.wait_for(state="visible", timeout=10000)
+    confirm_btn.click()
     is_error, status = _check_for_error_page(page)
-    print(f"  [DEBUG] Pre-Ok click check: {status}")
     if is_error:
-        print(f"  [ERROR] Error page detected BEFORE clicking Ok! {status}")
-        raise ValueError(f"Error page appeared before Ok click: {status}")
-    
-    ok_btn = iframe.get_by_role('button', name='Ok')
-    ok_btn.click()
-    
-    # DEBUG: Wait and check after clicking Ok, before waiting for dialog to close
-    print("  [DEBUG] Waiting 5 seconds after clicking Ok, before waiting for dialog to close...")
-    page.wait_for_timeout(5000)
-    is_error, status = _check_for_error_page(page)
-    print(f"  [DEBUG] Post-Ok click check: {status}")
-    if is_error:
-        print(f"  [ERROR] Error page detected AFTER clicking Ok! {status}")
-        raise ValueError(f"Error page appeared after Ok click: {status}")
-    
-    # Wait for dialog to close
-    print("  [DEBUG] Waiting for dialog to close...")
-    url_before_dialog_close = page.url
-    dialog.wait_for(state='hidden', timeout=10000)
-    
-    # DEBUG: Immediate check after dialog closes (navigation might happen during dialog close)
-    print("  [DEBUG] Immediate check right after dialog closed...")
-    is_error, status = _check_for_error_page(page)
-    url_after_dialog_close = page.url
-    url_changed = url_before_dialog_close != url_after_dialog_close
-    print(f"  [DEBUG] Immediate post-dialog-close check: {status}")
-    print(f"  [DEBUG] URL changed during dialog close: {url_changed} (before: {url_before_dialog_close}, after: {url_after_dialog_close})")
-    if is_error:
-        print(f"  [ERROR] Error page detected IMMEDIATELY after dialog closed! {status}")
-        raise ValueError(f"Error page appeared immediately after dialog closed: {status}")
-    
-    # DEBUG: Wait and check after dialog closes, before waiting for load state
-    print("  [DEBUG] Waiting 5 seconds after dialog closed, before waiting for load state...")
-    page.wait_for_timeout(5000)
-    is_error, status = _check_for_error_page(page)
-    print(f"  [DEBUG] Post-dialog-close check (after 5s wait): {status}")
-    if is_error:
-        print(f"  [ERROR] Error page detected AFTER dialog closed (after 5s wait)! {status}")
-        raise ValueError(f"Error page appeared after dialog closed (after 5s wait): {status}")
-    
+        raise ValueError(f"Error page appeared after confirm: {status}")
+    iframe.get_by_role("dialog").wait_for(state="hidden", timeout=10000)
     page.wait_for_load_state("domcontentloaded")
-    
-    # DEBUG: Final check after load state
-    print("  [DEBUG] Final check after load state...")
-    page.wait_for_timeout(5000)
-    is_error, status = _check_for_error_page(page)
-    print(f"  [DEBUG] Final check: {status}")
-    if is_error:
-        print(f"  [ERROR] Error page detected in final check! {status}")
-        raise ValueError(f"Error page appeared in final check: {status}")
-    
+
     # Clear from context
     if "created_client_id" in context:
         del context["created_client_id"]

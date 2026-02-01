@@ -33,10 +33,13 @@ if "/app/calendar" not in page.url:
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+client_name = context.get("created_appointment_client")
 page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-page.wait_for_timeout(2000)  # Wait for calendar to load
+# Wait for calendar to load (event-based: appointment visible)
+appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+appointment.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 3: Click on Appointment in Calendar
@@ -94,7 +97,9 @@ original_time = time_heading.text_content()
 reschedule_btn = outer_iframe.get_by_role('button', name='Reschedule').first
 reschedule_btn.wait_for(state='visible', timeout=5000)
 reschedule_btn.click()
-page.wait_for_timeout(1000)  # Wait for dialog to open
+# Wait for dialog (event-based)
+dialog = outer_iframe.get_by_role('dialog')
+dialog.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 7: Wait for Reschedule Dialog
@@ -118,7 +123,9 @@ dialog.wait_for(state='visible', timeout=10000)
 # Click on the select button to open the time dropdown
 # The second "select" button is for the time dropdown (first is for date)
 outer_iframe.get_by_role('button', name='select').nth(1).click()
-page.wait_for_timeout(500)  # Wait for dropdown to open
+# Wait for dropdown to open (event-based: time option visible)
+new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
+new_time_option.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 9: Select New Time
@@ -138,10 +145,10 @@ page.wait_for_timeout(500)  # Wait for dropdown to open
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # The dropdown contains option elements with time text like "8:00pm", "10:00am", etc.
-# Select a time that's different from current appointment time
+# Select a time that's different from current appointment time (locator already waited in Step 8)
 new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
 new_time_option.click()
-page.wait_for_timeout(500)  # Wait for selection to apply
+page.wait_for_timeout(300)  # Brief settle after selection (allowed)
 ```
 
 ### Step 10: Click Submit Button
@@ -153,7 +160,9 @@ page.wait_for_timeout(500)  # Wait for selection to apply
 ```python
 submit_btn = outer_iframe.get_by_role('button', name='Submit')
 submit_btn.click()
-page.wait_for_timeout(2000)  # Wait for reschedule to complete
+# Wait for reschedule to complete (event-based: new time visible in heading)
+time_heading = outer_iframe.get_by_role('heading', level=2).first
+time_heading.wait_for(state='visible', timeout=15000)
 ```
 
 ### Step 11: Verify Time Changed (Actual Data Verification)

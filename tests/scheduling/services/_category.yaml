@@ -5,7 +5,7 @@
 name: Services
 description: Tests for creating, editing, and deleting services (appointment types)
 
-# No run_after - this subcategory runs first after the parent category's _setup
+# Run order is defined in parent scheduling/_category.yaml (execution_order)
 
 # Execution order - tests run sequentially in this order
 tests:

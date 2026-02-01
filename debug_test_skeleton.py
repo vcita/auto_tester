@@ -14,12 +14,31 @@ Uses same browser/context as the test runner for consistent behaviour.
 from playwright.sync_api import sync_playwright
 import os
 import sys
+import yaml
+from pathlib import Path
 
 # Add project root to path to import login function
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, project_root)
+project_root = Path(__file__).resolve().parent
+sys.path.insert(0, str(project_root))
 
 from tests._functions.login.test import fn_login
+
+
+def _load_credentials():
+    """Load username/password from config.yaml only. No env or default fallbacks."""
+    config_path = project_root / "config.yaml"
+    if not config_path.exists():
+        raise ValueError("config.yaml not found. Create it with target.auth.username and target.auth.password.")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    auth = (config.get("target") or {}).get("auth") or {}
+    username = auth.get("username")
+    password = auth.get("password")
+    if not username or not password:
+        raise ValueError(
+            "Set target.auth.username and target.auth.password in config.yaml."
+        )
+    return username, password
 
 
 # -----------------------------------------------------------------------------
@@ -67,8 +86,7 @@ def run_debug():
             print("STEP 1: LOGIN")
             print("=" * 60)
             login_context = {}
-            username = os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-            password = os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+            username, password = _load_credentials()
             print(f"Logging in as: {username}")
             fn_login(page, login_context, username=username, password=password)
             print("  [OK] Login successful!")

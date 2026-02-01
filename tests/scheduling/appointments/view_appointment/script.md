@@ -36,15 +36,17 @@ if "/app/calendar" not in page.url:
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+client_name = context.get("created_appointment_client")
 page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-# Wait for calendar grid to load
-page.wait_for_timeout(2000)
+# Wait for calendar to load (event-based: appointment visible)
+appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+appointment.wait_for(state='visible', timeout=10000)
 ```
 
 - **How verified**: Verified in MCP
-- **Wait for**: Calendar grid visible with appointments
+- **Wait for**: Calendar grid visible with appointments (event-based)
 
 ### Step 3: Click on Appointment in Calendar
 

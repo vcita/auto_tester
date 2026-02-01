@@ -96,7 +96,7 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
     
     @app.get("/api/categories")
     async def get_categories():
-        """Get all categories and their tests."""
+        """Get all categories and their tests (run order from execution_order in _category.yaml)."""
         discovery = TestDiscovery(app.state.tests_root)
         categories = discovery.scan()
         
@@ -149,7 +149,9 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
                         "id": subcat_id,
                         "name": subcat.name,
                         "description": subcat.description or "",
-                        "tests": subcat_tests
+                        "tests": subcat_tests,
+                        "has_setup": subcat.setup is not None,
+                        "has_teardown": subcat.teardown is not None,
                     })
             if cat_data["has_teardown"]:
                 cat_data["execution_items"].append({"type": "teardown", "id": "_teardown", "name": "_teardown"})
@@ -169,7 +171,9 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
                     "id": subcat_id,
                     "name": subcat.name,
                     "description": subcat.description or "",
-                    "tests": []
+                    "tests": [],
+                    "has_setup": subcat.setup is not None,
+                    "has_teardown": subcat.teardown is not None,
                 }
                 for test in subcat.tests:
                     test_desc = getattr(test, "description", "") or ""
@@ -183,7 +187,10 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
                 cat_data["subcategories"].append(subcat_data)
             result.append(cat_data)
         
-        return {"categories": result}
+        return JSONResponse(
+            content={"categories": result},
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+        )
     
     @app.get("/api/test/{category}/{test_path:path}")
     async def get_test_details(category: str, test_path: str):
@@ -436,6 +443,12 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
             for subcat in cat.subcategories or []:
                 subcat_id = subcat.path.name if subcat.path else subcat.name.lower().replace(" ", "_")
                 subcat_path_str = f"{cat_path_str}/{subcat_id}"
+                if subcat.setup is not None:
+                    name_to_key[(subcat_path_str, "_setup")] = f"{cat_id}/{subcat_id}/_setup"
+                    name_to_key[(subcat_path_str, f"{subcat.name}/_setup")] = f"{cat_id}/{subcat_id}/_setup"
+                if subcat.teardown is not None:
+                    name_to_key[(subcat_path_str, "_teardown")] = f"{cat_id}/{subcat_id}/_teardown"
+                    name_to_key[(subcat_path_str, f"{subcat.name}/_teardown")] = f"{cat_id}/{subcat_id}/_teardown"
                 for test in subcat.tests or []:
                     test_name = getattr(test, "name", None) or (test.path.name if test.path else "")
                     path_key = f"{cat_id}/{subcat_id}/{test.path.name}" if test.path else f"{cat_id}/{subcat_id}/{getattr(test, 'id', test_name)}"
@@ -614,8 +627,15 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
         """Run tests in a background thread. When category is set, run that category; when run_all_selection is set, run only those paths via run_all(selection)."""
         global _is_running, _runner
         
+        # Load config so runner injects target.base_url and target.auth into context (same account as config.yaml)
+        config = {}
+        config_path = app.state.project_root / "config.yaml"
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+        
         try:
-            _runner = TestRunner(tests_root, headless=False)
+            _runner = TestRunner(tests_root, headless=False, config=config)
             
             # Subscribe to events
             def on_event(event: RunnerEvent):
@@ -667,9 +687,9 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
             _is_running = False
             _runner = None
     
-    @app.post("/api/run/category/{category}")
+    @app.post("/api/run/category/{category:path}")
     async def run_category(category: str, background_tasks: BackgroundTasks):
-        """Run tests in a specific category."""
+        """Run tests in a specific category or subcategory (e.g. scheduling or scheduling/services)."""
         global _is_running
         
         with _run_lock:

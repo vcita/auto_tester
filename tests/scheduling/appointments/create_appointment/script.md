@@ -71,7 +71,6 @@ menu.wait_for(state='visible', timeout=5000)
 
 - **How verified**: Clicked in MCP, menu appeared
 - **Wait for**: Menu becomes visible
-- **Fallback locators**: `inner_iframe.locator('button:has-text("New")')`
 
 ### Step 4: Select Appointment from Menu
 
@@ -97,7 +96,6 @@ dialog.wait_for(state='visible', timeout=10000)
 
 - **How verified**: Clicked in MCP, client selection dialog appeared
 - **Wait for**: Dialog becomes visible
-- **Fallback locators**: `inner_iframe.get_by_text('Appointment', exact=True)`
 
 ### Step 5: Search for Test Client
 
@@ -117,14 +115,14 @@ dialog.wait_for(state='visible', timeout=10000)
 ```python
 search_field = outer_iframe.get_by_role('textbox', name='Search by name, email or tag')
 search_field.click()
-page.wait_for_timeout(100)
+page.wait_for_timeout(100)  # Brief delay for focus (allowed)
 search_field.press_sequentially(client_name, delay=30)
-# Wait for search results
-page.wait_for_timeout(500)
+# Wait for search results (event-based)
+client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
+client_option.wait_for(state='visible', timeout=5000)
 ```
 
 - **How verified**: Typed in MCP, search results filtered
-- **Fallback locators**: `outer_iframe.locator('input[placeholder*="Search"]')`
 
 ### Step 6: Select the Client
 
@@ -144,12 +142,12 @@ page.wait_for_timeout(500)
 client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
 client_option.wait_for(state='visible', timeout=5000)
 client_option.click()
-# Wait for service selection panel
-page.wait_for_timeout(1000)  # Allow service panel to load
+# Wait for service panel to load (event-based)
+inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=10000)
 ```
 
 - **How verified**: Clicked in MCP, service selection panel appeared
-- **Wait for**: Service selection panel visible
+- **Wait for**: "My Services" text visible (service panel loaded)
 
 ### Step 7: Search for Test Service
 
@@ -162,13 +160,12 @@ page.wait_for_timeout(1000)  # Allow service panel to load
 # Service search in the nested frame
 service_search = inner_iframe.get_by_role('searchbox', name='Search')
 service_search.click()
-page.wait_for_timeout(100)
+page.wait_for_timeout(100)  # Brief delay for focus (allowed)
 service_search.press_sequentially(service_name, delay=30)
-page.wait_for_timeout(500)
+# Service list filters; service row appears (event-based wait in Step 8)
 ```
 
 - **How verified**: Typed in MCP, service list filtered
-- **Fallback locators**: `inner_iframe.locator('input[placeholder*="Search"]')`
 
 ### Step 8: Select the Service
 
@@ -191,67 +188,54 @@ page.wait_for_timeout(500)
 service_row = inner_iframe.locator('.service-item').filter(has_text=service_name)
 service_row.wait_for(state='visible', timeout=5000)
 service_row.click()
-page.wait_for_timeout(2000)  # Allow service picker to close and appointment form to load
+# Wait for service picker to close and appointment form to load (event-based).
+# Single detection: Schedule button by accessible name (regex) or "Schedule" only (one compound locator).
+schedule_btn = inner_iframe.get_by_role('button', name=re.compile(r'Schedule\s*appointment', re.IGNORECASE)).or_(
+    inner_iframe.get_by_role('button', name=re.compile(r'^Schedule$', re.IGNORECASE))
+).first
+schedule_btn.wait_for(state='visible', timeout=15000)
 ```
 
 - **How verified**: Clicked in MCP, appointment form appeared with date/time options
-- **Wait for**: Appointment form visible with service selected
+- **Wait for**: Schedule button visible (appointment form loaded)
 
-### Step 8b: Fill required Address (when present) – HEALED 2026-01-26
+### Step 8b: Fill Address if present – HEALED 2026-01-31
 
-- **Action**: If the New Appointment dialog shows a required "Address" field under Location (e.g. when "My business address" is selected), fill it so Schedule can submit.
-- **Target**: Address textbox in the appointment form
-
-**Note**: Without this, the form does not submit and Step 10 times out waiting for the appointment in the calendar.
+- **Action**: If the form shows a required "Address" field under Location, fill it so Schedule can submit.
+- **Target**: Address textbox in the appointment form. Optional: form may not show Location/Address in all configs; if not present, skip (no wait, no timeout swallow).
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-try:
-    address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
-    address_field.wait_for(state='visible', timeout=2000)
-    address_field.fill('123 Test Street')
-    page.wait_for_timeout(300)
-except Exception:
-    try:
-        inner_iframe.get_by_placeholder(re.compile(r'Address', re.IGNORECASE)).first.fill('123 Test Street')
-        page.wait_for_timeout(300)
-    except Exception:
-        pass
-# HEALED 2026-01-26: Dismiss Google Places autocomplete by blurring (Tab). Escape closes the whole modal.
-page.keyboard.press('Tab')
-page.wait_for_timeout(600)
-try:
-    pac = page.locator('.pac-container')
-    if pac.count() > 0:
-        pac.first.wait_for(state='hidden', timeout=2000)
-except Exception:
-    pass
+# HEALED 2026-01-31: Address not always visible (e.g. Location section collapsed). Form ready = Schedule button.
+# Only fill if Address is already in DOM (count-based check; no timeout swallow per Timeout Means Failure).
+address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
+if address_field.count() > 0:
+    address_field.click()
+    address_field.press_sequentially('123 Test Street', delay=30)
+    page.wait_for_timeout(300)  # Brief settle (allowed)
+    page.keyboard.press('Tab')
+    page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
 ```
 
 ### Step 9: Click Schedule Appointment
 
 - **Action**: Click
-- **Target**: "Schedule appointment" button
-
-**LOCATOR DECISION:**
-
-| Option | Pros | Cons |
-|--------|------|------|
-| `inner_iframe.get_by_role('button', name='Schedule appointment')` | Unique, semantic | None |
-
-**CHOSEN**: `inner_iframe.get_by_role('button', name='Schedule appointment')` - Unique.
+- **Target**: "Schedule appointment" button (same single compound locator as Step 8)
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
+schedule_btn = inner_iframe.get_by_role('button', name=re.compile(r'Schedule\s*appointment', re.IGNORECASE)).or_(
+    inner_iframe.get_by_role('button', name=re.compile(r'^Schedule$', re.IGNORECASE))
+).first
 schedule_btn.wait_for(state='visible', timeout=10000)
 schedule_btn.click(force=True)
-# Wait for calendar to update
-page.wait_for_timeout(3000)
+# Wait for appointment to appear in calendar (event-based in Step 10)
+appointment_in_calendar = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+appointment_in_calendar.wait_for(state='visible', timeout=15000)
 ```
 
 - **How verified**: Tab dismisses pac-container without closing modal; force=True avoids overlay intercept.
-- **Wait for**: Calendar updates with new appointment
+- **Wait for**: Appointment visible in calendar (event-based, long timeout)
 
 ### Step 10: Verify Appointment in Calendar (Actual Data Verification)
 

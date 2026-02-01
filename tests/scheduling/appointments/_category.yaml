@@ -5,8 +5,7 @@
 name: Appointments
 description: Tests for creating, editing, and canceling 1-on-1 appointments manually from the business calendar
 
-# Run after services subcategory (after group event CRUD is complete)
-run_after: services
+# Run order is defined in parent scheduling/_category.yaml (execution_order)
 
 # Execution order - tests run sequentially in this order
 tests:

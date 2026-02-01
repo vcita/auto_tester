@@ -114,6 +114,23 @@ Plus `changelog.md` that logs all changes.
 - **Do NOT**: Retry clicks, fills, or other user actions in a loop; do not "click again if form didn't open" or "retry More button if detached."
 - **Why**: Retries mask timing or readiness bugs. The correct fix is to wait for the right condition before acting, not to retry until something sticks.
 
+## Single Detection Per Step (No Fallbacks) (CRITICAL)
+
+**Each step must have one clear way to detect that something happened or that the UI is ready for the next action.** Do not add fallback locators or try/except chains that try a second (or third) way to detect the same condition.
+
+- **Rule**: For each step, choose **one** object or condition to wait on (e.g. one button visible, one heading, one URL). If that condition is not found, the test should fail—do not "fall back" to waiting on a different element or using a different locator in the same step.
+- **Do NOT**: Use try/except to try locator A, then on failure try locator B for the same "ready" condition. Do not document "Fallback: try get_by_text if get_by_role fails."
+- **Why**: Fallbacks hide real failures (wrong page, wrong state, UI change). If the primary condition is not found, the step did not succeed; the fix is to find the correct single condition to wait on (or fix the product), not to add a second way to pretend the step succeeded.
+- **If the primary wait is unreliable**: Re-explore in MCP, pick a **different** single object/condition that reliably indicates readiness, and use that instead—still one condition per step.
+
+## Timeout Means Failure (CRITICAL)
+
+**If a wait times out, the test must fail and stop.** Never catch a timeout and continue the test as if the step succeeded.
+
+- **Rule**: When waiting for something that should have happened (element visible, URL changed, dialog closed, etc.), use event-based waits with a long timeout. If the timeout is reached, the wait raises; **do not** catch that exception and continue. The test must fail so the test sequence stops.
+- **Do NOT**: Use try/except around a wait and in the except block continue to the next step, or use a "fallback" action. Do not have code that times out waiting for the Schedule button then proceeds to fill the form anyway.
+- **Why**: A timeout means the expected condition did not occur. Continuing allows tests to "pass" despite the app not being in the expected state, masking real failures and making debugging impossible.
+
 ## Key Principles
 
 1. **Black-box testing** - Never assume knowledge of vcita's codebase
@@ -361,6 +378,33 @@ And this in test B:
 ```
 
 These are the SAME action - extract to `navigate_to_add_client` function.
+
+## Check Similar Tests When Building or Healing (CRITICAL)
+
+**When building a new test or healing an existing one, always look for similar tests that are already implemented and working.** Use them as the reference for flow, locators, and patterns—do not guess or re-explore from scratch when a working example exists.
+
+### Rule
+
+1. **Before building a new test**: Search for tests that do the same or a very similar user flow (e.g. delete matter, create appointment, cancel event). Read their `steps.md`, `script.md`, and `test.py` to see how they find elements, handle dialogs, and verify outcomes. Reuse the same patterns and, where applicable, the same functions or locator strategies.
+
+2. **Before healing a failing test**: Identify tests that exercise the same UI flow or the same product area (e.g. list-page delete vs detail-page delete, same entity type). Compare the failing step with how the working test does the equivalent step (e.g. how it finds the confirmation dialog, which button text it uses). Apply the working test’s approach first; only invent new selectors or flow if the working test’s approach does not fit (e.g. different page/iframe context).
+
+3. **Where to look**:
+   - **Category tests** in `tests/{category}/` that do the same action (e.g. `tests/clients/delete_matter/` for delete matter from list).
+   - **Functions** in `tests/_functions/` that implement the same action (e.g. `delete_client` for delete from detail page).
+   - Same entity/vertical: matter (clients/properties), appointments, events, services.
+
+4. **What to reuse**: Dialog locators (e.g. match by "Delete .+?" or "delete" in body, not "Confirm"), button labels (Ok vs Delete), use of `page` vs `iframe`, wait strategy, and entity-agnostic regex. Document in script.md/changelog that the approach was aligned with test X or function Y.
+
+### Why This Matters
+
+- Working tests have already been validated in the real UI; their locators and flow are known to pass.
+- Copying patterns from a similar working test fixes many failures (e.g. wrong dialog filter, wrong button name) without MCP exploration.
+- Reduces duplicate exploration and keeps behavior consistent across list vs detail, different verticals, and functions vs category tests.
+
+### Example
+
+Healing `fn_delete_client` (detail-page delete): Check `tests/clients/delete_matter/` (list-page delete). It finds the confirmation dialog with `get_by_text(re.compile(r"Delete .+\?", re.IGNORECASE))` and confirms with the "Delete" button. The detail-page dialog may not contain "Confirm" but may contain "delete" and "continue?"—so use an entity-agnostic filter (e.g. dialog containing "delete") and the same confirm-button pattern (Delete or Ok) instead of filtering the dialog by "Confirm".
 
 ## File Locations
 

@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/Reschedule Appointment",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\reschedule_appointment",
+  "test_type": "test",
+  "status": "passed",
+  "duration_ms": 12345,
+  "error": null,
+  "error_type": null,
+  "screenshot": null,
+  "saved_at": "2026-01-31T20:48:35.336717"
+}

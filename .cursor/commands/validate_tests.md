@@ -122,7 +122,21 @@ Use these rule files as the **definition of what to validate**. Perform each che
   4. **Cancellation documentation**: If objects are cancelled instead of deleted (e.g., appointments), verify this is documented in the cancel test or teardown.
 - **Report**: Per-category table: Category | Setup objects | Teardown cleanup | Test sequence cleanup | Context cleared | Status (Pass/Fail/N/A + notes). **Pass** if: (1) no `_setup` OR `_setup` objects are cleaned in `_teardown`, (2) all create tests have corresponding delete/cancel tests OR objects are cleaned in `_teardown`, (3) context variables are cleared after deletion. **Fail** if objects are created but never cleaned up. **N/A** if category has no object creation.
 
-**Note**: Rule numbering in the summary table uses 2.9 for "No retries", 2.10 for "Test cleanup and teardown". Renumber subsequent references (e.g. "2.9" → "2.10" for cleanup) in the report template if needed.
+### 2.11 No fallbacks for detection
+
+**Sources**: `.cursor/rules/project.mdc` (§ Single Detection Per Step (No Fallbacks)), `.cursor/rules/phase3_code.mdc` (§ No Fallbacks for Detection)
+
+- **Rule**: Each step must have one clear way to detect that something happened or that the UI is ready for the next action. Do not add fallback locators or try/except chains that try a second (or third) way to detect the same condition. If the primary condition is not found, the test should fail.
+- **Check**: In each resolved test, grep for `fallback|try:.*except|except.*continue` and read `test.py` and `script.md` for patterns like "try locator A then locator B" for the same ready condition, or documented "Fallback: …" for detection. Exclude try/except that only wrap infrastructure (e.g. navigation context) if documented as such.
+- **Report**: Pass if no fallback detection in scoped files; Fail with file:line and violation (e.g. "try get_by_role then get_by_text for same button", "Fallback: try X if Y fails").
+
+### 2.12 Timeout means failure
+
+**Sources**: `.cursor/rules/project.mdc` (§ Timeout Means Failure), `.cursor/rules/phase3_code.mdc` (§ Timeout Means Failure)
+
+- **Rule**: If a wait times out, the test must fail and stop. Never catch a timeout and continue the test as if the step succeeded. Do not use try/except around a wait and in the except block continue to the next step.
+- **Check**: In each resolved test, grep for `try:|except|TimeoutError|wait_for.*timeout` in `test.py` and `script.md`. Look for try/except that wraps a wait and continues (e.g. "except: continue", "except TimeoutError: pass", or proceeding to next step after a caught timeout).
+- **Report**: Pass if no timeout-swallowing or continue-after-timeout; Fail with file:line and violation (e.g. "except around wait_for then continue", "timeout then fill form anyway").
 
 ---
 
@@ -148,14 +162,17 @@ Produce a single validation report.
    | 8. Matter entity name agnosticism | ✅ Pass / ❌ Fail | … |
    | 9. No retries for actions | ✅ Pass / ❌ Fail | … |
    | 10. Test cleanup and teardown | ✅ Pass / ❌ Fail / N/A | … |
+   | 11. No fallbacks for detection | ✅ Pass / ❌ Fail | … |
+   | 12. Timeout means failure | ✅ Pass / ❌ Fail | … |
 
 3. **Per-rule sections**  
-   For each rule (1–9), add a section with:
+   For each rule (1–12), add a section with:
    - Rule (one sentence) and source (rule file).
    - Check performed (what you grepped/read).
    - Result: Pass or Fail (or N/A where applicable).
    - If Fail: file paths, line numbers or step names, and concrete violations (and, for wait strategy, suggested event-based fixes where useful).
    - For rule 2.10 (cleanup): Include per-category table showing setup objects, teardown cleanup, test sequence cleanup, and context clearing status.
+   - For rules 2.11 and 2.12: Include file:line and concrete violation when Fail.
 
 4. **Files to update (optional)**  
    If any Fail: list files that should be updated (e.g. `tests/…/steps.md`, `tests/…/test.py`, `tests/…/script.md`) and what to change briefly.

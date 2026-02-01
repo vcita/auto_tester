@@ -7,9 +7,6 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
-from tests._functions._config import get_base_url
-
-
 def fn_create_service(page: Page, context: dict, **params) -> None:
     """
     Create a minimal 1-on-1 service for test setup purposes.
@@ -28,8 +25,6 @@ def fn_create_service(page: Page, context: dict, **params) -> None:
         timestamp = int(time.time())
         name = f"Test Service {timestamp}"
 
-    base_url = get_base_url(context, params)
-
     # HEALED 2026-01-26: When already on Services page (e.g. after scheduling _setup), skip main-page
     # "Settings" lookup and iframe Services click - they time out when content is in iframe or page state differs.
     if "/app/settings/services" in page.url:
@@ -40,9 +35,17 @@ def fn_create_service(page: Page, context: dict, **params) -> None:
     else:
         # Step 1: Navigate to Settings
         print("  Step 1: Navigating to Settings...")
-        if not (base_url in page.url and "/app/" in page.url):
-            page.goto(f"{base_url}/app/dashboard")
+        # Ensure on dashboard first. Use UI only (no page.goto to internal URLs).
+        if "/app/dashboard" not in page.url:
             page.wait_for_load_state("domcontentloaded")
+            dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
+            dashboard_link.wait_for(state="visible", timeout=30000)
+            dashboard_link.scroll_into_view_if_needed()
+            page.wait_for_timeout(200)  # Brief settle (allowed)
+            dashboard_link.click()
+            page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_load_state("domcontentloaded")
+            page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)
 
         settings_menu = page.get_by_text('Settings')
         settings_menu.wait_for(state='visible', timeout=30000)

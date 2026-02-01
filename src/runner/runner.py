@@ -22,22 +22,68 @@ from .executor import TestExecutor
 from .heal import HealRequestGenerator
 from .storage import RunStorage
 
+# For --debug-test: pause after each minor action (human-in-the-loop debugging)
+def _get_step_callback_for_debug():
+    from tests.debug_utils import step_callback_with_enter
+    return step_callback_with_enter
+
 
 def build_execution_plan(category: Category) -> List:
     """
-    Build execution plan that interleaves tests and subcategories (same order as runner).
-    Subcategories with run_after are inserted after the named test or subcategory; others at end.
+    Build execution plan from category tests and subcategories (same order as runner).
+    When category.execution_order is set (in parent _category.yaml), use that list
+    (test ids and subcategory folder names) as the run order. Otherwise fall back to
+    legacy run_after / discovery order.
     Used by GUI to display tests in exact run order.
     """
     from typing import Union
     plan: List[Union[Test, Category]] = []
+
+    def subcat_by_id(cat: Category, id_or_name: str) -> Optional[Category]:
+        key = id_or_name.lower().strip()
+        for s in cat.subcategories or []:
+            name = s.path.name if s.path else s.name.lower().replace(" ", "_")
+            if name.lower() == key:
+                return s
+        return None
+
+    def test_by_id(cat: Category, test_id: str) -> Optional[Test]:
+        for t in cat.tests or []:
+            if t.id.lower() == test_id.lower():
+                return t
+        return None
+
+    # Only use execution_order when it's a non-empty list (avoid string/other types)
+    if isinstance(category.execution_order, list) and len(category.execution_order) > 0:
+        # Parent defines full run order: mix of test ids and subcategory folder names
+        for id_or_name in category.execution_order:
+            key = id_or_name.strip()
+            subcat = subcat_by_id(category, key)
+            if subcat is not None:
+                plan.append(subcat)
+            else:
+                test = test_by_id(category, key)
+                if test is not None:
+                    plan.append(test)
+        # Append any tests/subcategories not in execution_order (discovered but not listed)
+        seen = {id(x) for x in plan}
+        for t in category.tests or []:
+            if id(t) not in seen and t not in plan:
+                plan.append(t)
+        for s in category.subcategories or []:
+            if id(s) not in seen and s not in plan:
+                plan.append(s)
+        return plan
+
+    # Legacy: run_after and discovery order
     subcats_after: dict[str, List[Category]] = {}
     subcats_at_end: List[Category] = []
     for subcat in category.subcategories or []:
         if subcat.run_after:
-            if subcat.run_after not in subcats_after:
-                subcats_after[subcat.run_after] = []
-            subcats_after[subcat.run_after].append(subcat)
+            k = (subcat.run_after or "").strip().lower()
+            if k not in subcats_after:
+                subcats_after[k] = []
+            subcats_after[k].append(subcat)
         else:
             subcats_at_end.append(subcat)
     for test in category.tests or []:
@@ -45,15 +91,11 @@ def build_execution_plan(category: Category) -> List:
         if test.id in subcats_after:
             for subcat in subcats_after[test.id]:
                 plan.append(subcat)
-    # Insert subcategories that have run_after after the referenced subcategory (by path.name/id).
-    # Chains are supported: e.g. services -> appointments -> events (each has run_after the previous).
-    def subcat_key(s):
-        return s.path.name if s.path else s.name.lower().replace(" ", "_")
-
+    def subcat_key(s: Category):
+        return (s.path.name if s.path else s.name.lower().replace(" ", "_")).lower()
     for subcat in subcats_at_end:
         plan.append(subcat)
-        key = subcat_key(subcat)
-        to_append = list(subcats_after.get(key, []))
+        to_append = list(subcats_after.get(subcat_key(subcat), []))
         while to_append:
             next_subcat = to_append.pop(0)
             plan.append(next_subcat)
@@ -93,6 +135,7 @@ class TestRunner:
         record_video: bool = True,
         keep_open: bool = False,
         until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
         config: Optional[dict] = None,
     ):
         """
@@ -105,6 +148,7 @@ class TestRunner:
             record_video: Whether to record video of test execution (default: True)
             keep_open: Whether to keep browser open on failure for debugging (default: False)
             until_test: Stop before this test; dump context to until_test_context.json and leave browser open (for manual or MCP debugging; MCP uses a new session)
+            debug_test: Run category until this test, then run this test with step_callback=step_callback_with_enter (pause after each minor action for human debugging), then stop.
             config: Full config dict (e.g. from config.yaml); target subtree is stored in run logs and heal requests
         """
         self.tests_root = Path(tests_root)
@@ -113,6 +157,7 @@ class TestRunner:
         self.record_video = record_video
         self.keep_open = keep_open
         self.until_test = until_test
+        self.debug_test = debug_test
         self.run_config = (config or {}).get("target") if config else None
         
         # Components
@@ -322,6 +367,7 @@ class TestRunner:
             )
 
         until_test_name = until_test or self.until_test
+        debug_test_name = getattr(self, 'debug_test', None)  # Only used when --debug-test is set from main
 
         # Total test count for events (if only one subcategory, count its tests)
         if not category_chain and subcategory_name and category.subcategories:
@@ -347,6 +393,7 @@ class TestRunner:
         result = self._run_category_internal(
             category, 1, 1,
             until_test=until_test_name,
+            debug_test=debug_test_name,
             subcategory_name=subcategory_name,
             category_chain=category_chain,
         )
@@ -375,6 +422,7 @@ class TestRunner:
         category_index: int,
         total_categories: int,
         until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
         subcategory_name: Optional[str] = None,
         category_chain: Optional[List[Category]] = None,
     ) -> CategoryResult:
@@ -385,6 +433,8 @@ class TestRunner:
             category: Category to run (root when category_chain is set)
             category_index: Index of this category (1-based)
             total_categories: Total number of categories
+            until_test: If set, stop before this test and dump context.
+            debug_test: If set, run until this test (inclusive) with context["step_callback"] so the target test pauses after each minor action, then stop.
             subcategory_name: If set, run only this subcategory (parent setup still runs).
             category_chain: If set (e.g. [root, yyy, zzz]), run root setup, then each intermediate's
                            setup, then leaf setup + tests. Takes precedence over subcategory_name.
@@ -562,16 +612,19 @@ class TestRunner:
                         time_module=time_module,
                         parent_category=parent_of_leaf,
                         until_test=until_test,
+                        debug_test=debug_test,
                         skip_setup=True,
                     )
                     if subcat_failed:
                         result.stopped_early = True
-                    if not getattr(result, "until_test_reached", False):
-                        # Teardown in reverse order: zzz -> yyy -> xxx
-                        self._run_teardown_chain_reverse(
-                            category_chain, page, context, result,
-                            video_timestamps, video_start_time, time_module,
-                        )
+                    if not getattr(result, "until_test_reached", False) and not getattr(result, "debug_test_reached", False):
+                        # Teardown for parent chain only (leaf teardown already ran in _run_subcategory_inline)
+                        parent_chain = category_chain[:-1]
+                        if parent_chain:
+                            self._run_teardown_chain_reverse(
+                                parent_chain, page, context, result,
+                                video_timestamps, video_start_time, time_module,
+                            )
                 else:
                     # Build execution plan: interleave tests and subcategories based on run_after
                     execution_plan = build_execution_plan(category)
@@ -611,37 +664,65 @@ class TestRunner:
                             # Run a test
                             test = item
 
+                            # Build test name variants for until_test / debug_test matching
+                            test_full_name = f"{category.name}/{test.name}" if hasattr(category, 'name') else test.name
+                            test_full_id = f"{category.name}/{test.id}" if hasattr(category, 'name') else test.id
+                            subcategory_prefix = ""
+                            if hasattr(category, 'subcategories') and category.subcategories:
+                                for subcat in category.subcategories:
+                                    if test in subcat.tests:
+                                        subcategory_prefix = f"{subcat.name}/"
+                                        break
+                            test_with_subcat = f"{subcategory_prefix}{test.name}"
+                            test_id_with_subcat = f"{subcategory_prefix}{test.id}"
+
+                            def _test_matches_target(test, target: str) -> bool:
+                                if not target:
+                                    return False
+                                return (
+                                    test.name == target or test.id == target or
+                                    test_full_name == target or test_full_id == target or
+                                    test_with_subcat == target or test_id_with_subcat == target or
+                                    target in test.name or target in test.id or
+                                    target in test_full_name or target in test_full_id
+                                )
+
                             # Check if we should stop before this test (for MCP debugging)
-                            if until_test:
-                                # Match test name (can be "Services/Edit Group Event" or "Edit Group Event")
-                                # Also match by test ID (folder name like "remove_attendee")
-                                test_full_name = f"{category.name}/{test.name}" if hasattr(category, 'name') else test.name
-                                test_full_id = f"{category.name}/{test.id}" if hasattr(category, 'name') else test.id
-                                # Also check subcategory format like "Services/Edit Group Event"
-                                subcategory_prefix = ""
-                                if hasattr(category, 'subcategories') and category.subcategories:
-                                    # Try to find if test is in a subcategory
-                                    for subcat in category.subcategories:
-                                        if test in subcat.tests:
-                                            subcategory_prefix = f"{subcat.name}/"
-                                            break
-                                test_with_subcat = f"{subcategory_prefix}{test.name}"
-                                test_id_with_subcat = f"{subcategory_prefix}{test.id}"
-                                if (test.name == until_test or
-                                    test.id == until_test or
-                                    test_full_name == until_test or
-                                    test_full_id == until_test or
-                                    test_with_subcat == until_test or
-                                    test_id_with_subcat == until_test or
-                                    until_test in test.name or
-                                    until_test in test.id or
-                                    until_test in test_full_name or
-                                    until_test in test_full_id):
-                                    result.stopped_early = True
-                                    result.until_test_reached = True
-                                    result.until_test_next_test = test_with_subcat or test_full_name or test.name
-                                    self._skip_remaining_items(execution_plan[index:], result, test.name)
-                                    break
+                            if until_test and _test_matches_target(test, until_test):
+                                result.stopped_early = True
+                                result.until_test_reached = True
+                                result.until_test_next_test = test_with_subcat or test_full_name or test.name
+                                self._skip_remaining_items(execution_plan[index:], result, test.name)
+                                break
+
+                            # If --debug-test: run this test with step_callback (pause after each minor action), then stop
+                            if debug_test and _test_matches_target(test, debug_test):
+                                context["step_callback"] = _get_step_callback_for_debug()
+                                print(f"\n  [--debug-test] Running test with pause after each action: {test_with_subcat or test.name}")
+                                test_start_offset = time_module.time() - video_start_time
+                                test_result = self._run_single_test(
+                                    test_path=test.path,
+                                    test_name=test.name,
+                                    test_type="test",
+                                    page=page,
+                                    context=context,
+                                    index=index + 1,
+                                    total=total_items,
+                                    category_name=category.name,
+                                )
+                                test_end_offset = time_module.time() - video_start_time
+                                video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
+                                result.test_results.append(test_result)
+                                result.stopped_early = True
+                                result.debug_test_reached = True
+                                if test_result.status == "failed":
+                                    self.events.emit(RunnerEvent.TEST_FAILED, {
+                                        "test": test.name,
+                                        "error": test_result.error,
+                                        "error_type": getattr(test_result, 'error_type', None),
+                                    })
+                                self._skip_remaining_items(execution_plan[index + 1:], result, test.name)
+                                break
 
                             test_start_offset = time_module.time() - video_start_time
                             test_result = self._run_single_test(
@@ -675,14 +756,15 @@ class TestRunner:
                                 time_module=time_module,
                                 parent_category=category,
                                 until_test=until_test,
+                                debug_test=debug_test,
                             )
                             if subcat_failed:
                                 result.stopped_early = True
                                 self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
                                 break
 
-                    # Run teardown if exists (always, even on failure, unless until_test was reached)
-                    if not getattr(result, 'until_test_reached', False):
+                    # Run teardown if exists (always, even on failure, unless until_test or debug_test was reached)
+                    if not getattr(result, 'until_test_reached', False) and not getattr(result, 'debug_test_reached', False):
                         self._run_teardown_if_exists(category, page, context, result)
                 
             finally:
@@ -721,7 +803,21 @@ class TestRunner:
                     self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
                     browser_context.close()
                     browser.close()
-                # If keep_open is enabled and there was a failure (but not until_test), wait for user
+                # If debug_test was reached: keep browser open so user can inspect
+                elif getattr(result, 'debug_test_reached', False):
+                    print("\n  [--debug-test] Target test completed. Browser left open for inspection.")
+                    try:
+                        import sys
+                        if sys.stdin.isatty():
+                            input("  [>] Press Enter to close browser and continue...")
+                        else:
+                            raise EOFError("Non-interactive")
+                    except (EOFError, KeyboardInterrupt):
+                        pass
+                    self.events.emit(RunnerEvent.BROWSER_CLOSING, {"category": category.name})
+                    browser_context.close()
+                    browser.close()
+                # If keep_open is enabled and there was a failure (but not until_test/debug_test), wait for user
                 elif self.keep_open and result.stopped_early:
                     print("\n  [!] Browser kept open for debugging (--keep-open flag)")
                     print(f"  [>] Current URL: {page.url}")
@@ -998,6 +1094,7 @@ class TestRunner:
         time_module,
         parent_category: Category,
         until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
         skip_setup: bool = False,
     ) -> tuple[bool, str]:
         """
@@ -1011,6 +1108,9 @@ class TestRunner:
             video_timestamps: List to append timestamps to
             video_start_time: When video recording started
             time_module: time module reference
+            parent_category: Parent category
+            until_test: If set, stop before this test and dump context.
+            debug_test: If set, run until this test (inclusive) with context["step_callback"], then stop.
             skip_setup: If True, do not run subcategory setup (e.g. already run in path mode).
             
         Returns:
@@ -1057,37 +1157,74 @@ class TestRunner:
         
         # Run subcategory tests
         for index, test in enumerate(subcategory.tests):
+            test_full_name = f"{subcategory.name}/{test.name}"
+            test_full_id = f"{subcategory.name}/{test.id}"
+
+            def _subcat_test_matches(target: str) -> bool:
+                if not target:
+                    return False
+                return (
+                    test.name == target or test.id == target or
+                    test_full_name == target or test_full_id == target or
+                    target in test.name or target in test.id or
+                    target in test_full_name or target in test_full_id
+                )
+
             # Check if we should stop before this test (for MCP debugging)
-            if until_test:
-                # Match by both test name and test ID (folder name)
-                test_full_name = f"{subcategory.name}/{test.name}"
-                test_full_id = f"{subcategory.name}/{test.id}"
-                if (test.name == until_test or 
-                    test.id == until_test or
-                    test_full_name == until_test or 
-                    test_full_id == until_test or
-                    until_test in test.name or
-                    until_test in test.id or
-                    until_test in test_full_name or
-                    until_test in test_full_id):
-                    result.stopped_early = True
-                    result.until_test_reached = True
-                    result.until_test_next_test = test_full_name
-                    # Skip remaining items
-                    for remaining_test in subcategory.tests[index:]:
-                        result.test_results.append(TestResult(
-                            test_name=f"{subcategory.name}/{remaining_test.name}",
-                            test_path=remaining_test.path,
-                            test_type="test",
-                            status="skipped",
-                            duration_ms=0,
-                            error=f"Skipped - stopped before test for MCP debugging",
-                        ))
-                    # Save subcategory result (without teardown) before returning
-                    self._save_subcategory_result(subcategory, parent_category, result, category_path)
-                    # Return early - browser will be kept open in finally block
-                    return True, test_full_name
-            
+            if until_test and _subcat_test_matches(until_test):
+                result.stopped_early = True
+                result.until_test_reached = True
+                result.until_test_next_test = test_full_name
+                for remaining_test in subcategory.tests[index:]:
+                    result.test_results.append(TestResult(
+                        test_name=f"{subcategory.name}/{remaining_test.name}",
+                        test_path=remaining_test.path,
+                        test_type="test",
+                        status="skipped",
+                        duration_ms=0,
+                        error=f"Skipped - stopped before test for MCP debugging",
+                    ))
+                self._save_subcategory_result(subcategory, parent_category, result, category_path)
+                return True, test_full_name
+
+            # If --debug-test: run this test with step_callback (pause after each minor action), then stop
+            if debug_test and _subcat_test_matches(debug_test):
+                context["step_callback"] = _get_step_callback_for_debug()
+                print(f"\n  [--debug-test] Running test with pause after each action: {test_full_name}")
+                test_start_offset = time_module.time() - video_start_time
+                test_result = self._run_single_test(
+                    test_path=test.path,
+                    test_name=test_full_name,
+                    test_type="test",
+                    page=page,
+                    context=context,
+                    index=index + 1,
+                    total=len(subcategory.tests),
+                    category_name=category_path,
+                )
+                test_end_offset = time_module.time() - video_start_time
+                video_timestamps.append((test_full_name, test_start_offset, test_end_offset, test_result.status))
+                result.test_results.append(test_result)
+                result.stopped_early = True
+                result.debug_test_reached = True
+                if test_result.status == "failed":
+                    self.events.emit(RunnerEvent.TEST_FAILED, {
+                        "test": test_full_name,
+                        "error": test_result.error,
+                        "error_type": getattr(test_result, 'error_type', None),
+                    })
+                for remaining_test in subcategory.tests[index + 1:]:
+                    result.test_results.append(TestResult(
+                        test_name=f"{subcategory.name}/{remaining_test.name}",
+                        test_path=remaining_test.path,
+                        test_type="test",
+                        status="skipped",
+                        duration_ms=0,
+                        error="Skipped - stopped after debug_test",
+                    ))
+                self._save_subcategory_result(subcategory, parent_category, result, category_path)
+                return True, test_full_name
+
             test_start_offset = time_module.time() - video_start_time
             test_result = self._run_single_test(
                 test_path=test.path,

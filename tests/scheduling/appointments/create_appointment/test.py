@@ -88,41 +88,29 @@ def test_create_appointment(page: Page, context: dict) -> None:
     service_row = inner_iframe.locator('.service-item').filter(has_text=service_name)
     service_row.wait_for(state='visible', timeout=5000)
     service_row.click()
-    # Wait for service picker to close and appointment form to load by checking Schedule button
-    schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
-    schedule_btn.wait_for(state='visible', timeout=10000)
+    # Wait for service picker to close and appointment form to load.
+    # Single detection: Schedule button by accessible name (regex) or "Schedule" only (one compound locator).
+    schedule_btn = inner_iframe.get_by_role('button', name=re.compile(r'Schedule\s*appointment', re.IGNORECASE)).or_(
+        inner_iframe.get_by_role('button', name=re.compile(r'^Schedule$', re.IGNORECASE))
+    ).first
+    schedule_btn.wait_for(state='visible', timeout=15000)
 
-    # HEALED 2026-01-26: New Appointment dialog can show a required "Address" field under Location.
-    # If we don't fill it, Schedule does not submit and the appointment is never created.
-    try:
-        address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
-        address_field.wait_for(state='visible', timeout=2000)
+    # HEALED 2026-01-31: Address field is not always visible (e.g. Location section collapsed or not in form).
+    # Form ready = Schedule button visible. If Address is required, fill when visible; otherwise skip.
+    # Use optional fill: only attempt if Address appears without blocking (count-based check, no timeout swallow).
+    address_field = inner_iframe.get_by_role('textbox', name=re.compile(r'Address', re.IGNORECASE)).first
+    if address_field.count() > 0:
         address_field.click()
         address_field.press_sequentially('123 Test Street', delay=30)
         page.wait_for_timeout(300)  # Brief settle (allowed)
-    except Exception:
-        try:
-            addr_placeholder = inner_iframe.get_by_placeholder(re.compile(r'Address', re.IGNORECASE)).first
-            addr_placeholder.click()
-            addr_placeholder.press_sequentially('123 Test Street', delay=30)
-            page.wait_for_timeout(300)  # Brief settle (allowed)
-        except Exception:
-            pass
+        page.keyboard.press('Tab')
+        page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
 
-    # HEALED 2026-01-26: Dismiss Google Places autocomplete by blurring the address field (Escape closes the whole modal).
-    # Click the Schedule button area to blur address and close pac-container, or Tab out.
-    page.keyboard.press('Tab')
-    page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
-    try:
-        pac = page.locator('.pac-container')
-        if pac.count() > 0:
-            pac.first.wait_for(state='hidden', timeout=2000)
-    except Exception:
-        pass
-
-    # Step 9: Click Schedule Appointment
+    # Step 9: Click Schedule Appointment (same single compound locator)
     print("  Step 9: Scheduling appointment...")
-    schedule_btn = inner_iframe.get_by_role('button', name='Schedule appointment')
+    schedule_btn = inner_iframe.get_by_role('button', name=re.compile(r'Schedule\s*appointment', re.IGNORECASE)).or_(
+        inner_iframe.get_by_role('button', name=re.compile(r'^Schedule$', re.IGNORECASE))
+    ).first
     schedule_btn.wait_for(state='visible', timeout=10000)
     schedule_btn.click(force=True)
     
@@ -132,7 +120,6 @@ def test_create_appointment(page: Page, context: dict) -> None:
     # Wait for the appointment to appear in calendar instead of arbitrary timeout
     # The appointment appears as a menuitem in the calendar grid containing the client name
     appointment_in_calendar = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
-    appointment_in_calendar.wait_for(state='visible', timeout=15000)
     appointment_in_calendar.wait_for(state='visible', timeout=15000)
     
     # Save to context for subsequent tests

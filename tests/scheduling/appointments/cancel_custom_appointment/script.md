@@ -34,10 +34,13 @@ if "/app/calendar" not in page.url:
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+client_name = context.get("created_custom_appointment_client")
 page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-page.wait_for_timeout(2000)  # Wait for calendar to load
+# Wait for calendar to load (event-based: appointment visible)
+appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
+appointment.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 3: Click on Custom Appointment in Calendar
@@ -92,7 +95,9 @@ heading.wait_for(state='visible', timeout=10000)
 cancel_btn = outer_iframe.get_by_role('button', name='Cancel Appointment')
 cancel_btn.wait_for(state='visible', timeout=5000)
 cancel_btn.click()
-page.wait_for_timeout(1000)  # Wait for dialog to open
+# Wait for dialog (event-based)
+dialog = outer_iframe.get_by_role('dialog')
+dialog.wait_for(state='visible', timeout=10000)
 ```
 
 ### Step 6: Wait for Cancel Dialog
@@ -115,7 +120,9 @@ dialog.wait_for(state='visible', timeout=10000)
 ```python
 submit_btn = outer_iframe.get_by_role('button', name='Submit')
 submit_btn.click()
-page.wait_for_timeout(2000)  # Wait for cancellation to complete
+# Wait for cancellation to complete (event-based: Cancelled status visible)
+cancelled_status = outer_iframe.get_by_text('Cancelled', exact=True)
+cancelled_status.wait_for(state='visible', timeout=15000)
 ```
 
 ### Step 8: Verify Appointment is Cancelled (Actual Data Verification)

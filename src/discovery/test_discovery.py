@@ -80,6 +80,10 @@ class TestDiscovery:
         setup = self._discover_setup_teardown(path, self.SETUP_FOLDER)
         teardown = self._discover_setup_teardown(path, self.TEARDOWN_FOLDER)
         
+        # execution_order must be a list (avoid string or other type from YAML)
+        raw_order = yaml_data.get("execution_order")
+        execution_order = raw_order if isinstance(raw_order, list) and len(raw_order) > 0 else None
+
         # Create category
         category = Category(
             name=yaml_data.get("name", path.name.replace("_", " ").title()),
@@ -88,7 +92,8 @@ class TestDiscovery:
             parent=parent,
             setup=setup,
             teardown=teardown,
-            run_after=yaml_data.get("run_after"),  # For subcategory execution ordering
+            execution_order=execution_order,
+            run_after=yaml_data.get("run_after"),  # Deprecated; used only when execution_order is not set
         )
         
         # Build test metadata lookup from YAML

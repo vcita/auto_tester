@@ -6,11 +6,40 @@
 
 ## Initial State
 
-- Tests have been run
+- Tests have been run (browser may be on calendar page)
 - Test service exists (context: `created_service_name`)
 - Test client exists (context: `created_client_name`)
 
 ## Actions
+
+### Step 0: Ensure on dashboard (HEALED 2026-01-31)
+
+- **Action**: If not on dashboard, dismiss any overlay (Escape), then click Dashboard in sidebar and wait for dashboard URL.
+- **Reason**: After appointments we're on calendar; sidebar is not reliably visible from calendar. If a prior test failed (e.g. Reschedule), a fullscreen iframe may cover the sidebar and intercept clicks; pressing Escape dismisses modals so Dashboard becomes clickable.
+
+- **CHOSEN LOCATOR**: `page.locator("body").get_by_text("Dashboard", exact=True)` — sidebar is in main document; scoping to body avoids matching inside calendar iframe.
+- **Wait for**: Dashboard link visible (30s); then URL contains `/app/dashboard`; then "Quick actions" visible (dashboard loaded).
+
+**VERIFIED PLAYWRIGHT CODE**:
+
+```python
+if "/app/dashboard" not in page.url:
+    page.wait_for_load_state("domcontentloaded")
+    for _ in range(3):
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
+    dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
+    dashboard_link.wait_for(state="visible", timeout=30000)
+    dashboard_link.scroll_into_view_if_needed()
+    page.wait_for_timeout(200)  # Brief settle (allowed)
+    dashboard_link.click()
+    page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+    page.wait_for_load_state("domcontentloaded")
+    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)
+```
+
+- **How verified**: Run teardown after calendar tests; when not on dashboard, Escape + Dashboard click navigates to dashboard; "Quick actions" confirms main app panel is visible.
 
 ### Step 1: Delete Test Client
 

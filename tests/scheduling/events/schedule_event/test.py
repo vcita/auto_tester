@@ -45,31 +45,17 @@ def test_schedule_event(page: Page, context: dict) -> None:
     service_combobox.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when combobox appears
     
     # Step 4: Select Group Event Service
-    # Prefer the service from _setup (context) so Schedule Event and View Event use the same name.
-    # If that option is not in the dropdown (cached list), fall back to first "Event Test Workshop" and update context.
+    # Require service from _setup (context); no fallback - if expected option not found, test must fail per project rules.
     print("  Step 4: Selecting group event service...")
+    expected_name = context.get("event_group_service_name")
+    if not expected_name:
+        raise ValueError("event_group_service_name not in context - run events _setup first")
     service_combobox.click()
     listbox = inner_iframe.get_by_role('listbox')
-    listbox.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when listbox appears
-    expected_name = context.get("event_group_service_name")
-    service_option = None
-    service_name = None
-    if expected_name:
-        try:
-            opt = inner_iframe.get_by_role('option').filter(has_text=expected_name).first
-            opt.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when option appears
-            service_option = opt
-            service_name = expected_name
-        except Exception:
-            pass
-    if service_option is None:
-        service_option = inner_iframe.get_by_role('option').filter(has_text='Event Test Workshop').first
-        service_option.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when option appears
-        option_text = service_option.text_content() or ""
-        service_name = option_text.split("₪")[0].strip() if "₪" in option_text else option_text.strip().split("\n")[0].strip()
-        if not service_name or "Event Test Workshop" not in service_name:
-            service_name = "Event Test Workshop"  # fallback for parsing
-        context["event_group_service_name"] = service_name
+    listbox.wait_for(state='visible', timeout=30000)
+    service_option = inner_iframe.get_by_role('option').filter(has_text=expected_name).first
+    service_option.wait_for(state='visible', timeout=30000)
+    service_name = expected_name
     service_option.click()
     # Wait for dialog to show start date control after service selection
     start_date_buttons = inner_iframe.get_by_role('button', name='Start date:')

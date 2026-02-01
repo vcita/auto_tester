@@ -3,7 +3,6 @@
 # Source: tests/scheduling/_setup/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
-import os
 from playwright.sync_api import Page, expect
 
 from tests._functions.login.test import fn_login
@@ -15,14 +14,17 @@ def setup_scheduling(page: Page, context: dict) -> None:
     
     Logs in and navigates to Settings > Services page.
     
-    Credentials: context (from config, injected by runner), then env VCITA_TEST_*, else defaults.
+    Credentials: from context (injected by runner from config.yaml target.auth). No fallbacks.
     
     Saves to context:
     - logged_in_user: The username that was logged in
     """
-    # Prefer config (injected by runner into context), then env, then defaults
-    username = context.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-    password = context.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    username = context.get("username")
+    password = context.get("password")
+    if not username or not password:
+        raise ValueError(
+            "username and password not in context. Set target.auth.username and target.auth.password in config.yaml."
+        )
     
     # Step 1: Login
     print("  Step 1: Logging in...")

@@ -191,7 +191,7 @@ name_field.press_sequentially(group_event_name, delay=30)
 ```python
 max_attendees_field = iframe.get_by_role("spinbutton", name="Max attendees icon-q-mark-s *")
 max_attendees_field.click()
-max_attendees_field.fill("10")
+max_attendees_field.fill("10")  # fill is OK for number spinbutton
 ```
 
 - **How verified**: Filled in MCP, value "10" appeared in field
@@ -277,7 +277,7 @@ with_fee_btn.click()
 price_field = iframe.get_by_role("spinbutton", name="Service price *")
 price_field.wait_for(state="visible", timeout=5000)
 price_field.click()
-price_field.fill("25")
+price_field.fill("25")  # fill is OK for number spinbutton
 ```
 
 - **How verified**: Clicked and filled in MCP, price "25" appeared in field
@@ -464,15 +464,15 @@ for scroll_attempt in range(max_scrolls):
                 previous_last_text = current_last_text
             
             last_service.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed) - then check in next iteration
         else:
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed)
     except:
         add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
         add_button.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)
+        page.wait_for_timeout(300)  # Brief settle (allowed)
 
 # Wait for the group event to appear in the list
 # Group events show "X attendees" instead of "1 on 1"

@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/_teardown",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_teardown",
+  "test_type": "teardown",
+  "status": "failed",
+  "duration_ms": 41258,
+  "error": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for get_by_text(re.compile(r\"delete.*continue|continue\\?\", re.IGNORECASE)) to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260131_215642\\tests\\_teardown\\screenshot.png",
+  "saved_at": "2026-01-31T22:00:01.212238"
+}

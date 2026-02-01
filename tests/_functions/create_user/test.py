@@ -1,7 +1,6 @@
 # Create user and onboard (dismiss one-time dialogs, validate clean second login).
 # See docs/plans/create_user_discovery.md and script.md.
 
-import os
 import re
 import sys
 import time
@@ -17,9 +16,7 @@ def _debug(msg: str) -> None:
 
 
 DEFAULT_PASSWORD = "vcita123"
-# Phone for onboarding dialog (server-validated; set VCITA_TEST_PHONE or pass phone= if needed)
 DEFAULT_PHONE = "5550100"
-# Address for Welcome dialog (optional field "Your business address"; set VCITA_TEST_ADDRESS or pass address=)
 DEFAULT_ADDRESS = "123 Test Street"
 
 # App is at base_url with /app/ path. Iframe may have id, title, or src set.
@@ -44,8 +41,8 @@ def fn_create_user(page: Page, context: dict, **params) -> None:
     - name: (optional) Your Name or Business Name; default "Test User {timestamp}".
     - base_url: (optional) Target base URL from config/context; login URL = base_url + "/login".
     - onboarding_only: (optional) If True, skip signup and only login + dismiss + validate.
-    - phone: (optional) Phone number for first-time "Welcome" dialog (server-validated). Default from VCITA_TEST_PHONE or 5550100.
-    - address: (optional) Business address for "Welcome" dialog. Default from VCITA_TEST_ADDRESS or "123 Test Street".
+    - phone: (optional) Phone number for first-time "Welcome" dialog (server-validated). Default 5550100.
+    - address: (optional) Business address for "Welcome" dialog. Default "123 Test Street".
 
     Saves to context:
     - created_user_email: The email used.
@@ -71,8 +68,8 @@ def fn_create_user(page: Page, context: dict, **params) -> None:
     if context.get("logged_in_user") != email:
         fn_login(page, context, username=email, password=password)
 
-    phone = params.get("phone") or os.environ.get("VCITA_TEST_PHONE") or DEFAULT_PHONE
-    address = params.get("address") or os.environ.get("VCITA_TEST_ADDRESS") or DEFAULT_ADDRESS
+    phone = params.get("phone") or DEFAULT_PHONE
+    address = params.get("address") or DEFAULT_ADDRESS
     # Spot when Welcome to vcita window opens (inside angular iframe), then dismiss onboarding dialogs
     # Short timeouts for debugging first-login dialog detection (~30s wait + ~45s dismiss max)
     if not _wait_for_welcome_dialog(page, timeout_seconds=30.0):

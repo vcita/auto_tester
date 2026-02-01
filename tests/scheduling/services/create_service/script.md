@@ -191,7 +191,7 @@ with_fee_btn.click()
 price_field = iframe.get_by_role("spinbutton", name="Service price *")
 price_field.wait_for(state="visible", timeout=5000)
 price_field.click()
-price_field.fill("50")
+price_field.fill("50")  # fill is OK for number spinbutton
 ```
 
 - **How verified**: Clicked and filled in MCP, price "50" appeared in field
@@ -215,13 +215,11 @@ create_btn.click()
 # Wait for dialog to close (indicates creation completed)
 dialog.wait_for(state="hidden", timeout=15000)
 
-# HEALED: Wait longer after creation to allow service to sync to backend
-# The service needs time to be saved and available in the list
-page.wait_for_timeout(3000)  # Wait for service to be saved to backend
+# No fixed delay: Step 10 navigates away and back to Services; list load is event-based there.
 ```
 
-- **How verified**: Clicked in MCP, dialog closed, service appeared in list
-- **Wait for**: Dialog closes (state="hidden"), then wait 3 seconds for backend sync
+- **How verified**: Clicked in MCP, dialog closed; Step 10 navigation refreshes list (event-based)
+- **Wait for**: Dialog closes (state="hidden"); list load is verified in Step 10/11 via "My Services" and scroll
 
 ---
 
@@ -317,17 +315,17 @@ for scroll_attempt in range(max_scrolls):
             
             # Scroll the last service into view to trigger loading more
             last_service.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)  # Wait for new items to load
+            page.wait_for_timeout(300)  # Brief settle (allowed) - then check service in next iteration
         else:
             # No services found yet, scroll to "Add" button to trigger initial load
             add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
             add_button.scroll_into_view_if_needed()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(300)  # Brief settle (allowed)
     except Exception as e:
         # If anything fails, scroll to Add button
         add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
         add_button.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)
+        page.wait_for_timeout(300)  # Brief settle (allowed)
 
 # NOW search for the specific service (all items should be loaded)
 # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work

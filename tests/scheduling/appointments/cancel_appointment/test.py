@@ -85,6 +85,10 @@ def test_cancel_appointment(page: Page, context: dict) -> None:
     back_btn.click()
     page.wait_for_url("**/app/calendar**", timeout=10000)
     
+    # Clear appointment context after cancellation (Rule 2.10)
+    context.pop("created_appointment_client", None)
+    context.pop("created_appointment_service", None)
+    
     print(f"  [OK] Successfully cancelled appointment")
     print(f"       Client: {client_name}")
     print(f"       Service: {service_name}")

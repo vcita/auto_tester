@@ -1,0 +1,11 @@
+{
+  "test_name": "Appointments/_setup",
+  "test_path": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_setup",
+  "test_type": "setup",
+  "status": "failed",
+  "duration_ms": 23074,
+  "error": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"iframe[title=\\\"angularjs\\\"]\").content_frame.get_by_role(\"button\").filter(has_text=\"Appointment Test Service 1769873576\") to be visible\n",
+  "error_type": "TimeoutError",
+  "screenshot": "C:\\Programming\\auto_tester\\tests\\scheduling\\appointments\\_runs\\20260131_173237\\tests\\_setup\\screenshot.png",
+  "saved_at": "2026-01-31T17:33:20.217656"
+}

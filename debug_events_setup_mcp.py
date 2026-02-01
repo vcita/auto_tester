@@ -19,7 +19,6 @@ Then use Playwright MCP in Cursor to run Events _setup steps 3–10 manually:
 Uses config.yaml target.base_url and target.auth.
 """
 
-import os
 import sys
 import yaml
 from pathlib import Path
@@ -42,8 +41,12 @@ def main():
     target = config.get("target", {})
     base_url = (target.get("base_url") or "https://www.vcita.com").rstrip("/")
     auth = target.get("auth", {})
-    username = auth.get("username") or os.environ.get("VCITA_TEST_USERNAME", "itzik+autotest@vcita.com")
-    password = auth.get("password") or os.environ.get("VCITA_TEST_PASSWORD", "vcita123")
+    username = auth.get("username")
+    password = auth.get("password")
+    if not username or not password:
+        raise ValueError(
+            "Set target.auth.username and target.auth.password in config.yaml."
+        )
 
     with sync_playwright() as p:
         browser = p.chromium.launch(

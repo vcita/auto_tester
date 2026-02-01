@@ -22,7 +22,7 @@ Delete a client (matter/property) by navigating to their detail page and using t
 3. Click on the client to open detail page
 4. Click the "More" dropdown button
 5. Select "Delete property" from the dropdown
-6. Confirm deletion in the dialog by clicking "Ok"
+6. Confirm deletion in the dialog by clicking "Delete" (approve popup)
 7. Verify redirected back to Properties list
 8. Clear context variables
 

@@ -77,14 +77,13 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     # Click on the select button to open the time dropdown
     # VERIFIED: The second "select" button (nth(1)) opens the time picker
     outer_iframe.get_by_role('button', name='select').nth(1).click()
-    page.wait_for_timeout(300)  # Brief settle after click (allowed)
+    # Wait for dropdown to open (event-based: time option visible)
+    new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
+    new_time_option.wait_for(state='visible', timeout=10000)
     
     # Step 9: Select New Time
     print("  Step 9: Selecting new time...")
     # VERIFIED: The dropdown contains option elements with time text like "8:00pm"
-    # Select a time that's different from current - using 10:00am as a safe default
-    # that's unlikely to conflict with current appointment time
-    new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
     new_time_option.click()
     page.wait_for_timeout(300)  # Brief settle after selection (allowed)
     

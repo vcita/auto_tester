@@ -79,7 +79,7 @@ For each feature, identify:
 **Subcategories:**
 - Group related functionality together
 - Each subcategory is a folder with its own `_category.yaml`
-- Use `run_after` to control execution order relative to parent tests
+- Run order is defined in the **parent** category's `_category.yaml` via `execution_order` (list of test ids and subcategory folder names)
 
 **Naming Conventions:**
 - Category/subcategory folders: `snake_case` (e.g., `booking_settings`)
@@ -95,10 +95,11 @@ Tests must run in an order that satisfies dependencies:
 3. **CRUD order**: Create → Read/Edit → Delete (delete last to clean up)
 4. **Parent before child**: Parent entities before dependent entities
 
-**Subcategory Ordering:**
-- Use `run_after: [test_id]` in subcategory `_category.yaml`
-- Subcategory runs inline after the specified parent test
-- If no `run_after`, subcategory runs after all parent tests
+**Execution Order (parent _category.yaml):**
+- In the **parent** category's `_category.yaml`, set `execution_order: [id1, id2, ...]` with test ids and subcategory folder names in run order
+- Example: `execution_order: [create_matter, edit_matter, edit_contact, notes, delete_matter]` interleaves the `notes` subcategory after `edit_contact`
+- For categories with only subcategories: `execution_order: [services, appointments, events]`
+- If `execution_order` is omitted, legacy `run_after` in subcategory YAML is used (deprecated)
 
 ### 2.3 Plan Context Flow
 
@@ -205,7 +206,7 @@ Before starting implementation, verify:
 - [ ] All major module features are covered
 - [ ] Test execution order satisfies all dependencies
 - [ ] Context variables are clearly defined for data sharing
-- [ ] Subcategory `run_after` ordering is logical
+- [ ] Parent `execution_order` lists tests and subcategories in dependency order
 - [ ] High-priority tests cover critical user journeys
 - [ ] External dependencies are identified and addressed
 - [ ] Setup creates necessary preconditions
@@ -214,8 +215,8 @@ Before starting implementation, verify:
 ## Examples
 
 Reference existing implementations:
-- `tests/clients/_category.yaml` - Main category with subcategories
-- `tests/clients/notes/_category.yaml` - Subcategory with `run_after`
+- `tests/clients/_category.yaml` - Main category with `execution_order` (tests + notes subcategory)
+- `tests/scheduling/_category.yaml` - Category with only subcategories; `execution_order: [services, appointments, events]`
 - `tests/clients/create_matter/` - Complete test with all phase files
 
 ## Implementation Approach

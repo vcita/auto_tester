@@ -150,8 +150,12 @@ class Category:
     # Parent reference for nested categories
     parent: Optional["Category"] = None
     
-    # Subcategory execution ordering
-    # If set, this subcategory runs after the specified test ID in the parent category
+    # Execution order: list of test ids and subcategory folder names (path.name) in run order.
+    # Defined in parent _category.yaml as execution_order: [id1, id2, ...].
+    # When set, runner and GUI use this order; otherwise fallback to legacy run_after / discovery order.
+    execution_order: Optional[list[str]] = None
+    
+    # Deprecated: subcategory-only ordering. Use execution_order in parent instead.
     run_after: Optional[str] = None
     
     @property

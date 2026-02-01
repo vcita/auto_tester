@@ -78,10 +78,12 @@ From this you learn: Don't try `.edit-button` or `button[aria-label='Edit']` - t
 
 ## MANDATORY SECOND STEP: Screenshot AND Video Analysis
 
+**Look at the screenshot EVERY TIME a run ends unsuccessfully.** Do not guess from the error message alone — open the failure screenshot first so you see the actual UI state at the moment of failure.
+
 **AFTER reading the changelog, analyze the visual evidence:**
 
 1. **Locate the screenshot** - Path is in the heal request under "## Screenshot"
-2. **Read/view the screenshot** - Use the Read tool to view the image
+2. **Read/view the screenshot** - Use the Read tool to view the image (every time)
 3. **Check for video recording** - Path is in heal request under "## Video Recording"
    - Video shows the FULL test execution, not just the end state
    - Watch for repeated actions, timing issues, or unexpected behavior

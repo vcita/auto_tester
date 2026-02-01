@@ -1,12 +1,9 @@
 # Events Subcategory
 # Tests for scheduling and managing group event instances
-# Run order: services -> appointments -> events (runs after appointments)
+# Run order is defined in parent scheduling/_category.yaml (execution_order)
 
 name: Events
 description: Tests for scheduling group event instances, managing attendees, and canceling events
-
-# Run after appointments subcategory (order: services -> appointments -> events)
-run_after: appointments
 
 # Execution order - tests run sequentially in this order
 tests:

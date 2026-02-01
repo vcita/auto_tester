@@ -378,6 +378,25 @@ if phone:
 
 **Do not retry user actions.** Wait for a condition that indicates the system is ready, then perform the action once. No loops that retry clicks, fills, or navigation (e.g. "click Add matter; if form not found, click again"). If the action fails, the test fails.
 
+### No Fallbacks for Detection (Single Detection Per Step)
+
+**Each step must have one clear way to detect that something happened or that the UI is ready for the next action.** Do not add fallback locators or try/except chains that try a second (or third) way to detect the same condition.
+
+- **Rule**: For each step, choose **one** object or condition to wait on (e.g. one button visible, one heading, one URL). If that condition is not found, the test should fail—do not "fall back" to waiting on a different element or using a different locator in the same step.
+- **Do NOT**: Use try/except to try locator A, then on failure try locator B for the same "ready" condition. Do not document "Fallback: try get_by_text if get_by_role fails."
+- **If the primary wait is unreliable**: Re-explore in MCP, pick a **different** single object/condition that reliably indicates readiness, and use that instead—still one condition per step.
+
+See `project.mdc` § Single Detection Per Step (No Fallbacks).
+
+### Timeout Means Failure
+
+**If a wait times out, the test must fail and stop.** Never catch a timeout and continue the test as if the step succeeded.
+
+- **Rule**: When waiting for something that should have happened (element visible, URL changed, dialog closed, etc.), use event-based waits with a long timeout. If the timeout is reached, the wait raises; **do not** catch that exception and continue. The test must fail so the test sequence stops.
+- **Do NOT**: Use try/except around a wait and in the except block continue to the next step, or use a "fallback" action (e.g. time out waiting for the Schedule button then proceed to fill the form anyway).
+
+See `project.mdc` § Timeout Means Failure.
+
 ### Error Handling
 
 - Don't add try/except blocks - let failures surface
