@@ -9,6 +9,15 @@ This applies to:
 - Functions
 - Setup/Teardown
 
+## Phase Relationship (CRITICAL)
+
+**This is Phase 1 of 3.** Steps are the **foundation** of every test, function, and setup/teardown.
+
+- **Do not write `script.md` (Phase 2) without a complete `steps.md`.** The script documents HOW to achieve the steps; without steps, there is nothing to script.
+- **Do not write `test.py` (Phase 3) without a complete `script.md`.** Code is generated from the script; without script, there is no verified code to copy.
+
+**Order:** steps.md → script.md → test.py. Each phase builds on the previous. When editing steps, remember that script and code will later be derived from this file.
+
 ## BEFORE Writing Any Test (CRITICAL)
 
 ### 1. Check Existing Functions First
@@ -69,12 +78,18 @@ For any step that **changes state** (create, update, delete, cancel, add, remove
 - **Expected Result** must state **what to assert** (e.g. "Event is marked as CANCELLED in Event List"), not only "dialog closes" or "navigates to calendar."
 - Success = the **intended action was performed** and the **outcome is observable** in the app (list, detail, status).
 
-### What NOT to Include
-- CSS selectors or XPath
-- Specific element locations
-- Technical implementation details
-- Wait times or timing conditions
-- Exact button text (unless critical)
+### Navigating to a Specific Appointment or Event
+
+When steps require **finding** an existing appointment or event to open, edit, cancel, or view: use the **Appointments list** or **Events list** page (depending on object type), not the calendar page. Describe navigation as "Navigate to Appointments list" or "Navigate to Event List", then "Search/filter by name" and "Click row to open". See `.cursor/rules/project.mdc` § Finding Meetings, Appointments, and Events.
+
+### What NOT to Include (Steps Are Implementation-Free)
+
+Steps describe **intent only**. Do not include anything that belongs in script or code:
+- CSS selectors, XPath, or any locators
+- Specific element locations or technical implementation details
+- Wait times, timeouts, or timing conditions
+- Exact button text unless it is critical to the intent
+- Playwright/Python or any executable code
 
 ## Calling Functions
 
@@ -256,8 +271,4 @@ New function `tests/_functions/open_client_by_email/steps.md`:
 
 ## Cascade Effect
 
-When `steps.md` is updated:
-1. Re-explore the application based on new steps
-2. Update `script.md` with discovered details
-3. Regenerate `test.py` from updated script
-4. Log all changes in `changelog.md`
+When `steps.md` is updated, the later phases must follow: re-explore if needed, update `script.md` with new details, then regenerate `test.py` from script. Log all changes in `changelog.md`. See Phase 2 and Phase 3 rules for how to update script and code.
