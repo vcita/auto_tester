@@ -51,8 +51,8 @@ playwright-report/
 .playwright-mcp/*.jpeg
 
 # Run history (stored per-category in tests/{category}/_runs/)
-_runs/
-tests/*/_runs/
+**/_runs/*
+!**/_runs/.gitkeep
 runs_index/
 
 # Cursor requests (keep structure, ignore content)
