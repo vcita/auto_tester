@@ -51,6 +51,7 @@ playwright-report/
 .playwright-mcp/*.jpeg
 
 # Run history (stored per-category in tests/{category}/_runs/)
+_runs/
 tests/*/_runs/
 runs_index/
 
