@@ -1,0 +1,20 @@
+---
+description: Keep steps.md aligned with script.md and test.py step changes
+globs: tests/**/{script.md,test.py}
+alwaysApply: false
+---
+
+# Sync Steps With Script Changes
+
+When editing `tests/**/script.md` or `tests/**/test.py`, keep `tests/**/steps.md` in sync.
+
+- If you add, remove, split, merge, or reorder a test step in code/script, update `steps.md` in the same change.
+- Keep numbering and wording in `steps.md` aligned with runtime behavior and script intent.
+- Do not leave hidden implementation steps that are absent from `steps.md` when they are meaningful to test flow.
+- If `steps.md` is intentionally high-level, avoid numbered "Step N" logs in code that imply extra undocumented steps.
+- Verify `Objective`, `Steps`, `Expected Result`, and `Context Updates` still match actual behavior.
+
+## Example
+
+- Changed in `test.py`: added `Save settings` + `Verify saved values`.
+- Required update in `steps.md`: add corresponding steps and expected result lines.

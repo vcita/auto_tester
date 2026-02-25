@@ -210,8 +210,138 @@ class RunStorage:
         
         # Cleanup old runs
         self.cleanup_old_runs(category)
+
+        # Keep a generated health snapshot for the payments area.
+        self._update_payments_health_if_needed(category)
         
         return run_json_path
+
+    def _update_payments_health_if_needed(self, category: str) -> None:
+        """Refresh tests/payments/_health.json when payments results change."""
+        if category != "payments" and not category.startswith("payments/"):
+            return
+        try:
+            payments_dir = self.tests_root / "payments"
+            if not payments_dir.exists():
+                return
+            health_path = payments_dir / "_health.json"
+            health_data = self._build_payments_health_snapshot()
+            health_path.write_text(json.dumps(health_data, indent=2), encoding="utf-8")
+        except Exception:
+            # Health snapshots are best-effort and must never break test runs.
+            return
+
+    def refresh_payments_health(self) -> Optional[Path]:
+        """Generate tests/payments/_health.json from existing run artifacts."""
+        payments_dir = self.tests_root / "payments"
+        if not payments_dir.exists():
+            return None
+        health_path = payments_dir / "_health.json"
+        health_data = self._build_payments_health_snapshot()
+        health_path.write_text(json.dumps(health_data, indent=2), encoding="utf-8")
+        return health_path
+
+    def _build_payments_health_snapshot(self) -> Dict:
+        """Build a stable/unstable snapshot for payments category + subcategories."""
+        payments_dir = self.tests_root / "payments"
+        execution_order = self._get_payments_execution_order(payments_dir)
+
+        parent = self._get_latest_category_health("payments")
+        subcategories = []
+        for subdir in payments_dir.iterdir():
+            if not subdir.is_dir() or subdir.name.startswith("_"):
+                continue
+            if not (subdir / "_category.yaml").exists():
+                continue
+            path = f"payments/{subdir.name}"
+            subcategories.append(self._get_latest_category_health(path))
+
+        if execution_order:
+            sort_index = {name: idx for idx, name in enumerate(execution_order)}
+            subcategories.sort(key=lambda item: sort_index.get(item["name"], 999))
+        else:
+            subcategories.sort(key=lambda item: item["name"])
+
+        stable = [c["name"] for c in subcategories if c["is_stable"]]
+        unknown = [c["name"] for c in subcategories if c["last_result"] == "unknown"]
+        unstable = [
+            c["name"]
+            for c in subcategories
+            if c["last_result"] != "unknown" and not c["is_stable"]
+        ]
+
+        if unstable:
+            overall_result = "failed"
+        elif unknown:
+            overall_result = "unknown"
+        else:
+            overall_result = "passed"
+
+        return {
+            "scope": "payments",
+            "generated_at": datetime.now().isoformat(),
+            "definition": {
+                "stable": "latest run status == passed",
+                "source_of_truth": "tests/**/_runs/*/run.json",
+            },
+            "category": parent,
+            "subcategories": subcategories,
+            "overall": {
+                "last_result": overall_result,
+                "is_stable": len(unstable) == 0 and len(unknown) == 0 and len(subcategories) > 0,
+                "stable_subcategories": stable,
+                "unstable_subcategories": unstable,
+                "unknown_subcategories": unknown,
+            },
+        }
+
+    def _get_payments_execution_order(self, payments_dir: Path) -> List[str]:
+        """Read execution order from tests/payments/_category.yaml when available."""
+        category_file = payments_dir / "_category.yaml"
+        if not category_file.exists():
+            return []
+        try:
+            import yaml
+
+            data = yaml.safe_load(category_file.read_text(encoding="utf-8")) or {}
+            order = data.get("execution_order") or []
+            if isinstance(order, list):
+                return [str(item).strip() for item in order if str(item).strip()]
+        except Exception:
+            return []
+        return []
+
+    def _get_latest_category_health(self, category_path: str) -> Dict:
+        """Summarize latest run status for a category or subcategory path."""
+        runs = self.list_category_runs(category_path)
+        name = category_path.split("/")[-1]
+        if not runs:
+            return {
+                "name": name,
+                "category_path": category_path,
+                "last_result": "unknown",
+                "is_stable": False,
+                "last_run_id": None,
+                "last_run_at": None,
+                "summary": {"passed": 0, "failed": 0, "skipped": 0, "total": 0},
+            }
+
+        latest = runs[0]
+        status = latest.get("status", "unknown")
+        return {
+            "name": name,
+            "category_path": category_path,
+            "last_result": status,
+            "is_stable": status == "passed",
+            "last_run_id": latest.get("run_id"),
+            "last_run_at": latest.get("saved_at"),
+            "summary": {
+                "passed": latest.get("passed", 0),
+                "failed": latest.get("failed", 0),
+                "skipped": latest.get("skipped", 0),
+                "total": latest.get("total", 0),
+            },
+        }
     
     def finalize_run(self, run_result: RunResult) -> Path:
         """

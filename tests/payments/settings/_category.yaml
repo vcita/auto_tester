@@ -1,0 +1,36 @@
+# Payments Settings Subcategory
+# Configuration for taxes, numbering, terms, and receipts (no PGW)
+
+name: Settings
+description: Tests for payments configuration (taxes, invoice numbering, terms, receipts)
+
+tests:
+  - id: set_tax_rates
+    name: Set Tax Rates
+    status: active
+    priority: medium
+    description: Configure tax rates and verify application on new invoices
+  - id: set_invoice_numbering
+    name: Set Invoice Numbering
+    status: active
+    priority: medium
+    description: Configure invoice numbering format and verify on new invoices
+  - id: set_payment_terms
+    name: Set Payment Terms
+    status: active
+    priority: medium
+    description: Configure default payment terms and verify on new invoices
+  - id: set_receipts
+    name: Set Receipt Settings
+    status: active
+    priority: medium
+    description: Configure receipt settings where available without a payment gateway
+
+# Category metadata
+status: active
+priority: medium
+tags:
+  - payments
+  - settings
+owner: QA Team
+created_at: 2026-02-09
