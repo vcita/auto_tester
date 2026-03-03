@@ -1,7 +1,7 @@
 # View and Download Invoice
 
 ## Objective
-Verify a client can view and download an invoice from a single flow.
+Verify a staff member can view and download an invoice from a single flow.
 
 ## Prerequisites
 - An invoice exists and is sent
@@ -16,7 +16,7 @@ Verify a client can view and download an invoice from a single flow.
 5. Verify the download starts
 
 ## Expected Result
-- Invoice view is accessible to the client when supported
+- Invoice view is accessible to the staff member when supported
 - Invoice download is initiated when supported
 
 ## Context Updates

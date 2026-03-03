@@ -107,7 +107,7 @@ def _close_any_dialogs(page: Page, invoice_scope=None) -> None:
 
 def test_view_download_invoice(page: Page, context: dict) -> None:
     """
-    Verify invoice client-view availability and download capability in one flow.
+    Verify invoice staff-view availability and download capability in one flow.
 
     Prerequisites:
     - User is logged in (from category _setup)

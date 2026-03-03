@@ -13,16 +13,16 @@
 ### Step 1: Open invoice
 - **Action**: Navigate to Billing & Invoicing and open first invoice.
 
-### Step 2: Verify public/client view access
+### Step 2: Verify public/staff view access
 - **Action**: Check if invoice sharing/view action is available.
 
-### Step 3: Open invoice in client view
-- **Action**: Click "View Invoice" and open the client invoice view (same tab or popup).
+### Step 3: Open invoice in staff view
+- **Action**: Click "View Invoice" and open the staff invoice view (same tab or popup).
 
 ### Step 4: Download invoice
 - **Action**: Click the Download or PDF action and wait for the file to download.
 
 ## Success Verification
-- Client/public view capability is detected when available.
+- Staff/public view capability is detected when available.
 - Download completes when the action is available.
 - Save view and download status in context.
