@@ -112,15 +112,15 @@ def test_create_invoice(page: Page, context: dict) -> None:
     )
     invoice_heading.wait_for(state="visible", timeout=45000)
     invoice_text = invoice_heading.first.inner_text()
-    invoice_number_match = re.search(r"#(\\d+)", invoice_text)
+    invoice_number_match = re.search(r"#(\d+)", invoice_text)
     invoice_number = invoice_number_match.group(1) if invoice_number_match else ""
 
     amount_heading = billing_scope.get_by_role(
-        "heading", name=re.compile(r"^₪\\d")
+        "heading", name=re.compile(r"^[₪$]\d")
     )
     amount_heading.wait_for(state="visible", timeout=45000)
     amount_text = amount_heading.first.inner_text().strip()
-    amount_value = amount_text.replace("₪", "").strip()
+    amount_value = amount_text.replace("₪", "").replace("$", "").strip()
 
     invoice_id = page.url.rstrip("/").split("/")[-1]
 
