@@ -211,6 +211,7 @@ class RunStorage:
         # Cleanup old runs
         self.cleanup_old_runs(category)
 
+        # TODO: discuss if to apply it to all categories
         # Keep a generated health snapshot for the payments area.
         self._update_payments_health_if_needed(category)
         

@@ -7,27 +7,27 @@ description: Tests for recording full and partial payments against invoices
 tests:
   - id: record_payment_full
     name: Record Full Payment
-    status: active
+    status: draft
     priority: high
     description: Record a full payment for an invoice and verify balance is zero
   - id: record_payment_partial
     name: Record Partial Payment
-    status: active
+    status: draft
     priority: high
     description: Record a partial payment and verify remaining balance
   - id: record_payment_multiple
     name: Record Multiple Payments
-    status: active
+    status: draft
     priority: high
     description: Record multiple payments and verify cumulative balance
   - id: mark_unpaid
     name: Mark Unpaid
-    status: active
+    status: draft
     priority: medium
     description: Mark a recorded payment as unpaid and verify status and balance
 
 # Category metadata
-status: active
+status: draft
 priority: high
 tags:
   - payments

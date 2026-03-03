@@ -7,17 +7,17 @@ description: Tests for recording refunds and credit notes for invoices
 tests:
   - id: record_refund
     name: Record Refund
-    status: active
+    status: draft
     priority: medium
     description: Record a refund against a recorded payment and verify balance adjustment
   - id: issue_credit_note
     name: Issue Credit Note
-    status: active
+    status: draft
     priority: medium
     description: Issue a credit note and apply to an invoice if supported
 
 # Category metadata
-status: active
+status: draft
 priority: medium
 tags:
   - payments

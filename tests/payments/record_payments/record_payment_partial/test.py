@@ -69,7 +69,7 @@ def _find_amount_input(dialog):
             value = box.input_value()
         except Exception:
             continue
-        if re.match(r"^\\d+(\\.\\d+)?$", value):
+        if re.match(r"^\d+(\.\d+)?$", value):
             return box
     return textboxes.first
 
