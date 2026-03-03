@@ -26,20 +26,20 @@ def _open_invoice(page: Page):
             sales_button = page.get_by_role("button", name="Sales", exact=True).first
         else:
             sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=45000)
+        sales_button.wait_for(state="visible", timeout=5000)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-        billing_link.wait_for(state="visible", timeout=45000)
+        billing_link.wait_for(state="visible", timeout=5000)
         billing_link.click()
-        page.wait_for_url("**/app/payments/orders", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
 
     billing_scope = _get_billing_scope(page)
     invoice_link = billing_scope.get_by_role("link", name=re.compile("INVOICE #")).first
-    invoice_link.wait_for(state="visible", timeout=45000)
+    invoice_link.wait_for(state="visible", timeout=5000)
     invoice_link.click()
-    page.wait_for_url("**/app/invoices/**", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     return _get_billing_scope(page)
 
 
@@ -47,17 +47,17 @@ def _open_record_payment_dialog(invoice_scope):
     take_payment = invoice_scope.get_by_role(
         "button", name=re.compile(r"^Take payment")
     )
-    take_payment.wait_for(state="visible", timeout=45000)
+    take_payment.wait_for(state="visible", timeout=5000)
     take_payment.click()
 
     record_payment = invoice_scope.get_by_role(
         "menuitem", name=re.compile("Record payment")
     )
-    record_payment.wait_for(state="visible", timeout=45000)
+    record_payment.wait_for(state="visible", timeout=5000)
     record_payment.click()
 
     dialog = invoice_scope.get_by_role("dialog", name=re.compile("Record payment"))
-    dialog.wait_for(state="visible", timeout=45000)
+    dialog.wait_for(state="visible", timeout=5000)
     return dialog
 
 
@@ -81,14 +81,14 @@ def _record_payment(page: Page, dialog, amount: str) -> None:
     amount_input.press_sequentially(amount, delay=30)
 
     method_listbox = dialog.get_by_role("listbox", name="Payment received via")
-    method_listbox.wait_for(state="visible", timeout=45000)
+    method_listbox.wait_for(state="visible", timeout=5000)
     method_listbox.click()
     dialog.get_by_role("option", name="Cash").click()
 
     record_button = dialog.get_by_role("button", name="Record")
-    record_button.wait_for(state="visible", timeout=45000)
+    record_button.wait_for(state="visible", timeout=5000)
     record_button.click()
-    dialog.wait_for(state="hidden", timeout=45000)
+    dialog.wait_for(state="hidden", timeout=5000)
 
 
 def test_record_payment_multiple(page: Page, context: dict) -> None:

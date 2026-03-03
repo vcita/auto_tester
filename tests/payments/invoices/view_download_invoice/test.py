@@ -29,28 +29,28 @@ def _open_invoice(page: Page):
             sales_button = page.get_by_role("button", name="Sales", exact=True).first
         else:
             sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=45000)
+        sales_button.wait_for(state="visible", timeout=5000)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-        billing_link.wait_for(state="visible", timeout=45000)
+        billing_link.wait_for(state="visible", timeout=5000)
         billing_link.click()
         page.wait_for_url(
-            "**/app/payments/orders", timeout=45000, wait_until="domcontentloaded"
+            "**/app/payments/orders", timeout=5000, wait_until="domcontentloaded"
         )
 
     billing_scope = _get_billing_scope(page)
     invoice_link = billing_scope.get_by_role("link", name=re.compile("INVOICE #"))
     if invoice_link.count() == 0:
         invoice_link = billing_scope.get_by_text(re.compile("INVOICE #"))
-    invoice_link.first.wait_for(state="visible", timeout=45000)
+    invoice_link.first.wait_for(state="visible", timeout=5000)
     invoice_link.first.scroll_into_view_if_needed()
     try:
-        invoice_link.first.click(timeout=45000)
+        invoice_link.first.click(timeout=5000)
     except Exception:
         invoice_link.first.click(force=True)
-    page.wait_for_url("**/app/invoices/**", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     return _get_billing_scope(page)
 
 
@@ -157,7 +157,7 @@ def test_view_download_invoice(page: Page, context: dict) -> None:
         with page.expect_popup(timeout=5000) as popup_info:
             view_button.first.click()
         portal_page = popup_info.value
-        portal_page.wait_for_load_state("domcontentloaded", timeout=45000)
+        portal_page.wait_for_load_state("domcontentloaded", timeout=5000)
     except Exception:
         portal_page = page
 
@@ -176,7 +176,7 @@ def test_view_download_invoice(page: Page, context: dict) -> None:
         context["download_status"] = "not_supported"
         return
 
-    with portal_page.expect_download(timeout=45000) as download_info:
+    with portal_page.expect_download(timeout=5000) as download_info:
         download_trigger.first.click()
     download = download_info.value
     try:

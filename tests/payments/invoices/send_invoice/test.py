@@ -26,20 +26,20 @@ def _open_invoice(page: Page):
             sales_button = page.get_by_role("button", name="Sales", exact=True).first
         else:
             sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=45000)
+        sales_button.wait_for(state="visible", timeout=5000)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-        billing_link.wait_for(state="visible", timeout=45000)
+        billing_link.wait_for(state="visible", timeout=5000)
         billing_link.click()
-        page.wait_for_url("**/app/payments/orders", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
 
     billing_scope = _get_billing_scope(page)
     invoice_link = billing_scope.get_by_role("link", name=re.compile("INVOICE #")).first
-    invoice_link.wait_for(state="visible", timeout=45000)
+    invoice_link.wait_for(state="visible", timeout=5000)
     invoice_link.click()
-    page.wait_for_url("**/app/invoices/**", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     return _get_billing_scope(page)
 
 
@@ -61,7 +61,7 @@ def test_send_invoice(page: Page, context: dict) -> None:
         send_button.first.click()
         dialog = invoice_scope.get_by_role("dialog")
         resend = dialog.get_by_role("button", name=re.compile("Send|Resend"))
-        resend.wait_for(state="visible", timeout=45000)
+        resend.wait_for(state="visible", timeout=5000)
         resend.click()
 
     status_text = invoice_scope.get_by_text("Invoice sent", exact=False)

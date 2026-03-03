@@ -52,14 +52,14 @@ def test_create_invoice(page: Page, context: dict) -> None:
             sales_button = page.get_by_role("button", name="Sales", exact=True).first
         else:
             sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=45000)
+        sales_button.wait_for(state="visible", timeout=5000)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-        billing_link.wait_for(state="visible", timeout=45000)
+        billing_link.wait_for(state="visible", timeout=5000)
         billing_link.click()
-        page.wait_for_url("**/app/payments/orders", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
 
     billing_scope = _get_billing_scope(page)
 
@@ -69,23 +69,23 @@ def test_create_invoice(page: Page, context: dict) -> None:
 
     print("  Step 2: Start new invoice...")
     new_button = billing_scope.get_by_role("button", name="New")
-    new_button.wait_for(state="visible", timeout=45000)
+    new_button.wait_for(state="visible", timeout=5000)
     new_button.click()
 
     invoice_menu = billing_scope.get_by_role("menuitem", name="Invoice")
-    invoice_menu.wait_for(state="visible", timeout=45000)
+    invoice_menu.wait_for(state="visible", timeout=5000)
     invoice_menu.click()
 
     print("  Step 3: Select client...")
     client_button = billing_scope.get_by_role(
         "button", name=re.compile("You as a client")
     )
-    client_button.wait_for(state="visible", timeout=45000)
+    client_button.wait_for(state="visible", timeout=5000)
     client_button.click()
 
     editor_scope = _get_editor_scope(billing_scope)
     editor_scope.get_by_role("textbox", name="Please select an item").wait_for(
-        state="visible", timeout=45000
+        state="visible", timeout=5000
     )
 
     print("  Step 4: Add line item...")
@@ -94,15 +94,15 @@ def test_create_invoice(page: Page, context: dict) -> None:
     first_service = editor_scope.get_by_role(
         "option", name=re.compile(r"Event Test Workshop")
     ).first
-    first_service.wait_for(state="visible", timeout=45000)
+    first_service.wait_for(state="visible", timeout=5000)
     first_service.click()
 
     print("  Step 5: Save draft...")
     save_draft = editor_scope.get_by_role("button", name="Save draft")
-    save_draft.wait_for(state="visible", timeout=45000)
+    save_draft.wait_for(state="visible", timeout=5000)
     save_draft.click()
 
-    page.wait_for_url("**/app/invoices/**", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     billing_scope = _get_billing_scope(page)
     _close_templates_popup(billing_scope)
 
@@ -110,7 +110,7 @@ def test_create_invoice(page: Page, context: dict) -> None:
     invoice_heading = billing_scope.get_by_role(
         "heading", name=re.compile(r"INVOICE #")
     )
-    invoice_heading.wait_for(state="visible", timeout=45000)
+    invoice_heading.wait_for(state="visible", timeout=5000)
     invoice_text = invoice_heading.first.inner_text()
     invoice_number_match = re.search(r"#(\d+)", invoice_text)
     invoice_number = invoice_number_match.group(1) if invoice_number_match else ""
@@ -118,7 +118,7 @@ def test_create_invoice(page: Page, context: dict) -> None:
     amount_heading = billing_scope.get_by_role(
         "heading", name=re.compile(r"^[₪$]\d")
     )
-    amount_heading.wait_for(state="visible", timeout=45000)
+    amount_heading.wait_for(state="visible", timeout=5000)
     amount_text = amount_heading.first.inner_text().strip()
     amount_value = amount_text.replace("₪", "").replace("$", "").strip()
 

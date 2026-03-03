@@ -24,14 +24,14 @@ def _open_billing(page: Page):
         return _get_billing_scope(page)
 
     sales_button = page.get_by_role("button", name="Sales")
-    sales_button.wait_for(state="visible", timeout=45000)
+    sales_button.wait_for(state="visible", timeout=5000)
     sales_button.click()
-    page.wait_for_url("**/app/pos", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
 
     billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-    billing_link.wait_for(state="visible", timeout=45000)
+    billing_link.wait_for(state="visible", timeout=5000)
     billing_link.click()
-    page.wait_for_url("**/app/payments/orders", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
     return _get_billing_scope(page)
 
 
@@ -76,7 +76,7 @@ def _cancel_invoice(page: Page, billing_scope, invoice_id: str) -> None:
         return
 
     invoice_link.first.click()
-    page.wait_for_url("**/app/invoices/**", timeout=45000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     invoice_scope = _get_billing_scope(page)
 
     menu_button = invoice_scope.locator("md-menu").filter(
