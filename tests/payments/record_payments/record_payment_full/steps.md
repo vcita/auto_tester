@@ -1,21 +1,27 @@
 # Record Full Payment
 
 ## Objective
-Record a full payment for an invoice and verify the balance is zero.
+Record a full payment for a service via the Checkout page and verify the payment record.
 
 ## Prerequisites
-- An invoice exists and is sent
+- User is logged in
+- A client exists
 - No payment gateway connected
 
 ## Steps
-1. Navigate to the invoice details
-2. Choose "Record Payment"
-3. Enter full payment amount and method
-4. Save the payment
+1. Navigate to the Checkout page (`app/pos`) via the sidebar (Sales -> Checkout)
+2. Add a Custom Item with a name and price (e.g. ₪50)
+3. Select a client from the client selector
+4. Press the "Checkout" button
+5. Select "Record payment" from the payment options menu
+6. Select "Cash" as the payment method (full amount is pre-filled)
+7. Click the "Record" button
+8. Verify automatic redirection to the Payment page and check the payment details (status "Paid", method "Cash")
 
 ## Expected Result
-- Invoice balance is zero
-- Payment record is visible in the invoice history
+- Payment is recorded successfully
+- User is redirected to the Payment page automatically
+- Payment record is visible with the correct amount and method
 
 ## Context Updates
 - Save `recorded_payment_id`, `recorded_payment_amount`, `recorded_payment_method`
