@@ -83,7 +83,7 @@ def _record_payment(page: Page, dialog, amount: str) -> None:
     method_listbox = dialog.get_by_role("listbox", name="Payment received via")
     method_listbox.wait_for(state="visible", timeout=5000)
     method_listbox.click()
-    dialog.get_by_role("option", name="Cash").click()
+    invoice_scope.get_by_role("option", name="Cash").click()
 
     record_button = dialog.get_by_role("button", name="Record")
     record_button.wait_for(state="visible", timeout=5000)
