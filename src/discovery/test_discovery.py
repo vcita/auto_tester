@@ -10,7 +10,7 @@ Uses hybrid approach:
 import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from src.models import Category, Test, TestStatus, TestPriority, SetupTeardown
 
@@ -24,7 +24,7 @@ class TestDiscovery:
     TEARDOWN_FOLDER = "_teardown"
     FUNCTIONS_FOLDER = "_functions"
     
-    def __init__(self, tests_root: str | Path):
+    def __init__(self, tests_root: Union[str, Path]):
         """
         Initialize test discovery.
         

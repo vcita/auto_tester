@@ -1,0 +1,23 @@
+# Payments Category
+# Tests for invoicing and record payments without a payment gateway
+
+name: Payments
+description: Tests for invoices, record payments, refunds/credits, and payment settings (no PGW)
+
+# No direct tests in main category - all tests are in subcategories
+execution_order:
+  - settings
+  - invoices
+  - record_payments
+  - refunds_credits
+tests: []
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - payments
+  - invoices
+  - record_payments
+owner: QA Team
+created_at: 2026-02-09

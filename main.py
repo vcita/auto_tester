@@ -26,6 +26,7 @@ from src.discovery.test_discovery import print_discovery_tree
 from src.discovery.function_discovery import print_functions_list
 from src.models import TestStatus
 from src.runner import TestRunner, CLIReporter
+from src.runner.storage import RunStorage
 from src.runner.stress_test import StressTestRunner
 from src.gui import run_server
 
@@ -138,6 +139,31 @@ def cmd_status(args):
         
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
+
+
+def cmd_health(args):
+    """Generate health snapshot files from run artifacts."""
+    config = load_config()
+    tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
+    category = (getattr(args, "category", None) or "payments").strip().lower()
+
+    if category != "payments":
+        console.print(
+            "[yellow]Only 'payments' is supported for now. "
+            "Use --category payments.[/yellow]"
+        )
+        return
+
+    try:
+        storage = RunStorage(tests_root)
+        health_path = storage.refresh_payments_health()
+        if not health_path:
+            console.print("[red]Could not generate health snapshot (payments not found).[/red]")
+            return
+        console.print(f"[green]Health snapshot generated:[/green] {health_path}")
+    except Exception as e:
+        console.print(f"[red]Error generating health snapshot: {e}[/red]")
+        sys.exit(1)
 
 
 def cmd_run(args):
@@ -605,6 +631,14 @@ def main():
     
     # Status command - show test status
     status_parser = subparsers.add_parser("status", help="Show test status and results")
+
+    # Health command - generate health snapshot
+    health_parser = subparsers.add_parser("health", help="Generate test health snapshot files")
+    health_parser.add_argument(
+        "--category", "-c",
+        default="payments",
+        help="Category health to generate (currently only: payments)"
+    )
     
     # Init command - create a new test
     init_parser = subparsers.add_parser("init", help="Initialize a new test")
@@ -676,6 +710,7 @@ def main():
         "explore": cmd_explore,
         "list": cmd_list,
         "status": cmd_status,
+        "health": cmd_health,
         "init": cmd_init,
         "gui": cmd_gui,
         "create_user": cmd_create_user,

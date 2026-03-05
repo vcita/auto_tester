@@ -7,7 +7,7 @@ Reads the _functions.yaml registry for metadata.
 
 import yaml
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from src.models import Function, FunctionParameter, FunctionReturn
 
@@ -19,7 +19,7 @@ class FunctionDiscovery:
     REGISTRY_FILE = "_functions.yaml"
     STEPS_FILE = "steps.md"
     
-    def __init__(self, tests_root: str | Path):
+    def __init__(self, tests_root: Union[str, Path]):
         """
         Initialize function discovery.
         

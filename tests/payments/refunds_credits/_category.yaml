@@ -1,0 +1,27 @@
+# Refunds and Credits Subcategory
+# Record refunds or credit notes without PGW
+
+name: Refunds and Credits
+description: Tests for recording refunds and credit notes for invoices
+
+tests:
+  - id: record_refund
+    name: Record Refund
+    status: draft
+    priority: medium
+    description: Record a refund against a recorded payment and verify balance adjustment
+  - id: issue_credit_note
+    name: Issue Credit Note
+    status: draft
+    priority: medium
+    description: Issue a credit note and apply to an invoice if supported
+
+# Category metadata
+status: draft
+priority: medium
+tags:
+  - payments
+  - refunds
+  - credits
+owner: QA Team
+created_at: 2026-02-09

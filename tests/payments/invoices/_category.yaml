@@ -1,0 +1,41 @@
+# Invoices Subcategory
+# Invoicing flows without online payment collection
+
+name: Invoices
+description: Tests for creating, editing, sending, canceling, and client access to invoices
+
+tests:
+  - id: create_invoice
+    name: Create Invoice
+    status: draft
+    priority: high
+    description: Create a new invoice with line items and tax
+  - id: edit_invoice
+    name: Edit Invoice
+    status: draft
+    priority: high
+    description: Update invoice line items and totals
+  - id: send_invoice
+    name: Send Invoice
+    status: draft
+    priority: high
+    description: Send or mark invoice as sent and verify status
+  - id: cancel_invoice
+    name: Cancel Invoice
+    status: draft
+    priority: high
+    description: Void or cancel invoice and verify status
+  - id: view_download_invoice
+    name: View and Download Invoice
+    status: draft
+    priority: low
+    description: Verify invoice public view availability and download flow
+
+# Category metadata
+status: draft
+priority: high
+tags:
+  - payments
+  - invoices
+owner: QA Team
+created_at: 2026-02-09

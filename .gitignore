@@ -49,6 +49,8 @@ playwright-report/
 .playwright-mcp/*.png
 .playwright-mcp/*.jpg
 .playwright-mcp/*.jpeg
+.playwright-mcp/console-*.log
+
 
 # Run history (stored per-category in tests/{category}/_runs/)
 **/_runs/*
