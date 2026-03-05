@@ -63,7 +63,7 @@ def test_edit_invoice(page: Page, context: dict) -> None:
     """
     invoice_scope = _open_invoice(page)
 
-    amount_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^₪\\d"))
+    amount_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^[₪$]\d"))
     amount_heading.wait_for(state="visible", timeout=5000)
     original_amount = amount_heading.first.inner_text().strip()
 
@@ -97,9 +97,9 @@ def test_edit_invoice(page: Page, context: dict) -> None:
     page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     invoice_scope = _get_billing_scope(page)
 
-    updated_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^₪\\d"))
+    updated_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^[₪$]\d"))
     updated_heading.wait_for(state="visible", timeout=5000)
     updated_amount = updated_heading.first.inner_text().strip()
     assert updated_amount != original_amount, "Invoice total did not change after edit"
-    context["created_invoice_amount"] = updated_amount.replace("₪", "").strip()
+    context["created_invoice_amount"] = updated_amount.replace("₪", "").replace("$", "").strip()
 

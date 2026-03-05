@@ -26,7 +26,12 @@ def test_record_payment_full(page: Page, context: dict) -> None:
 
     # Step 1: Navigate to Checkout
     print("  Step 1: Navigate to Checkout...")
-    sales_button = page.locator("button").filter(has_text="Sales")
+    sales_button = page.locator('[data-qa="nav-sales"]')
+    if sales_button.count() == 0:
+        sales_button = page.get_by_role("button", name="Sales", exact=True).first
+    else:
+        sales_button = sales_button.first
+    sales_button.wait_for(state="visible", timeout=5000)
     sales_button.click()
     page.wait_for_url("**/app/pos**", timeout=30000, wait_until="domcontentloaded")
 
