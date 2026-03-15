@@ -22,6 +22,9 @@ lxml==4.9.3
 pytest==7.4.3
 pytest-playwright==0.4.4
 
+# HTTP client (for API-based account creation)
+requests==2.32.3
+
 # Async support
 asyncio-throttle==1.0.2
 
