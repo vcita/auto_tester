@@ -63,7 +63,8 @@ def load_directory_token() -> Optional[str]:
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
         return (config.get("target") or {}).get("directory_token")
-    except Exception:
+    except Exception as exc:
+        console.print(f"[yellow]Warning: failed to read config.yaml — {exc}[/yellow]")
         return None
 
 
@@ -113,7 +114,7 @@ def create_account(api_base_url: str, token: str, category_name: str) -> dict:
             last_error = exc
             if attempt < MAX_RETRIES:
                 console.print(f"  [yellow]Retry {attempt + 1}/{MAX_RETRIES} for {category_name}...[/yellow]")
-                time.sleep(RETRY_BACKOFF * (attempt + 1))
+                time.sleep(RETRY_BACKOFF ** (attempt + 1))
 
     raise _SkipCategoryError(f"All retries exhausted for {category_name}: {last_error}")
 
@@ -213,7 +214,8 @@ def run(env: str) -> None:
                 "auth_token": "-",
                 "email": "-",
                 "name": "-",
-                "status": f"FAILED ({exc})",
+                "status": "SKIPPED",
+                "detail": str(exc),
             })
 
     _print_summary(results)
@@ -229,14 +231,26 @@ def _print_summary(results: list[dict]) -> None:
     table.add_column("Auth Token")
 
     for r in results:
-        style = "green" if r["status"] == "OK" else "red"
-        token_display = r["auth_token"][:12] + "..." if len(r["auth_token"]) > 15 else r["auth_token"]
-        table.add_row(r["category"], f"[{style}]{r['status']}[/{style}]", r["business_id"], r["email"], token_display)
+        status = r["status"]
+        if status == "OK":
+            style = "green"
+        elif status == "SKIPPED":
+            style = "yellow"
+        else:
+            style = "red"
+        token_val = r["auth_token"]
+        token_display = token_val[:4] + "***" if token_val not in ("-", "N/A") else token_val
+        table.add_row(r["category"], f"[{style}]{status}[/{style}]", r["business_id"], r["email"], token_display)
 
     console.print(table)
 
     ok_count = sum(1 for r in results if r["status"] == "OK")
-    console.print(f"\n[bold]{ok_count}/{len(results)}[/bold] accounts created successfully.")
+    skip_count = sum(1 for r in results if r["status"] == "SKIPPED")
+    console.print(f"\n[bold]{ok_count}/{len(results)}[/bold] accounts created successfully.", end="")
+    if skip_count:
+        console.print(f"  [yellow]{skip_count} skipped.[/yellow]")
+    else:
+        console.print()
 
 
 def parse_args() -> argparse.Namespace:

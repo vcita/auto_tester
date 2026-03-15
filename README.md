@@ -203,7 +203,7 @@ Not a `main.py` subcommand. Creates business accounts per category via vcita's C
 
 | Flag | Description |
 |------|-------------|
-| `--env <production\|integration>` | Target environment (default: `production`). |
+| `--env <name>` | Target environment: `production` (default), `integration`, or any custom feature-env name (e.g. `aviv`). |
 
 ```bash
 python create_accounts.py
