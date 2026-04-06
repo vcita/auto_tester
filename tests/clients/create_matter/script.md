@@ -37,7 +37,8 @@ referred_by = random.choice(["Google Search", "Facebook", "Friend Referral", "We
 
 ### Step 0: Ensure on dashboard (no direct URL navigation)
 - **Rule**: Do not use `page.goto(base_url + "/app/dashboard")` - www/app/dashboard is unavailable.
-- **Action**: If `/app/dashboard` not in `page.url`, click sidebar "Dashboard" and `page.wait_for_url("**/app/dashboard**")`.
+- **Action**: If `/app/dashboard` not in `page.url`, click sidebar "Dashboard" and `page.wait_for_url("**/app/dashboard**")`. Then wait for "Quick actions" panel.
+- **VERIFIED**: `if "/app/dashboard" not in page.url: page.get_by_text("Dashboard", exact=True).click(); page.wait_for_url("**/app/dashboard**", timeout=15000)`
 
 ### Step 1: Open the Add matter form (with sidebar fallback)
 - **Primary path**: Look for "Quick actions" panel in dashboard content (inside angular-iframe). Use `page.get_by_text("Quick actions", exact=True)` scoped to panel, then click "Add [entity]" parent.
