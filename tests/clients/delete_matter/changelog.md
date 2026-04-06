@@ -1,5 +1,21 @@
 # Changelog - Delete Matter
 
+## 2026-04-06 - Healed (Session recovery + More button stabilization)
+
+**Error**: `TimeoutError: Timeout 10000ms exceeded.` — screenshot showed clients list with matter selected and bulk action bar visible, but no dropdown/dialog open.
+
+**Root Cause**: The 1.5s stabilization wait after the selection indicator (documented in the 2026-01-27 "More button detached from DOM" fix) was missing from the code. Without it, the bulk action bar re-renders after selection and the More button element gets replaced mid-interaction.
+
+**Fix Applied**:
+1. Restored 1.5s stabilization wait after selection indicator appears (before More button click)
+2. Added session recovery (`_ensure_logged_in`) at test start to handle session expiry between tests
+3. Added print statements at each step for traceability
+4. Increased success dialog timeout from 10s to 15s
+
+**Files Updated**:
+- `test.py` - Stabilization wait, session recovery, print statements
+- `changelog.md` - This entry
+
 ## 2026-01-27 - Healed (Delete option not role=menuitem)
 
 **Phase**: test.py, script.md  
