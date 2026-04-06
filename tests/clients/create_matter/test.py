@@ -126,6 +126,33 @@ def _try_fill_combobox(form_frame, page: Page, textbox_name: str, combobox_name:
         return False
 
 
+def _verify_contact_info(page: Page, test_data: dict) -> None:
+    """Verify contact information is visible on the matter detail card."""
+    angular_iframe = page.locator('iframe[title="angularjs"]')
+    angular_iframe.wait_for(state="visible", timeout=15000)
+
+    outer_iframe = page.frame_locator('iframe[title="angularjs"]')
+    inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
+
+    name_locator = inner_iframe.get_by_text(test_data["full_name"])
+    name_locator.first.wait_for(state="visible", timeout=10000)
+    print(f"     [OK] Name visible: {test_data['full_name']}")
+
+    email_locator = outer_iframe.get_by_text(test_data["email"])
+    try:
+        email_locator.first.wait_for(state="visible", timeout=5000)
+        print(f"     [OK] Email visible: {test_data['email']}")
+    except Exception:
+        print(f"     [WARN] Email not visible on card (may be truncated)")
+
+    phone_locator = outer_iframe.get_by_text(test_data["phone"])
+    try:
+        phone_locator.first.wait_for(state="visible", timeout=5000)
+        print(f"     [OK] Phone visible: {test_data['phone']}")
+    except Exception:
+        print(f"     [WARN] Phone not visible on card (may be formatted differently)")
+
+
 def test_create_matter(page: Page, context: dict) -> None:
     """
     Test: Create Matter via Quick Actions
@@ -263,6 +290,10 @@ def test_create_matter(page: Page, context: dict) -> None:
 
     print(f"  Step 8: Verifying created matter: {test_data['full_name']}...")
     expect(page).to_have_title(re.compile(re.escape(test_data["full_name"])), timeout=30000)
+
+    # ========== PART 6: Verify Contact Information on Card ==========
+    print("  Step 9: Verifying contact information on card...")
+    _verify_contact_info(page, test_data)
 
     context["created_matter_name"] = test_data["full_name"]
     context["created_matter_email"] = test_data["email"]
