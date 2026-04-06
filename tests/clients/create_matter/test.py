@@ -277,6 +277,8 @@ def test_create_matter(page: Page, context: dict) -> None:
     # ========== PART 5: Save and Verify ==========
     print("  Step 7: Clicking Save...")
     save_btn = form_frame.get_by_role("button", name=re.compile(r"Save|SAVE", re.IGNORECASE))
+    save_btn.scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
     save_btn.click()
 
     page.wait_for_url(re.compile(r"/app/clients/"), timeout=30000)
