@@ -1,5 +1,15 @@
 # Edit Contact Test - Changelog
 
+## [2.0.0] - 2026-04-05 - Healed (Missing field + broken text clearing)
+- **Error**: `TimeoutError: Timeout 30000ms exceeded` trying to click "Referred by" textbox
+- **Root cause (2 issues)**:
+  1. **Missing field**: "Referred by" doesn't exist in the Client vertical's edit contact dialog. The dialog shows: First Name, Email, Last Name, Phone, Address, Birthday, Social media — no "Referred by".
+  2. **Text clearing broken on macOS**: `page.keyboard.press("Control+a")` doesn't select-all on macOS (moves cursor to beginning instead). Result: `press_sequentially` prepended text to existing values instead of replacing (e.g. "CE422949Matter422932").
+- **Fix applied**:
+  1. **Referred by is optional**: Check if field exists before editing, skip if not.
+  2. **Cross-platform clearing**: Use `field.fill("")` to clear before `press_sequentially`, replacing `Control+a` approach.
+- **Files updated**: test.py (rewritten with adaptive fields + reliable clearing)
+
 ## 2026-01-27 - Shorter edited last name (avoid table truncation)
 - **Reason**: After edit, `created_matter_name` is used by delete_matter; long "ContactEdit{timestamp}" caused table truncation. Shorter name reduces reliance on prefix matching.
 - **Change**: `last_name = f"CE{timestamp % 1000000}"` (e.g. "CE123456"). script.md, steps.md updated.
