@@ -84,6 +84,18 @@ These fields only exist on Property/Home Services vertical accounts:
 ### Verify Page Title
 - Page title should contain matter name: "{first_name} {last_name}"
 
+### Verify Contact Information (visible on card)
+- Name: "{first_name} {last_name}" should be visible
+- Address: "{contact_address}" should be visible (if filled)
+- Referred by: "{referred_by}" should be visible (if field existed)
+- Status: "Existing customer" or similar should be visible
+
+### Verify via Edit Dialog (optional deep verification)
+- Click edit button next to name
+- Verify Email field contains {email}
+- Verify Phone field contains {phone}
+- Click Cancel to close
+
 ## Context Operations
 ```python
 context["created_matter_name"] = f"{first_name} {last_name}"
