@@ -21,6 +21,7 @@ from .context import ContextManager
 from .executor import TestExecutor
 from .heal import HealRequestGenerator
 from .storage import RunStorage
+from . import account_factory, env_config
 
 # For --debug-test: pause after each minor action (human-in-the-loop debugging)
 def _get_step_callback_for_debug():
@@ -137,6 +138,7 @@ class TestRunner:
         until_test: Optional[str] = None,
         debug_test: Optional[str] = None,
         config: Optional[dict] = None,
+        env: Optional[str] = None,
     ):
         """
         Initialize the test runner.
@@ -150,6 +152,8 @@ class TestRunner:
             until_test: Stop before this test; dump context to until_test_context.json and leave browser open (for manual or MCP debugging; MCP uses a new session)
             debug_test: Run category until this test, then run this test with step_callback=step_callback_with_enter (pause after each minor action for human debugging), then stop.
             config: Full config dict (e.g. from config.yaml); target subtree is stored in run logs and heal requests
+            env: Target environment for per-category account creation (e.g. 'integration', 'production').
+                 When set, a fresh account is created for each category. When None, uses config.yaml account.
         """
         self.tests_root = Path(tests_root)
         self.headless = headless
@@ -159,6 +163,20 @@ class TestRunner:
         self.until_test = until_test
         self.debug_test = debug_test
         self.run_config = (config or {}).get("target") if config else None
+        self.env = env
+        
+        # Resolve environment URLs and tokens when env is set
+        if self.env:
+            urls = env_config.resolve_urls(self.env)
+            self.api_base_url = urls["api_base_url"]
+            self.app_base_url = urls["app_base_url"]
+            self.directory_token = account_factory.load_directory_token(config)
+            self.admin_token = account_factory.load_admin_token(config)
+        else:
+            self.api_base_url = None
+            self.app_base_url = None
+            self.directory_token = None
+            self.admin_token = None
         
         # Components
         self.events = EventEmitter()
@@ -461,7 +479,31 @@ class TestRunner:
         
         # Create fresh context for this category
         context = self.context_manager.create_fresh()
-        if self.run_config:
+        if self.env and self.directory_token:
+            try:
+                auto_account = account_factory.create_account(
+                    self.api_base_url, self.directory_token, category.name
+                )
+                context["auto_account"] = auto_account
+                context["base_url"] = self.app_base_url
+                context["username"] = auto_account["email"]
+                context["password"] = auto_account["password"]
+                print(f"  [auto-account] Created {auto_account['email']} for {category.name}", flush=True)
+                if self.admin_token and auto_account.get("user_id"):
+                    ok = account_factory.set_automation_feature_flags(
+                        self.api_base_url, self.admin_token, auto_account["user_id"]
+                    )
+                    if ok:
+                        print(f"  [auto-account] Feature flags set (hide_register_wizard, etc.)", flush=True)
+            except account_factory.FatalTokenError as exc:
+                print(f"  [auto-account] FATAL: {exc}")
+                result.stopped_early = True
+                return result
+            except account_factory.AccountCreationError as exc:
+                print(f"  [auto-account] Account creation failed for {category.name}: {exc}")
+                result.stopped_early = True
+                return result
+        elif self.run_config:
             if self.run_config.get("base_url"):
                 context["base_url"] = self.run_config["base_url"]
             auth = self.run_config.get("auth")
@@ -559,6 +601,7 @@ class TestRunner:
                         self._run_teardown_if_exists(
                             category, page, context, result
                         )
+                        self._cleanup_auto_account(context, result, category.name)
                         return result
 
                 # Path mode: xxx/yyy/zzz -> root setup done; run each intermediate setup, then leaf setup + tests
@@ -598,6 +641,7 @@ class TestRunner:
                                     category_chain[:i], page, context, result,
                                     video_timestamps, video_start_time, time_module,
                                 )
+                                self._cleanup_auto_account(context, result, category.name)
                                 return result
                     # Run leaf subcategory (setup already ran above for leaf, so skip setup)
                     leaf = category_chain[-1]
@@ -861,26 +905,31 @@ class TestRunner:
                             status_icon = ">" if status == "passed" else "X" if status == "failed" else "-"
                             print(f"    [{status_icon}] {start_str} - {end_str} : {test_name}")
         
-        # Save category result to storage (will move video to _runs folder)
-        self.storage.save_category_result(
-            category=category.name,
-            result=result,
-            video_path=final_video_path,
-        )
+        try:
+            # Save category result to storage (will move video to _runs folder)
+            self.storage.save_category_result(
+                category=category.name,
+                result=result,
+                video_path=final_video_path,
+            )
 
-        # Copy parent video into each subcategory run dir so video is visible there too
-        if final_video_path is not None and getattr(self, "_saved_subcategory_paths", None):
-            parent_video = self.storage.get_current_run_dir(category.name) / "video.webm"
-            if parent_video.exists():
-                for subcat_path in self._saved_subcategory_paths:
-                    subcat_run_dir = self.storage.get_current_run_dir(subcat_path)
-                    subcat_run_dir.mkdir(parents=True, exist_ok=True)
-                    dest_video = subcat_run_dir / "video.webm"
-                    if dest_video != parent_video:
-                        shutil.copy2(str(parent_video), str(dest_video))
+            # Copy parent video into each subcategory run dir so video is visible there too
+            if final_video_path is not None and getattr(self, "_saved_subcategory_paths", None):
+                parent_video = self.storage.get_current_run_dir(category.name) / "video.webm"
+                if parent_video.exists():
+                    for subcat_path in self._saved_subcategory_paths:
+                        subcat_run_dir = self.storage.get_current_run_dir(subcat_path)
+                        subcat_run_dir.mkdir(parents=True, exist_ok=True)
+                        dest_video = subcat_run_dir / "video.webm"
+                        if dest_video != parent_video:
+                            shutil.copy2(str(parent_video), str(dest_video))
 
-        # Save context for debugging
-        self.context_manager.save_to_file(f"{category.name}_context.json")
+            # Save context for debugging
+            self.context_manager.save_to_file(f"{category.name}_context.json")
+        except Exception as exc:
+            print(f"  [warning] Post-run storage failed: {exc}", flush=True)
+
+        self._cleanup_auto_account(context, result, category.name)
         
         # Emit category completed
         self.events.emit(RunnerEvent.CATEGORY_COMPLETED, {
@@ -890,6 +939,21 @@ class TestRunner:
         
         return result
     
+    def _cleanup_auto_account(self, context: dict, result, category_name: str) -> None:
+        """Delete or keep the auto-created account based on test result."""
+        if not (self.env and "auto_account" in context):
+            return
+        auto_acct = context["auto_account"]
+        if result.status == "passed" and self.admin_token:
+            deleted = account_factory.delete_account(
+                self.api_base_url, self.admin_token, auto_acct["pivot_uid"],
+                email=auto_acct["email"],
+            )
+            verb = "Deleted" if deleted else "Failed to delete"
+            print(f"  [auto-account] {verb} {auto_acct['email']} (category {category_name} passed)", flush=True)
+        else:
+            print(f"  [auto-account] Keeping {auto_acct['email']} for debugging ({category_name} {result.status})", flush=True)
+
     def _run_teardown_if_exists(
         self,
         category: Category,

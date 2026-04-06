@@ -85,6 +85,8 @@ class StressTestRunner:
         tests_root: Path,
         headless: bool = False,
         keep_open: bool = False,
+        env: Optional[str] = None,
+        config: Optional[dict] = None,
     ):
         """
         Initialize the stress test runner.
@@ -93,10 +95,14 @@ class StressTestRunner:
             tests_root: Path to the tests/ directory
             headless: Whether to run browser in headless mode
             keep_open: Whether to keep browser open on failure
+            env: Target environment for per-category account creation
+            config: Full config dict (e.g. from config.yaml)
         """
         self.tests_root = tests_root
         self.headless = headless
         self.keep_open = keep_open
+        self.env = env
+        self.config = config
         self.console = Console()
     
     def run_stress_test(
@@ -152,6 +158,8 @@ class StressTestRunner:
                             self.tests_root,
                             headless=self.headless,
                             keep_open=self.keep_open,
+                            env=self.env,
+                            config=self.config,
                         )
                         
                         result = runner.run_category(category_name)

@@ -34,14 +34,12 @@ def fn_login(page: Page, context: dict, **params) -> None:
     base_url = get_base_url(context, params)
     login_url = base_url + "/login"
     
-    # Step 1: Navigate to Login Page (once; no retries for actions)
-    page.goto(login_url, wait_until="commit")
-    page.wait_for_load_state("domcontentloaded")
+    page.goto(login_url, wait_until="domcontentloaded")
+    page.wait_for_timeout(2000)
 
     print(f"  Page URL: {page.url}")
     print(f"  Page Title: {page.title()}")
 
-    # If already on dashboard, wait for it to be ready then return
     if "dashboard" in page.url:
         context["logged_in_user"] = username
         print("  Already logged in, waiting for dashboard to be ready...")
@@ -52,7 +50,7 @@ def fn_login(page: Page, context: dict, **params) -> None:
 
     # Handle Cloudflare challenge - wait for it to complete or for user to solve it
     max_cloudflare_wait = 120  # 2 minutes for manual solving if needed
-    if "Just a moment" in page.title() or page.title() == "":
+    if "Just a moment" in page.title():
         print("  [!] Cloudflare security check detected")
         print("  [>] Please click 'Verify you are human' checkbox if visible...")
         page.wait_for_function(
@@ -65,10 +63,11 @@ def fn_login(page: Page, context: dict, **params) -> None:
         print(f"  [OK] Cloudflare check passed!")
         print(f"  Page Title after wait: {page.title()}")
 
-    # Wait for login form or dashboard to appear
+    # Resolve login form context (main page or vue_iframe)
+    ctx = _get_login_context(page)
     print(f"  Waiting for login page or dashboard...")
     try:
-        email_field = page.get_by_label("Email", exact=True)
+        email_field = ctx.locator('input[type="email"]')
         email_field.wait_for(state="visible", timeout=60000)
         print(f"  [OK] Login form is ready")
     except Exception as wait_error:
@@ -80,22 +79,9 @@ def fn_login(page: Page, context: dict, **params) -> None:
         print(f"  Current Title: {page.title()}")
         raise wait_error
     
-    # Step 2: Enter Email
-    # The textbox has an associated label "Email" - use get_by_label
-    email_input = page.get_by_label("Email", exact=True)
-    email_input.click()
-    page.wait_for_timeout(100)  # Brief delay for field focus
-    email_input.fill(username)  # Use fill for login - more reliable with autofill
-    
-    # Step 3: Enter Password
-    password_input = page.get_by_label("Password", exact=True)
-    password_input.click()
-    page.wait_for_timeout(100)  # Brief delay for field focus
-    password_input.fill(password)
-    
-    # Step 4: Click Login Button
-    login_button = page.get_by_role("button", name="Login")
-    login_button.click()
+    email_field.fill(username)
+    ctx.locator('input[type="password"]').fill(password)
+    ctx.get_by_role("button", name="Log In").click()
     
     # Step 5: Wait for Dashboard to Load
     # After clicking login, the page will navigate. Don't try to interact with the page
@@ -128,15 +114,29 @@ def fn_login(page: Page, context: dict, **params) -> None:
                 print(f"  [X] Login failed - stuck on: {current_url}")
                 raise e
     
-    # Verify dashboard loaded: DOM first, then key UI so tests don't wait again
     page.wait_for_load_state("domcontentloaded")
-    # Wait for dashboard to be usable (Quick actions panel). Without this, setup
-    # "completes" but the first test (e.g. create_matter) then waits here, which
-    # looks like a long pause after the dashboard with no visible action.
-    print("  Waiting for dashboard to be ready (Quick actions)...")
-    page.get_by_text("Quick actions", exact=True).wait_for(state="visible", timeout=30000)
+    print("  Waiting for dashboard to be ready...")
+    dashboard_indicator = page.get_by_text("Quick actions").or_(page.locator("text=Welcome to"))
+    try:
+        dashboard_indicator.first.wait_for(state="visible", timeout=30000)
+    except Exception:
+        pass
     print("  [OK] Dashboard ready")
 
     # Save to context
     context["logged_in_user"] = username
     print(f"  [OK] Login successful for: {username}")
+
+
+def _get_login_context(page: Page):
+    """Return the frame/page that contains the login form (handles vue_iframe)."""
+    if page.locator('input[type="email"]').count() > 0:
+        return page
+    for frame in page.frames:
+        if frame.name == "vue_iframe":
+            try:
+                frame.wait_for_load_state("domcontentloaded", timeout=15000)
+                return frame
+            except Exception:
+                pass
+    return page
