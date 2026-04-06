@@ -10,7 +10,7 @@
 
 ## Initial State
 - User must be logged in (setup logs in and leaves browser on dashboard)
-- **Account must have completed first-time setup.** If the account has not finished vcita onboarding, the "Welcome to vcita!" dialog appears on the dashboard and blocks Quick actions / Add matter. Use `hide_register_wizard` feature flag or complete onboarding once.
+- **Account must have completed first-time setup.** The runner sets automation feature flags (including onboarding bypass) automatically on account creation.
 - Browser is on **app.{domain}/app/dashboard** (login redirects to app subdomain)
 - **Do NOT** navigate to dashboard via `page.goto(base_url + "/app/dashboard")`: base_url is www; www/app/dashboard shows "This page is unavailable". Use UI navigation only if not already on dashboard.
 
