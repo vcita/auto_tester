@@ -833,8 +833,8 @@ def main():
     stress_parser.add_argument(
         "--iterations", "-i",
         type=int,
-        required=True,
-        help="Number of times to run each category"
+        default=10,
+        help="Number of times to run each category (default: 10)"
     )
     stress_parser.add_argument(
         "--headless",
