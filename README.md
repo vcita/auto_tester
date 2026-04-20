@@ -210,6 +210,34 @@ python main.py cleanup_accounts --env integration             # Delete all orpha
 python main.py cleanup_accounts --older-than 2h               # Delete accounts older than 2 hours
 ```
 
+#### Account Ledger
+
+The runner maintains a lightweight local ledger at `.accounts/ledger.json` to track auto-created accounts. The file is a simple JSON array of email addresses:
+
+```json
+[
+  "auto.api.clients.1713600000@test.com",
+  "auto.api.scheduling.1713603600@test.com"
+]
+```
+
+**How it works:**
+
+- **On account creation** — the email is appended to the ledger (`record_created`).
+- **On account deletion** — the email is removed from the ledger (`mark_deleted`). This happens automatically after a successful category run, or manually via `cleanup_accounts`.
+- **On cleanup scan** — `list_auto_accounts` reads the ledger, verifies each email against the live admin API, and auto-removes entries where the API returns 404 (already deleted externally).
+
+The ledger is **not** the source of truth — the live API is. The ledger is just an index so the runner knows which emails to look up (the admin API only supports exact-email queries, not prefix search).
+
+**Inspecting the ledger directly:**
+
+```bash
+cat .accounts/ledger.json                # View all tracked emails
+cat .accounts/ledger.json | python -m json.tool  # Pretty-printed
+```
+
+**The ledger is gitignored** and local to each developer's machine. If it gets out of sync (e.g. accounts deleted externally), `cleanup_accounts --dry-run` will reconcile it — stale entries are pruned automatically during the scan.
+
 ---
 
 ### `groom_heal_requests` -- Triage Heal Requests
@@ -687,6 +715,28 @@ Context is managed by `ContextManager` (`src/runner/context.py`) and persisted t
 | `VCITA_ADMIN_TOKEN` | Admin token for deleting accounts and setting feature flags (also: `target.admin_token` in `config.yaml`) |
 
 A `.env` file in the project root is automatically loaded at startup (via `python-dotenv`). Add secrets there for local development -- it is gitignored and never committed.
+
+---
+
+## Automation Feature Flags
+
+When a fresh account is auto-created (via `--env`), the runner applies a set of **automation feature flags** to suppress UI wizards, success modals, and empty states that interfere with test execution. These are defined in `src/runner/account_factory.py` under `AUTOMATION_FEATURE_FLAGS`:
+
+| Flag | Purpose |
+|------|---------|
+| `hide_register_wizard` | Skip the post-registration onboarding wizard |
+| `hide_payment_success_message` | Suppress the payment-success toast/modal |
+| `hide_first_event_success_message` | Suppress the first-event-created success modal |
+| `hide_empty_state` | Hide empty-state illustrations so list selectors work immediately |
+
+Flags are sent as a single POST to `/admin/feature_flags/{user_id}/add_user_features` using the `VCITA_ADMIN_TOKEN`. This happens automatically after account creation — no per-test configuration is needed.
+
+### Adding a new flag
+
+1. Append the flag name to the `AUTOMATION_FEATURE_FLAGS` list in `src/runner/account_factory.py`.
+2. Update the table above to document its purpose.
+
+Only add flags here that should apply to **every** auto-created account. Product-specific flags that only certain tests need are not yet supported at the category or test level.
 
 ---
 
