@@ -50,7 +50,9 @@ def fn_login(page: Page, context: dict, **params) -> None:
 
     # Handle Cloudflare challenge - wait for it to complete or for user to solve it
     max_cloudflare_wait = 120  # 2 minutes for manual solving if needed
-    if "Just a moment" in page.title() or page.title() == "":
+    title = page.title()
+    is_cloudflare = "Just a moment" in title or page.locator("#challenge-form, #cf-challenge-running, .cf-turnstile").count() > 0
+    if is_cloudflare:
         print("  [!] Cloudflare security check detected")
         print("  [>] Please click 'Verify you are human' checkbox if visible...")
         page.wait_for_function(
