@@ -31,7 +31,6 @@ def setup_clients(page: Page, context: dict) -> None:
             "username and password not in context. Set target.auth.username and target.auth.password in config.yaml."
         )
     
-    # Call the login function
     fn_login(page, context, username=username, password=password)
-    
+
     print(f"  Clients setup complete - logged in as {context.get('logged_in_user')}")

@@ -15,6 +15,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
@@ -177,6 +180,10 @@ def cmd_run(args):
     until_test = getattr(args, 'until_test', None)
     debug_test = getattr(args, 'debug_test', None)
     
+    # Resolve env: None when --no-auto-account is set, otherwise use --env value
+    no_auto = getattr(args, 'no_auto_account', False)
+    env = None if no_auto else getattr(args, 'env', 'integration')
+    
     try:
         # Create runner
         runner = TestRunner(
@@ -186,6 +193,7 @@ def cmd_run(args):
             until_test=until_test,
             debug_test=debug_test,
             config=config,
+            env=env,
         )
         
         # Attach CLI reporter for real-time output
@@ -378,6 +386,10 @@ def cmd_stress_test(args):
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
     
+    # Resolve env
+    no_auto = getattr(args, 'no_auto_account', False)
+    env = None if no_auto else getattr(args, 'env', 'integration')
+    
     try:
         # Validate categories exist
         from src.discovery import TestDiscovery
@@ -400,6 +412,8 @@ def cmd_stress_test(args):
             tests_root=tests_root,
             headless=headless,
             keep_open=keep_open,
+            env=env,
+            config=config,
         )
         
         console.print(f"\n[bold]Starting stress test[/bold]")
@@ -425,6 +439,128 @@ def cmd_stress_test(args):
         import traceback
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
+
+
+def cmd_cleanup_accounts(args):
+    """Find and delete orphaned automation accounts via the API."""
+    import time as time_module
+    from src.runner.account_factory import (
+        list_auto_accounts,
+        delete_account,
+        load_admin_token,
+        parse_email_timestamp,
+    )
+    from src.runner.env_config import resolve_urls
+
+    config = load_config()
+    env = getattr(args, "env", "integration")
+    dry_run = getattr(args, "dry_run", False)
+    older_than = getattr(args, "older_than", None)
+
+    urls = resolve_urls(env)
+    api_base_url = urls["api_base_url"]
+    admin_token = load_admin_token(config)
+
+    if not admin_token:
+        console.print(
+            "[red]No admin token found. "
+            "Set VCITA_ADMIN_TOKEN env var or add target.admin_token in config.yaml.[/red]"
+        )
+        sys.exit(1)
+
+    console.print(f"[bold]Environment:[/bold] {env}")
+    console.print(f"[bold]API base:   [/bold] {api_base_url}")
+    console.print(f"[bold]Mode:       [/bold] {'dry-run' if dry_run else 'delete'}")
+    if older_than:
+        console.print(f"[bold]Older than: [/bold] {older_than}")
+    console.print()
+
+    console.print("[cyan]Scanning for automation accounts...[/cyan]")
+    accounts = list_auto_accounts(api_base_url, admin_token)
+
+    if not accounts:
+        console.print("[green]No automation accounts found.[/green]")
+        return
+
+    # Apply --older-than filter
+    age_threshold_seconds = _parse_duration(older_than) if older_than else None
+    now = int(time_module.time())
+
+    if age_threshold_seconds is not None:
+        filtered = []
+        for acct in accounts:
+            ts = parse_email_timestamp(acct["email"])
+            if ts and (now - ts) >= age_threshold_seconds:
+                filtered.append(acct)
+        accounts = filtered
+
+    if not accounts:
+        console.print("[green]No automation accounts match the criteria.[/green]")
+        return
+
+    # Display table
+    table = Table(title=f"Automation Accounts on {env} ({len(accounts)} found)")
+    table.add_column("Email", style="bold")
+    table.add_column("Category")
+    table.add_column("Age")
+    table.add_column("Pivot UID", style="dim")
+
+    for acct in accounts:
+        ts = parse_email_timestamp(acct["email"])
+        age_str = _format_age(now - ts) if ts else "unknown"
+        category = _parse_category_from_email(acct["email"])
+        table.add_row(acct["email"], category, age_str, acct["pivot_uid"])
+
+    console.print(table)
+
+    if dry_run:
+        console.print(f"\n[yellow]Dry run — {len(accounts)} account(s) would be deleted.[/yellow]")
+        return
+
+    # Delete accounts
+    deleted = 0
+    failed = 0
+    for acct in accounts:
+        console.print(f"  Deleting {acct['email']}...", end=" ")
+        ok = delete_account(api_base_url, admin_token, acct["pivot_uid"], email=acct["email"])
+        if ok:
+            console.print("[green]OK[/green]")
+            deleted += 1
+        else:
+            console.print("[red]FAILED[/red]")
+            failed += 1
+
+    console.print(f"\n[bold]{deleted}[/bold] deleted, [bold]{failed}[/bold] failed.")
+
+
+def _parse_duration(value: str) -> int:
+    """Parse a duration string like '2h', '30m', '1d' into seconds."""
+    import re
+    match = re.match(r"^(\d+)\s*([smhd])$", value.strip().lower())
+    if not match:
+        raise ValueError(f"Invalid duration: {value!r}. Use format like '2h', '30m', '1d'.")
+    amount = int(match.group(1))
+    unit = match.group(2)
+    multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    return amount * multipliers[unit]
+
+
+def _format_age(seconds: int) -> str:
+    """Format seconds into a human-readable age string."""
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 86400:
+        return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
+    return f"{seconds // 86400}d {(seconds % 86400) // 3600}h"
+
+
+def _parse_category_from_email(email: str) -> str:
+    """Extract category name from auto.api.{category}.{timestamp}@vcita.com."""
+    import re
+    match = re.match(r"^auto\.api\.(.+)\.\d+@", email)
+    return match.group(1) if match else "unknown"
 
 
 def cmd_create_user(args):
@@ -609,6 +745,18 @@ def main():
         nargs="+",
         help="Run only the selected category/subcategory paths (e.g., 'clients scheduling/events'). Each path can be a category (e.g., 'clients') or a subcategory path (e.g., 'scheduling/events'). Mutually exclusive with --category."
     )
+    run_parser.add_argument(
+        "--env",
+        default="integration",
+        help="Target environment for per-category account creation. "
+             "'production', 'integration', or a feature-env name (e.g. 'aviv'). "
+             "Default: integration. Use --no-auto-account to skip."
+    )
+    run_parser.add_argument(
+        "--no-auto-account",
+        action="store_true",
+        help="Skip per-category account creation; use the hardcoded account from config.yaml instead."
+    )
     
     # Explore command - explore and generate tests
     explore_parser = subparsers.add_parser("explore", help="Explore and generate test from steps.md")
@@ -685,8 +833,8 @@ def main():
     stress_parser.add_argument(
         "--iterations", "-i",
         type=int,
-        required=True,
-        help="Number of times to run each category"
+        default=10,
+        help="Number of times to run each category (default: 10)"
     )
     stress_parser.add_argument(
         "--headless",
@@ -697,6 +845,37 @@ def main():
         "--keep-open",
         action="store_true",
         help="Keep browser open on failure for debugging"
+    )
+    stress_parser.add_argument(
+        "--env",
+        default="integration",
+        help="Target environment for per-category account creation. Default: integration."
+    )
+    stress_parser.add_argument(
+        "--no-auto-account",
+        action="store_true",
+        help="Skip per-category account creation; use the hardcoded account from config.yaml instead."
+    )
+    
+    # Cleanup accounts command - find and delete orphaned automation accounts
+    cleanup_parser = subparsers.add_parser(
+        "cleanup_accounts",
+        help="Find and delete orphaned automation accounts via the API."
+    )
+    cleanup_parser.add_argument(
+        "--env",
+        default="integration",
+        help="Target environment (default: integration)."
+    )
+    cleanup_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List orphaned accounts without deleting them."
+    )
+    cleanup_parser.add_argument(
+        "--older-than",
+        default=None,
+        help="Only target accounts older than this duration (e.g. '2h', '30m', '1d')."
     )
     
     args = parser.parse_args()
@@ -716,6 +895,7 @@ def main():
         "create_user": cmd_create_user,
         "stress_test": cmd_stress_test,
         "groom_heal_requests": cmd_groom_heal_requests,
+        "cleanup_accounts": cmd_cleanup_accounts,
     }
     
     if args.command in commands:

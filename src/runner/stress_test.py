@@ -5,10 +5,11 @@ Runs categories multiple times to check for consistency and flakiness.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import List, Optional, Dict
 
+import yaml
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -35,7 +36,18 @@ class StressTestResult:
     category_name: str
     total_iterations: int
     runs: List[StressTestRun] = field(default_factory=list)
-    
+    stamped_status: Optional[str] = None
+
+    STABLE_MIN_ITERATIONS = 10
+
+    @property
+    def stability_status(self) -> str:
+        if self.pass_rate == 100.0 and len(self.runs) >= self.STABLE_MIN_ITERATIONS:
+            return "stable"
+        if self.pass_rate >= 80.0:
+            return "flaky" if self.pass_rate < 100.0 else "pending"
+        return "unstable"
+
     @property
     def passed_count(self) -> int:
         """Number of successful runs."""
@@ -85,6 +97,8 @@ class StressTestRunner:
         tests_root: Path,
         headless: bool = False,
         keep_open: bool = False,
+        env: Optional[str] = None,
+        config: Optional[dict] = None,
     ):
         """
         Initialize the stress test runner.
@@ -93,10 +107,14 @@ class StressTestRunner:
             tests_root: Path to the tests/ directory
             headless: Whether to run browser in headless mode
             keep_open: Whether to keep browser open on failure
+            env: Target environment for per-category account creation
+            config: Full config dict (e.g. from config.yaml)
         """
         self.tests_root = tests_root
         self.headless = headless
         self.keep_open = keep_open
+        self.env = env
+        self.config = config
         self.console = Console()
     
     def run_stress_test(
@@ -152,6 +170,8 @@ class StressTestRunner:
                             self.tests_root,
                             headless=self.headless,
                             keep_open=self.keep_open,
+                            env=self.env,
+                            config=self.config,
                         )
                         
                         result = runner.run_category(category_name)
@@ -200,8 +220,50 @@ class StressTestRunner:
                     progress.advance(task)
                 
                 results.append(category_result)
+                self._stamp_stability(category_result)
         
         return results
+
+    def _stamp_stability(self, result: StressTestResult) -> None:
+        """Write stability block into the category's _category.yaml.
+
+        Skips stamping when all iterations passed but the run count is below
+        the minimum required for "stable" (not enough data to change status).
+        """
+        status = result.stability_status
+        if status == "pending":
+            min_req = StressTestResult.STABLE_MIN_ITERATIONS
+            self.console.print(
+                f"  [yellow]All {len(result.runs)} iterations passed, but {min_req} required for stable — skipping stamp[/yellow]"
+            )
+            return
+
+        category_dir = self.tests_root / result.category_name
+        config_path = category_dir / "_category.yaml"
+        if not config_path.exists():
+            self.console.print(
+                f"  [yellow]No _category.yaml found for {result.category_name}, skipping stamp[/yellow]"
+            )
+            return
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+
+            data["stability"] = {
+                "status": status,
+                "last_stress_test": str(date.today()),
+                "pass_rate": f"{result.pass_rate:.1f}%",
+                "iterations": result.total_iterations,
+            }
+
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+            result.stamped_status = status
+            self.console.print(f"  [green][OK][/green] Stamped {result.category_name} as [bold]{status}[/bold] in _category.yaml")
+        except Exception as e:
+            self.console.print(f"  [red]Failed to stamp {result.category_name}: {e}[/red]")
     
     def print_report(self, results: List[StressTestResult]) -> None:
         """
@@ -225,17 +287,27 @@ class StressTestRunner:
         summary_table.add_column("Failed", justify="right", style="red")
         summary_table.add_column("Pass Rate", justify="right")
         summary_table.add_column("Status", justify="center")
-        
+        summary_table.add_column("Stamped", justify="center")
+
+        status_styles = {"stable": "green", "flaky": "yellow", "unstable": "red", "pending": "dim"}
+
         for result in results:
             pass_rate_str = f"{result.pass_rate:.1f}%"
-            
-            if result.pass_rate == 100.0:
-                status = "[green]STABLE[/green]"
-            elif result.pass_rate >= 80.0:
-                status = "[yellow]FLAKY[/yellow]"
+            raw_status = result.stability_status
+            style = status_styles.get(raw_status, "white")
+
+            if raw_status == "pending":
+                min_req = StressTestResult.STABLE_MIN_ITERATIONS
+                status = f"[dim]PASSED ({min_req} needed)[/dim]"
             else:
-                status = "[red]UNSTABLE[/red]"
-            
+                status = f"[{style}]{raw_status.upper()}[/{style}]"
+
+            if result.stamped_status:
+                st_style = status_styles.get(result.stamped_status, "white")
+                stamped = f"[{st_style}]{result.stamped_status}[/{st_style}]"
+            else:
+                stamped = "[dim]-[/dim]"
+
             summary_table.add_row(
                 result.category_name,
                 str(result.total_iterations),
@@ -243,6 +315,7 @@ class StressTestRunner:
                 str(result.failed_count),
                 pass_rate_str,
                 status,
+                stamped,
             )
         
         self.console.print(summary_table)

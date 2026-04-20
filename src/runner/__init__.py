@@ -8,6 +8,7 @@ from .heal import HealRequestGenerator
 from .runner import TestRunner
 from .cli_reporter import CLIReporter
 from .stress_test import StressTestRunner
+from . import account_factory, env_config
 
 __all__ = [
     # Models
@@ -21,6 +22,9 @@ __all__ = [
     "ContextManager",
     "TestExecutor",
     "HealRequestGenerator",
+    # Account management
+    "account_factory",
+    "env_config",
     # Main
     "TestRunner",
     "CLIReporter",

@@ -9,24 +9,23 @@ Add a note to an existing matter to verify note creation functionality.
 
 ---
 
-## Step 1: Verify Already on Matter Page
+## Step 1: Ensure on Matter Page (with session recovery)
 
-- **Action**: Verify URL
-- **Target**: Verify browser is already on the matter detail page
+- **Action**: Verify URL, recover if session lost
+- **Target**: Verify browser is on the matter detail page; if redirected to login, re-login and navigate back
 - **Expected State**: Browser should be on matter page from previous test (edit_contact)
+- **HEALED 2026-04-06**: Added session recovery — if the page redirects to login (server-side session expiry), the test re-logs in and navigates back to the matter page instead of failing.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 matter_id = context.get("created_matter_id")
-# Verify we're already on the matter page (from previous test)
-# Real users don't type URLs - this test runs after edit_contact which leaves browser here
+_ensure_on_matter_page(page, context, matter_id)
 if matter_id not in page.url:
     raise ValueError(f"Expected to be on matter page {matter_id}, but URL is {page.url}")
 page.wait_for_load_state("domcontentloaded")
-page.wait_for_timeout(1000)
 ```
 
-- **Wait for**: Page is ready (already loaded from previous test)
+- **Wait for**: Page is ready and on the matter detail URL
 
 ---
 

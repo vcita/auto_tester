@@ -23,12 +23,12 @@ pip install -r requirements.txt
 # 2. Install Playwright browsers
 playwright install chromium
 
-# 3. Configure credentials
-#    Edit config.yaml and set target.auth.username and target.auth.password
-#    Or create a fresh user:
-python main.py create_user
+# 3. Configure tokens
+#    Create a .env file (gitignored) with API tokens for account creation/deletion:
+#    VCITA_DIRECTORY_TOKEN=your_directory_token
+#    VCITA_ADMIN_TOKEN=your_admin_token
 
-# 4. Run tests
+# 4. Run tests (auto-creates a fresh account per category)
 python main.py run --category clients
 ```
 
@@ -53,6 +53,8 @@ The primary command. Launches a Chromium browser, runs category setup, executes 
 | `--keep-open` | Leave the browser open after the run (or after a failure) for manual inspection. |
 | `--until-test "<Name>"` | Run the category up to (but not including) this test, dump context to `until_test_context.json`, and leave the browser open. Useful for starting a Playwright MCP debugging session from that point. Accepts a full path like `"Events/Schedule Event"` or just the test name. |
 | `--debug-test "<Name>"` | Run the category up to and including this test, pausing (press Enter) after every action so you can observe what happens. Same name formats as `--until-test`. |
+| `--env <name>` | Target environment for per-category account creation: `production`, `integration` (default), or a feature-env name (e.g. `aviv`). |
+| `--no-auto-account` | Skip per-category account creation; use the account from `config.yaml` instead. |
 | `--create-user` | Create a brand-new vcita user (signup + onboarding), update `config.yaml`, then run tests. Ensures a clean account. |
 | `--create-user-email <email>` | Custom email for `--create-user` (default: `itzik+autotest.<timestamp>@vcita.com`). |
 | `--create-user-password <pw>` | Custom password for `--create-user` (default: value from `config.yaml` or `vcita123`). |
@@ -60,13 +62,15 @@ The primary command. Launches a Chromium browser, runs category setup, executes 
 **Examples:**
 
 ```bash
-python main.py run                                             # Run all categories
+python main.py run                                             # Run all categories (auto-creates accounts per category)
 python main.py run --category clients                          # Run only "clients"
+python main.py run --category clients --env production         # Run on production
 python main.py run --category scheduling/appointments          # Run only "appointments" under "scheduling"
 python main.py run --category scheduling --subcategory events  # Run scheduling setup + events only
 python main.py run --selection clients scheduling/events       # Run multiple paths together
 python main.py run --headless --category payments              # Headless for CI
 python main.py run --keep-open --category clients              # Leave browser open after run
+python main.py run --no-auto-account --category clients        # Use config.yaml account instead of auto-creating
 python main.py run --until-test "Edit Matter"                  # Stop before "Edit Matter", dump context
 python main.py run --debug-test "Create Appointment"           # Step-by-step with pauses
 python main.py run --create-user --category clients            # Fresh user then run
@@ -179,11 +183,60 @@ Runs one or more categories repeatedly for N iterations, then prints a summary r
 | `--iterations, -i <num>` | Number of times to run each category (required). |
 | `--headless` | Run without a visible browser. |
 | `--keep-open` | Keep browser open on failure. |
+| `--env <name>` | Target environment for per-category account creation (default: `integration`). |
+| `--no-auto-account` | Skip per-category account creation; use the account from `config.yaml` instead. |
 
 ```bash
 python main.py stress_test --categories clients --iterations 10
 python main.py stress_test --categories clients scheduling payments --iterations 5 --headless
+python main.py stress_test --categories clients --iterations 30 --env production --headless
 ```
+
+---
+
+### `cleanup_accounts` -- Delete Orphaned Accounts
+
+Finds and deletes automation-created accounts that were not cleaned up (e.g. from failed runs). Uses the local account ledger (`.accounts/ledger.json`) to look up accounts via the admin API.
+
+| Flag | Description |
+|------|-------------|
+| `--env <name>` | Target environment (default: `integration`). |
+| `--dry-run` | List orphaned accounts without deleting them. |
+| `--older-than <duration>` | Only target accounts older than this duration (e.g. `2h`, `30m`, `1d`). |
+
+```bash
+python main.py cleanup_accounts --dry-run                     # See what would be deleted
+python main.py cleanup_accounts --env integration             # Delete all orphaned accounts
+python main.py cleanup_accounts --older-than 2h               # Delete accounts older than 2 hours
+```
+
+#### Account Ledger
+
+The runner maintains a lightweight local ledger at `.accounts/ledger.json` to track auto-created accounts. The file is a simple JSON array of email addresses:
+
+```json
+[
+  "auto.api.clients.1713600000@test.com",
+  "auto.api.scheduling.1713603600@test.com"
+]
+```
+
+**How it works:**
+
+- **On account creation** — the email is appended to the ledger (`record_created`).
+- **On account deletion** — the email is removed from the ledger (`mark_deleted`). This happens automatically after a successful category run, or manually via `cleanup_accounts`.
+- **On cleanup scan** — `list_auto_accounts` reads the ledger, verifies each email against the live admin API, and auto-removes entries where the API returns 404 (already deleted externally).
+
+The ledger is **not** the source of truth — the live API is. The ledger is just an index so the runner knows which emails to look up (the admin API only supports exact-email queries, not prefix search).
+
+**Inspecting the ledger directly:**
+
+```bash
+cat .accounts/ledger.json                # View all tracked emails
+cat .accounts/ledger.json | python -m json.tool  # Pretty-printed
+```
+
+**The ledger is gitignored** and local to each developer's machine. If it gets out of sync (e.g. accounts deleted externally), `cleanup_accounts --dry-run` will reconcile it — stale entries are pruned automatically during the scan.
 
 ---
 
@@ -242,6 +295,8 @@ auto_tester/
 │   ├── runner/                 # Test execution core
 │   │   ├── runner.py           #   Orchestrator: browser lifecycle, setup/teardown, subcategories
 │   │   ├── executor.py         #   Loads and runs individual test.py files
+│   │   ├── account_factory.py  #   Per-category account creation/deletion via API
+│   │   ├── env_config.py       #   Environment URL resolution (production, integration, feature-env)
 │   │   ├── heal.py             #   Generates heal request markdown on failure
 │   │   ├── context.py          #   Shared context dict management
 │   │   ├── events.py           #   EventEmitter for real-time updates
@@ -270,6 +325,7 @@ auto_tester/
 │   ├── scheduling/             #   Scheduling tests (services, appointments, events)
 │   └── payments/               #   Payment tests (settings, invoices, record_payments, refunds)
 │
+├── .accounts/                  # Account ledger (tracks auto-created accounts)
 ├── .context/                   # Persisted context files per category
 ├── .cursor/
 │   ├── commands/               # Cursor slash commands
@@ -288,8 +344,10 @@ auto_tester/
 |------|---------|
 | `main.py` | CLI entry point with all commands (`run`, `list`, `status`, `gui`, etc.) |
 | `config.yaml` | Central configuration: target URL, credentials, browser settings, healing flags |
-| `src/runner/runner.py` | **Orchestrator** -- starts a browser per category, builds execution plan from `execution_order`, runs setup &rarr; tests/subcategories &rarr; teardown, manages shared context, emits events, triggers heal on failure |
+| `src/runner/runner.py` | **Orchestrator** -- starts a browser per category, creates a fresh account via API, builds execution plan from `execution_order`, runs setup &rarr; tests/subcategories &rarr; teardown, cleans up account on success, emits events, triggers heal on failure |
 | `src/runner/executor.py` | **Test executor** -- dynamically imports `test.py`, finds `test_*` / `setup_*` / `teardown_*` / `fn_*` functions, calls them with `(page, context)`, captures screenshots on failure |
+| `src/runner/account_factory.py` | **Account factory** -- creates and deletes business accounts via the vcita API; maintains a local ledger (`.accounts/ledger.json`) for cleanup |
+| `src/runner/env_config.py` | **Env config** -- maps environment names (`production`, `integration`, feature-env) to API and app base URLs |
 | `src/runner/heal.py` | **Heal request generator** -- on failure writes a markdown file to `.cursor/heal_requests/` containing error, screenshot path, context summary, and config |
 | `src/runner/context.py` | **Context manager** -- shared `dict` that flows between tests in a category; persisted to `.context/` |
 | `src/runner/events.py` | **Event system** -- `EventEmitter` with events like `TEST_STARTED`, `TEST_COMPLETED`, `TEST_FAILED`, `HEAL_REQUEST_CREATED`; consumed by CLI reporter and GUI SSE |
@@ -653,7 +711,32 @@ Context is managed by `ContextManager` (`src/runner/context.py`) and persisted t
 
 | Variable | Purpose |
 |----------|---------|
-| `VCITA_DIRECTORY_TOKEN` | API token for `create_accounts.py` (can also be set as `target.directory_token` in `config.yaml`) |
+| `VCITA_DIRECTORY_TOKEN` | Directory token for creating business accounts (also: `target.directory_token` in `config.yaml`) |
+| `VCITA_ADMIN_TOKEN` | Admin token for deleting accounts and setting feature flags (also: `target.admin_token` in `config.yaml`) |
+
+A `.env` file in the project root is automatically loaded at startup (via `python-dotenv`). Add secrets there for local development -- it is gitignored and never committed.
+
+---
+
+## Automation Feature Flags
+
+When a fresh account is auto-created (via `--env`), the runner applies a set of **automation feature flags** to suppress UI wizards, success modals, and empty states that interfere with test execution. These are defined in `src/runner/account_factory.py` under `AUTOMATION_FEATURE_FLAGS`:
+
+| Flag | Purpose |
+|------|---------|
+| `hide_register_wizard` | Skip the post-registration onboarding wizard |
+| `hide_payment_success_message` | Suppress the payment-success toast/modal |
+| `hide_first_event_success_message` | Suppress the first-event-created success modal |
+| `hide_empty_state` | Hide empty-state illustrations so list selectors work immediately |
+
+Flags are sent as a single POST to `/admin/feature_flags/{user_id}/add_user_features` using the `VCITA_ADMIN_TOKEN`. This happens automatically after account creation — no per-test configuration is needed.
+
+### Adding a new flag
+
+1. Append the flag name to the `AUTOMATION_FEATURE_FLAGS` list in `src/runner/account_factory.py`.
+2. Update the table above to document its purpose.
+
+Only add flags here that should apply to **every** auto-created account. Product-specific flags that only certain tests need are not yet supported at the category or test level.
 
 ---
 
