@@ -495,6 +495,8 @@ class TestRunner:
                     )
                     if ok:
                         print(f"  [auto-account] Feature flags set (hide_register_wizard, etc.)", flush=True)
+                    else:
+                        print(f"  [auto-account] WARNING: Failed to set feature flags — tests may fail due to onboarding wizard", flush=True)
             except account_factory.FatalTokenError as exc:
                 print(f"  [auto-account] FATAL: {exc}")
                 result.stopped_early = True
@@ -943,7 +945,7 @@ class TestRunner:
         """Delete or keep the auto-created account based on test result."""
         if not (self.env and "auto_account" in context):
             return
-        auto_acct = context["auto_account"]
+        auto_acct = context.pop("auto_account")
         if result.status == "passed" and self.admin_token:
             deleted = account_factory.delete_account(
                 self.api_base_url, self.admin_token, auto_acct["pivot_uid"],

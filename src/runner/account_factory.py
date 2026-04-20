@@ -15,6 +15,7 @@ import os
 import re
 import time
 from typing import Optional
+from urllib.parse import quote
 
 import requests
 
@@ -103,11 +104,14 @@ def create_account(api_base_url: str, directory_token: str, category_name: str) 
             biz = data.get("data", {}).get("business", {})
             AccountLedger().record_created(email)
             admin_acct = biz.get("admin_account", {})
+            # In the vcita API, business.id serves as both the business_id and the
+            # pivot_uid used for account deletion (GET /admin/users/{pivot_uid}/delete_business).
+            biz_id = biz.get("business", {}).get("id", "")
             return {
                 "email": email,
                 "password": DEFAULT_PASSWORD,
-                "business_id": biz.get("business", {}).get("id", ""),
-                "pivot_uid": biz.get("business", {}).get("id", ""),
+                "business_id": biz_id,
+                "pivot_uid": biz_id,
                 "user_id": admin_acct.get("user_id", "") or admin_acct.get("id", ""),
                 "auth_token": biz.get("meta", {}).get("auth_token", ""),
                 "name": business_name,
@@ -191,7 +195,7 @@ def list_auto_accounts(api_base_url: str, admin_token: str) -> list[dict]:
 
     for email in active_emails:
         try:
-            encoded = email.replace("@", "%40").replace("+", "%2B")
+            encoded = quote(email, safe="")
             resp = requests.get(
                 f"{base_url}{BUSINESSES_PATH}?email={encoded}",
                 headers=headers,
@@ -222,18 +226,22 @@ class AccountLedger:
     """
     Lightweight local ledger tracking emails of auto-created accounts.
 
-    Stored at .accounts/ledger.json. Each entry is an email string.
+    Stored at .accounts/ledger.json (relative to project root). Each entry is an email string.
     The ledger is append-only during creation and entries are removed
     when deletion is confirmed (either explicitly or via API 404).
 
     This is intentionally minimal -- just a list of email strings.
     The source of truth for whether an account exists is the live API;
     the ledger is just an index to know which emails to look up.
+
+    NOTE: The read-modify-write cycle is not atomic. Concurrent runners
+    (e.g. parallel CI jobs) can overwrite each other's changes.
+    TODO: Add file locking if concurrent execution becomes a use case.
     """
 
     def __init__(self, ledger_dir: Optional['Path'] = None):
         from pathlib import Path
-        self._dir = ledger_dir or Path(".accounts")
+        self._dir = ledger_dir or Path(__file__).resolve().parents[2] / ".accounts"
         self._path = self._dir / "ledger.json"
 
     def record_created(self, email: str) -> None:
