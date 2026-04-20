@@ -1,5 +1,23 @@
 # Changelog - Create Matter
 
+## [3.0.0] - 2026-04-05
+
+### Fixed (Healed)
+- **Dashboard "Quick actions" panel not found on auto-created accounts**
+  - **Error**: `TimeoutError: Timeout 30000ms exceeded` waiting for `get_by_text("Quick actions")` — dashboard showed "Hmm... something went wrong" or had no Quick actions panel
+  - **Root cause**: Auto-created accounts (Recurly sandbox) have a different dashboard layout. The "Quick actions" panel (inside angular-iframe) either fails to load or doesn't exist for these accounts. Additionally, the account uses "Clients" vertical (simpler form) instead of "Properties" (full form with property-specific fields).
+  - **MCP debugging**:
+    1. Logged in as auto-created account on integration (meet2know.com)
+    2. Dashboard loaded with widget cards (Sales, Schedule, Clients) but NO "Quick actions" panel
+    3. Sidebar "Quick Actions" button opens a dropdown overlay with "Add client" in CLIENTS section
+    4. Clicking "Add client" opens "New client" form in angular-iframe with: First Name*, Last Name, Email, Phone, Address, Status, Show more, Private notes (no Property-specific fields)
+  - **Fix applied**:
+    1. **Sidebar fallback**: Try dashboard panel first (8s timeout). If not found, click sidebar "Quick Actions" button and then "Add client/property" from the dropdown.
+    2. **Adaptive form filling**: Each field is filled only if present. Property-specific fields (Property address, Property type, Help request, Special instructions) are attempted but skipped if not found. Works with both full "Property" and simpler "Client" forms.
+    3. **Phone field fallback**: Try "Mobile phone" first, fall back to "Phone"
+    4. **Save button**: Matches both "Save" and "SAVE" (case-insensitive)
+  - **Files updated**: test.py (complete rewrite with adaptive filling), script.md (updated flow)
+
 ## [2.9.0] - 2026-01-30
 
 ### Fixed (Healed)

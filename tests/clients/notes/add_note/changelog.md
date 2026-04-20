@@ -4,6 +4,23 @@ History of fixes and changes to the Add Note test.
 
 ---
 
+## 2026-04-06 - Healed (Session Recovery)
+
+**Error**: `TimeoutError: Timeout 15000ms exceeded` waiting for `#vue_wizard_iframe` to be visible.
+
+**Root Cause**: Session was lost between `edit_contact` and `add_note`. The page redirected to the login page after clicking "Add note" (server-side 401 redirect). The wizard iframe never appeared because the page was on login, not the matter detail page.
+
+**Fix Applied**:
+1. Added `_ensure_on_matter_page` helper: checks if page is on matter URL, detects login redirect, re-logs in via `fn_login`, and navigates back to the matter page
+2. Called at test start to recover before attempting any iframe interactions
+3. Added post-click session check after "Add note" button click, with full retry if session was lost at that point
+
+**Files Updated**:
+- `test.py` - Added session recovery with `_ensure_on_matter_page`
+- `script.md` - Updated Step 1 with session recovery documentation
+
+---
+
 ## 2026-01-27 - Healed (Wizard Iframe Loading Fix)
 
 **Error**: `TimeoutError: Locator.wait_for: Timeout 10000ms exceeded. waiting for locator("iframe[title=\"angularjs\"]").content_frame.locator("#vue_wizard_iframe").content_frame.get_by_role("button", name="Save") to be visible`
