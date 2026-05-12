@@ -557,10 +557,9 @@ def _format_age(seconds: int) -> str:
 
 
 def _parse_category_from_email(email: str) -> str:
-    """Extract category name from auto.api.{category}.{timestamp}@vcita.com."""
-    import re
-    match = re.match(r"^auto\.api\.(.+)\.\d+@", email)
-    return match.group(1) if match else "unknown"
+    """Extract category name from current and legacy auto account email formats."""
+    from src.runner.account_factory import parse_email_category
+    return parse_email_category(email) or "unknown"
 
 
 def cmd_create_user(args):

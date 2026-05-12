@@ -25,10 +25,10 @@ playwright install chromium
 
 # 3. Configure tokens
 #    Create a .env file (gitignored) with API tokens for account creation/deletion:
-#    VCITA_DIRECTORY_TOKEN=your_directory_token
 #    VCITA_ADMIN_TOKEN=your_admin_token
+#    VCITA_DIRECTORY_ID=your_directory_id
 
-# 4. Run tests (auto-creates a fresh account per category)
+# 4. Run tests (auto-creates a fresh Platinum account per category)
 python main.py run --category clients
 ```
 
@@ -216,8 +216,8 @@ The runner maintains a lightweight local ledger at `.accounts/ledger.json` to tr
 
 ```json
 [
-  "auto.api.clients.1713600000@test.com",
-  "auto.api.scheduling.1713603600@test.com"
+  "auto.clients.1713600000@vcita.com",
+  "auto.scheduling.1713603600@vcita.com"
 ]
 ```
 
@@ -252,7 +252,7 @@ python main.py groom_heal_requests
 
 ### `create_accounts.py` (standalone script)
 
-Not a `main.py` subcommand. Creates business accounts per category via vcita's Create Business API. Requires a `VCITA_DIRECTORY_TOKEN` environment variable or `target.directory_token` in `config.yaml`.
+Not a `main.py` subcommand. Creates Platinum business accounts per category via the same admin account creation path used by automation-js. Requires `VCITA_ADMIN_TOKEN` or `target.admin_token`; known environments provide a default directory id, and `VCITA_DIRECTORY_ID` / `target.directory_id` can override it.
 
 | Flag | Description |
 |------|-------------|
@@ -261,7 +261,7 @@ Not a `main.py` subcommand. Creates business accounts per category via vcita's C
 ```bash
 python create_accounts.py
 python create_accounts.py --env integration
-VCITA_DIRECTORY_TOKEN=abc123 python create_accounts.py
+VCITA_ADMIN_TOKEN=abc123 VCITA_DIRECTORY_ID=123 python create_accounts.py
 ```
 
 ---
@@ -667,6 +667,8 @@ tests:
 
 target:
   base_url: https://www.vcita.com   # Application base URL
+  admin_token: admin-token           # Optional: account creation/deletion API token
+  directory_id: directory-id         # Optional: directory for auto-created Platinum accounts
   auth:
     username: user@example.com      # Test account email
     password: password123           # Test account password
@@ -711,8 +713,8 @@ Context is managed by `ContextManager` (`src/runner/context.py`) and persisted t
 
 | Variable | Purpose |
 |----------|---------|
-| `VCITA_DIRECTORY_TOKEN` | Directory token for creating business accounts (also: `target.directory_token` in `config.yaml`) |
-| `VCITA_ADMIN_TOKEN` | Admin token for deleting accounts and setting feature flags (also: `target.admin_token` in `config.yaml`) |
+| `VCITA_ADMIN_TOKEN` | Admin token for creating Platinum accounts, deleting accounts, and setting feature flags (also: `target.admin_token` in `config.yaml`) |
+| `VCITA_DIRECTORY_ID` | Optional directory id override for creating Platinum accounts via `/admin/users/` (also: `target.directory_id` in `config.yaml`; known environments provide a default) |
 
 A `.env` file in the project root is automatically loaded at startup (via `python-dotenv`). Add secrets there for local development -- it is gitignored and never committed.
 

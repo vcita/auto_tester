@@ -20,18 +20,21 @@ def _get_billing_scope(page: Page):
 
 
 def _open_billing(page: Page):
-    if "/app/payments/orders" in page.url:
+    if "/app/payments/orders" in page.url or "/app/invoices/" in page.url:
         return _get_billing_scope(page)
 
     sales_button = page.get_by_role("button", name="Sales")
     sales_button.wait_for(state="visible", timeout=5000)
     sales_button.click()
-    page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/pos**", timeout=5000, wait_until="domcontentloaded")
 
     billing_link = page.get_by_text("Billing & Invoicing", exact=True)
     billing_link.wait_for(state="visible", timeout=5000)
     billing_link.click()
-    page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
+    try:
+        page.wait_for_url("**/app/payments/orders**", timeout=5000, wait_until="domcontentloaded")
+    except Exception:
+        page.goto(f"{page.url.split('/app/')[0]}/app/payments/orders", wait_until="domcontentloaded")
     return _get_billing_scope(page)
 
 
@@ -71,17 +74,22 @@ def _close_any_dialogs(page: Page, billing_scope=None) -> None:
 
 
 def _cancel_invoice(page: Page, billing_scope, invoice_id: str) -> None:
-    invoice_link = billing_scope.locator(f'a[href*="{invoice_id}"]')
-    if invoice_link.count() == 0:
-        return
+    if "/app/invoices/" in page.url:
+        invoice_scope = _get_billing_scope(page)
+    else:
+        invoice_link = billing_scope.locator(f'a[href*="{invoice_id}"]')
+        if invoice_link.count() == 0:
+            return
 
-    invoice_link.first.click()
-    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
-    invoice_scope = _get_billing_scope(page)
+        invoice_link.first.click()
+        page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
+        invoice_scope = _get_billing_scope(page)
 
     menu_button = invoice_scope.locator("md-menu").filter(
-        has_text=re.compile("Edit")
+        has_text=re.compile("Edit", re.I)
     ).get_by_role("button")
+    if menu_button.count() == 0:
+        menu_button = invoice_scope.get_by_role("button", name=re.compile(r"^Edit$", re.I))
     if menu_button.count() == 0:
         return
 

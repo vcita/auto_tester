@@ -85,6 +85,7 @@ inner.getByText('Tax settings', { exact: true }).wait_for(state="visible")
 inner.getByRole('button', { name: 'Add new tax' }).click()
 ```
 - **Note**: In runner, `#vue-app-tab` may not exist; when absent, use the current settings scope directly.
+- **Note**: If the Tax name input does not appear after the first click, click Add new tax once more and wait again.
 - **How verified**: Tax name and tax rate inputs appear.
 
 ### Step 5: Enter tax name

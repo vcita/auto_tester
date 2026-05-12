@@ -13,9 +13,10 @@ Configure invoice numbering and verify it appears on new invoices.
 3. Open invoice numbering settings by starting a new invoice
 4. Search and select the first matching existing client in the invoice client picker
 5. Configure numbering format and prefix
-6. Add a line item to make the invoice valid
-7. Save settings
-8. Verify the new invoice uses the configured number format
+6. Fill the required sender billing address
+7. Add a line item to make the invoice valid
+8. Save settings
+9. Verify the new invoice uses the configured number format
 
 ## Expected Result
 - Invoice numbering settings are saved

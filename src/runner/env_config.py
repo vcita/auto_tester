@@ -12,10 +12,12 @@ KNOWN_ENVS = {
     "production": {
         "api_base_url": "https://api.vcita.biz",
         "app_base_url": "https://app.vcita.com",
+        "directory_id": "16403",
     },
     "integration": {
         "api_base_url": "https://api2.meet2know.com",
         "app_base_url": "https://app.meet2know.com",
+        "directory_id": "970",
     },
 }
 

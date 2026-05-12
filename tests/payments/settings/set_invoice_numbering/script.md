@@ -79,7 +79,20 @@ if label_box.count() > 0 and number_box.count() > 0:
     number_box.first.fill(invoice_number)
 ```
 
-### Step 6: Add a line item
+### Step 6: Fill required sender billing address
+- **Action**: Expand the sender section and fill the required billing address.
+- **Target**: Invoice dialog sender billing address field.
+- **Reference**: Uses the same data-qa selectors as `automation-js/pages/desktop/Frontage/Payments/invoiceAndEstimateDialogs.js`.
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+from_section = editor_scope.locator("[data-qa='itemizable-from-fold']").first
+from_section.click()
+billing_address = editor_scope.locator("[data-qa='itemizable-from-business-address-edit'] textarea").first
+billing_address.fill("123 Test Street, Test City")
+from_section.click()
+```
+
+### Step 7: Add a line item
 - **Action**: Select the first available service line item.
 - **Target**: "Please select an item" field + first option in the service list.
 - **Note**: If an "Add Item" dialog opens, fill required item fields and click "Add".
@@ -107,7 +120,7 @@ if add_item_title.count() > 0:
     add_button.click()
 ```
 
-### Step 7: Save draft and verify
+### Step 8: Save draft and verify
 - **Action**: Click "Save draft" and verify header number.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
