@@ -118,7 +118,6 @@ def create_account(api_base_url: str, admin_token: str, directory_id: str, categ
 
 
 def build_auto_email(category_name: str, timestamp: Optional[int] = None) -> str:
-    """Build an automation account email without the legacy api segment."""
     account_timestamp = timestamp if timestamp is not None else int(time.time())
     return f"auto.{category_name.lower()}.{account_timestamp}@vcita.com"
 
@@ -277,8 +276,8 @@ def parse_email_timestamp(email: str) -> Optional[int]:
 
 
 def parse_email_category(email: str) -> Optional[str]:
-    """Extract category from current and legacy auto account email formats."""
-    match = re.match(r"^auto\.(?:(?:api)\.)?(.+)\.\d+@", email)
+    """Extract category from auto account email format."""
+    match = re.match(r"^auto\.(.+)\.\d+@", email)
     return match.group(1) if match else None
 
 

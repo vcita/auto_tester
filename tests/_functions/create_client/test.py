@@ -8,26 +8,7 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
-from tests._functions._config import get_base_url
 from tests._params import ADD_MATTER_TEXT_REGEX
-
-
-def _recover_network_changed(page: Page, base_url: str) -> bool:
-    try:
-        if "ERR_NETWORK_CHANGED" not in page.content():
-            return False
-    except Exception:
-        return False
-
-    print("  [warn] Network changed page detected, reloading dashboard...")
-    try:
-        page.reload(wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_url("**/app/dashboard**", timeout=15000)
-        return True
-    except Exception:
-        page.goto(f"{base_url.rstrip('/')}/app/dashboard", wait_until="domcontentloaded")
-        return True
-
 
 def fn_create_client(page: Page, context: dict, **params) -> None:
     """
@@ -53,17 +34,12 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     full_name = f"{first_name} {last_name}"
     
     # Step 1: Navigate to Dashboard (UI only; HEALED 2026-01-26: no page.goto – use sidebar like create_matter)
-    base_url = get_base_url(context, params)
     print("  Step 1: Navigating to dashboard...")
     if "/app/dashboard" not in page.url:
-        try:
-            dashboard_link = page.get_by_text("Dashboard", exact=True)
-            dashboard_link.wait_for(state="visible", timeout=15000)
-            dashboard_link.click()
-            page.wait_for_url("**/app/dashboard**", timeout=15000)
-        except Exception:
-            if not _recover_network_changed(page, base_url):
-                raise
+        dashboard_link = page.get_by_text("Dashboard", exact=True)
+        dashboard_link.wait_for(state="visible", timeout=15000)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=15000)
     page.wait_for_load_state("domcontentloaded")
     page.wait_for_timeout(2000)
 

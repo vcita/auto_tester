@@ -10,9 +10,8 @@ def test_build_auto_email_uses_new_template():
     assert account_factory.AUTO_EMAIL_PATTERN.match(email)
 
 
-def test_parse_email_category_supports_current_and_legacy_formats():
+def test_parse_email_category_supports_current_format():
     assert account_factory.parse_email_category("auto.payments.1778566207@vcita.com") == "payments"
-    assert account_factory.parse_email_category("auto.api.payments.1778566207@vcita.com") == "payments"
 
 
 def test_create_account_posts_admin_payload_for_platinum(monkeypatch):
