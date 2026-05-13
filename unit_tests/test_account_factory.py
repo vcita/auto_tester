@@ -8,7 +8,6 @@ def test_build_auto_email_uses_new_template():
 
     assert email == "auto.payments.1778566207@vcita.com"
     assert account_factory.AUTO_EMAIL_PATTERN.match(email)
-    assert not account_factory.AUTO_EMAIL_PATTERN.match("auto.api.payments.1778566207@vcita.com")
 
 
 def test_parse_email_category_supports_current_and_legacy_formats():

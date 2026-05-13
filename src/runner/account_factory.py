@@ -15,6 +15,7 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
@@ -22,8 +23,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-AUTO_EMAIL_PATTERN = re.compile(r"^auto\.(?!api\.).+\.\d+@vcita\.com$")
-LEGACY_AUTO_EMAIL_PATTERN = re.compile(r"^auto\.api\..+\.\d+@vcita\.com$")
+AUTO_EMAIL_PATTERN = re.compile(r"^auto\..+\.\d+@vcita\.com$")
 
 DEFAULT_PASSWORD = "vcita123"
 COUNTRY = "United States"
@@ -231,8 +231,7 @@ class AccountLedger:
     TODO: Add file locking if concurrent execution becomes a use case.
     """
 
-    def __init__(self, ledger_dir: Optional['Path'] = None):
-        from pathlib import Path
+    def __init__(self, ledger_dir: Optional[Path] = None):
         self._dir = ledger_dir or Path(__file__).resolve().parents[2] / ".accounts"
         self._path = self._dir / "ledger.json"
 
