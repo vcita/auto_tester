@@ -170,13 +170,13 @@ class TestRunner:
             urls = env_config.resolve_urls(self.env)
             self.api_base_url = urls["api_base_url"]
             self.app_base_url = urls["app_base_url"]
-            self.directory_token = account_factory.load_directory_token(config)
             self.admin_token = account_factory.load_admin_token(config)
+            self.directory_id = account_factory.load_directory_id(config) or urls.get("directory_id")
         else:
             self.api_base_url = None
             self.app_base_url = None
-            self.directory_token = None
             self.admin_token = None
+            self.directory_id = None
         
         # Components
         self.events = EventEmitter()
@@ -479,10 +479,10 @@ class TestRunner:
         
         # Create fresh context for this category
         context = self.context_manager.create_fresh()
-        if self.env and self.directory_token:
+        if self.env and self.admin_token and self.directory_id:
             try:
                 auto_account = account_factory.create_account(
-                    self.api_base_url, self.directory_token, category.name
+                    self.api_base_url, self.admin_token, self.directory_id, category.name
                 )
                 context["auto_account"] = auto_account
                 context["base_url"] = self.app_base_url
@@ -505,6 +505,15 @@ class TestRunner:
                 print(f"  [auto-account] Account creation failed for {category.name}: {exc}")
                 result.stopped_early = True
                 return result
+        elif self.env:
+            missing = []
+            if not self.admin_token:
+                missing.append("VCITA_ADMIN_TOKEN or target.admin_token")
+            if not self.directory_id:
+                missing.append("VCITA_DIRECTORY_ID or target.directory_id")
+            print(f"  [auto-account] Missing configuration: {', '.join(missing)}")
+            result.stopped_early = True
+            return result
         elif self.run_config:
             if self.run_config.get("base_url"):
                 context["base_url"] = self.run_config["base_url"]

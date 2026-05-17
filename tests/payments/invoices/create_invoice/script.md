@@ -11,18 +11,22 @@
 ## Actions
 
 ### Step 1: Open Billing & Invoicing
-- **Action**: Navigate via Sales sidebar -> Billing & Invoicing.
-- **Target**: Sales sidebar button + Billing & Invoicing submenu.
+- **Action**: Click the visible Billing & Invoicing sidebar link when available; otherwise navigate via Sales sidebar -> Billing & Invoicing.
+- **Target**: Billing & Invoicing submenu, with Sales sidebar as fallback.
 - **LOCATOR DECISION**:
 | Option | Pros | Cons |
 | --- | --- | --- |
 | `page.get_by_role("button", name="Sales")` | Reliable sidebar entry | Requires submenu click |
 | `page.goto("/app/payments/orders")` | Direct | Avoid direct URL per rules |
-**CHOSEN**: Sidebar navigation to Billing & Invoicing.
+**CHOSEN**: Use existing visible Billing & Invoicing navigation first; fall back to Sales navigation only when needed.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.get_by_role("button", name="Sales").click()
-page.get_by_text("Billing & Invoicing", exact=True).click()
+billing_link = page.get_by_text("Billing & Invoicing", exact=True)
+if billing_link.count() > 0 and billing_link.first.is_visible():
+    billing_link.first.click()
+else:
+    page.get_by_role("button", name="Sales").click()
+    page.get_by_text("Billing & Invoicing", exact=True).click()
 ```
 
 ### Step 2: Start new invoice

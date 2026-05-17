@@ -1,6 +1,6 @@
 {
   "scope": "payments",
-  "generated_at": "2026-03-05T09:14:46.757983",
+  "generated_at": "2026-05-14T16:21:11.389330",
   "definition": {
     "stable": "latest run status == passed",
     "source_of_truth": "tests/**/_runs/*/run.json"
@@ -10,13 +10,13 @@
     "category_path": "payments",
     "last_result": "partial",
     "is_stable": false,
-    "last_run_id": "20260304_202812",
-    "last_run_at": "2026-03-04T20:28:43.908606",
+    "last_run_id": "20260514_161917",
+    "last_run_at": "2026-05-14T16:21:02.654629",
     "summary": {
-      "passed": 1,
+      "passed": 5,
       "failed": 1,
-      "skipped": 2,
-      "total": 4
+      "skipped": 9,
+      "total": 15
     }
   },
   "subcategories": [
@@ -25,8 +25,8 @@
       "category_path": "payments/settings",
       "last_result": "passed",
       "is_stable": true,
-      "last_run_id": "20260304_162351",
-      "last_run_at": "2026-03-04T16:29:22.914726",
+      "last_run_id": "20260514_161917",
+      "last_run_at": "2026-05-14T16:20:39.811850",
       "summary": {
         "passed": 4,
         "failed": 0,
@@ -37,14 +37,14 @@
     {
       "name": "invoices",
       "category_path": "payments/invoices",
-      "last_result": "failed",
+      "last_result": "partial",
       "is_stable": false,
-      "last_run_id": "20260304_162351",
-      "last_run_at": "2026-03-04T16:29:28.229938",
+      "last_run_id": "20260514_161917",
+      "last_run_at": "2026-05-14T16:21:00.155388",
       "summary": {
-        "passed": 0,
+        "passed": 1,
         "failed": 1,
-        "skipped": 4,
+        "skipped": 3,
         "total": 5
       }
     },
@@ -53,8 +53,8 @@
       "category_path": "payments/record_payments",
       "last_result": "partial",
       "is_stable": false,
-      "last_run_id": "20260305_091357",
-      "last_run_at": "2026-03-05T09:14:46.640456",
+      "last_run_id": "20260512_103628",
+      "last_run_at": "2026-05-12T10:39:25.118841",
       "summary": {
         "passed": 1,
         "failed": 1,
@@ -65,15 +65,15 @@
     {
       "name": "refunds_credits",
       "category_path": "payments/refunds_credits",
-      "last_result": "failed",
+      "last_result": "unknown",
       "is_stable": false,
-      "last_run_id": "20260225_084930",
-      "last_run_at": "2026-02-25T08:50:30.772177",
+      "last_run_id": null,
+      "last_run_at": null,
       "summary": {
         "passed": 0,
-        "failed": 1,
-        "skipped": 1,
-        "total": 2
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
       }
     }
   ],
@@ -85,9 +85,10 @@
     ],
     "unstable_subcategories": [
       "invoices",
-      "record_payments",
-      "refunds_credits"
+      "record_payments"
     ],
-    "unknown_subcategories": []
+    "unknown_subcategories": [
+      "refunds_credits"
+    ]
   }
 }

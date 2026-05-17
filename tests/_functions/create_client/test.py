@@ -8,9 +8,7 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
-from tests._functions._config import get_base_url
 from tests._params import ADD_MATTER_TEXT_REGEX
-
 
 def fn_create_client(page: Page, context: dict, **params) -> None:
     """
@@ -36,7 +34,6 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
     full_name = f"{first_name} {last_name}"
     
     # Step 1: Navigate to Dashboard (UI only; HEALED 2026-01-26: no page.goto – use sidebar like create_matter)
-    base_url = get_base_url(context, params)
     print("  Step 1: Navigating to dashboard...")
     if "/app/dashboard" not in page.url:
         dashboard_link = page.get_by_text("Dashboard", exact=True)

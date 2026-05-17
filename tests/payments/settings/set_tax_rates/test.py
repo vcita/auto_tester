@@ -88,7 +88,11 @@ def test_set_tax_rates(page: Page, context: dict) -> None:
     tax_rate = "17"
 
     tax_name_input = taxes_scope.get_by_role("textbox", name="Tax name").last
-    tax_name_input.wait_for(state="visible", timeout=10000)
+    try:
+        tax_name_input.wait_for(state="visible", timeout=5000)
+    except Exception:
+        add_tax_button.click()
+        tax_name_input.wait_for(state="visible", timeout=5000)
     tax_name_input.click()
     tax_name_input.press_sequentially(tax_name, delay=30)
 

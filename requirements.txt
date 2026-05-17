@@ -4,6 +4,7 @@ playwright==1.40.0
 
 # Configuration
 pyyaml==6.0.1
+python-dotenv==1.0.1
 
 # Database
 sqlite-utils==3.35.2

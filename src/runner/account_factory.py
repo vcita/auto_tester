@@ -2,8 +2,8 @@
 Account factory for the test runner.
 
 Creates and deletes business accounts via the vcita API.
-Mirrors the auto_account pattern from automation-js:
-  - Create: POST /platform/v1/businesses with directory token
+Mirrors the automatic-account path from automation-js:
+  - Create: POST /admin/users/ with admin token and Platinum package
   - Delete: GET /admin/users/{pivot_uid}/delete_business with admin token
   - List:   GET /platform/v1/businesses (admin API, paginated) filtered by email pattern
 """
@@ -11,9 +11,11 @@ Mirrors the auto_account pattern from automation-js:
 from __future__ import annotations
 
 import logging
+import json
 import os
 import re
 import time
+from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
@@ -21,11 +23,13 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-AUTO_EMAIL_PATTERN = re.compile(r"^auto\.api\..+\.\d+@vcita\.com$")
+AUTO_EMAIL_PATTERN = re.compile(r"^auto\..+\.\d+@vcita\.com$")
 
 DEFAULT_PASSWORD = "vcita123"
 COUNTRY = "United States"
 BUSINESSES_PATH = "/platform/v1/businesses"
+ADMIN_USERS_PATH = "/admin/users/"
+PLATINUM_PACKAGE_SUBSCRIPTION_ID = 14
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 1
 RETRY_BACKOFF = 2
@@ -46,16 +50,6 @@ class AccountCreationError(Exception):
     """Raised when account creation fails for a single category (non-fatal)."""
 
 
-def load_directory_token(config: Optional[dict] = None) -> Optional[str]:
-    """Load directory token from env var or config dict."""
-    token = os.environ.get("VCITA_DIRECTORY_TOKEN")
-    if token:
-        return token
-    if config:
-        return (config.get("target") or {}).get("directory_token")
-    return None
-
-
 def load_admin_token(config: Optional[dict] = None) -> Optional[str]:
     """Load admin token from env var or config dict."""
     token = os.environ.get("VCITA_ADMIN_TOKEN")
@@ -66,34 +60,41 @@ def load_admin_token(config: Optional[dict] = None) -> Optional[str]:
     return None
 
 
-def create_account(api_base_url: str, directory_token: str, category_name: str) -> dict:
+def load_directory_id(config: Optional[dict] = None) -> Optional[str]:
+    """Load directory id from env var or config dict."""
+    directory_id = os.environ.get("VCITA_DIRECTORY_ID")
+    if directory_id:
+        return directory_id
+    if config:
+        return (config.get("target") or {}).get("directory_id")
+    return None
+
+
+def create_account(api_base_url: str, admin_token: str, directory_id: str, category_name: str) -> dict:
     """
     Create a business account for a single category.
 
-    POST /platform/v1/businesses with directory token.
+    POST /admin/users/ with admin token.
 
     Returns dict with: email, password, business_id, auth_token, name, pivot_uid, raw_response.
     Raises FatalTokenError on 401, AccountCreationError on other failures.
     """
     timestamp = int(time.time())
-    email = f"auto.api.{category_name.lower()}.{timestamp}@vcita.com"
+    email = build_auto_email(category_name, timestamp)
     business_name = f"Auto_{category_name}_{timestamp}"
 
-    payload = {
-        "admin_account": {
-            "email": email,
-            "password": DEFAULT_PASSWORD,
-            "country_name": COUNTRY,
-        },
-        "business": {
-            "name": business_name,
-            "country_name": COUNTRY,
-        },
-        "meta": {},
+    options = {
+        "email": email,
+        "business_name": business_name,
+        "password": DEFAULT_PASSWORD,
+        "directory_id": directory_id,
+        "country_name": COUNTRY,
+        "package_subscription_id": PLATINUM_PACKAGE_SUBSCRIPTION_ID,
     }
+    payload = {"generate_api_token": True, "options": json.dumps(options)}
 
-    url = f"{api_base_url.rstrip('/')}{BUSINESSES_PATH}"
-    headers = {"Authorization": f"Token {directory_token}"}
+    url = f"{api_base_url.rstrip('/')}{ADMIN_USERS_PATH}"
+    headers = {"Authorization": f"Admin {admin_token}"}
 
     last_error = None
     for attempt in range(1 + MAX_RETRIES):
@@ -101,22 +102,8 @@ def create_account(api_base_url: str, directory_token: str, category_name: str) 
             resp = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
             _handle_create_error(resp, category_name)
             data = resp.json()
-            biz = data.get("data", {}).get("business", {})
             AccountLedger().record_created(email)
-            admin_acct = biz.get("admin_account", {})
-            # In the vcita API, business.id serves as both the business_id and the
-            # pivot_uid used for account deletion (GET /admin/users/{pivot_uid}/delete_business).
-            biz_id = biz.get("business", {}).get("id", "")
-            return {
-                "email": email,
-                "password": DEFAULT_PASSWORD,
-                "business_id": biz_id,
-                "pivot_uid": biz_id,
-                "user_id": admin_acct.get("user_id", "") or admin_acct.get("id", ""),
-                "auth_token": biz.get("meta", {}).get("auth_token", ""),
-                "name": business_name,
-                "raw_response": data,
-            }
+            return _normalize_created_account(data, email, business_name)
         except FatalTokenError:
             raise
         except AccountCreationError:
@@ -128,6 +115,11 @@ def create_account(api_base_url: str, directory_token: str, category_name: str) 
                 time.sleep(RETRY_BACKOFF ** (attempt + 1))
 
     raise AccountCreationError(f"All retries exhausted for {category_name}: {last_error}")
+
+
+def build_auto_email(category_name: str, timestamp: Optional[int] = None) -> str:
+    account_timestamp = timestamp if timestamp is not None else int(time.time())
+    return f"auto.{category_name.lower()}.{account_timestamp}@vcita.com"
 
 
 def set_automation_feature_flags(
@@ -205,8 +197,7 @@ def list_auto_accounts(api_base_url: str, admin_token: str) -> list[dict]:
                 uids = resp.json().get("data", {}).get("businesses", [])
                 if uids:
                     ts = parse_email_timestamp(email)
-                    cat_match = re.match(r"^auto\.api\.(.+)\.\d+@", email)
-                    category = cat_match.group(1) if cat_match else "unknown"
+                    category = parse_email_category(email) or "unknown"
                     accounts.append({
                         "pivot_uid": uids[0],
                         "email": email,
@@ -239,8 +230,7 @@ class AccountLedger:
     TODO: Add file locking if concurrent execution becomes a use case.
     """
 
-    def __init__(self, ledger_dir: Optional['Path'] = None):
-        from pathlib import Path
+    def __init__(self, ledger_dir: Optional[Path] = None):
         self._dir = ledger_dir or Path(__file__).resolve().parents[2] / ".accounts"
         self._path = self._dir / "ledger.json"
 
@@ -278,11 +268,58 @@ class AccountLedger:
 
 
 def parse_email_timestamp(email: str) -> Optional[int]:
-    """Extract the epoch timestamp from an auto.api email address."""
+    """Extract the epoch timestamp from an auto account email address."""
     match = re.search(r"\.(\d{10,})@", email)
     if match:
         return int(match.group(1))
     return None
+
+
+def parse_email_category(email: str) -> Optional[str]:
+    """Extract category from auto account email format."""
+    match = re.match(r"^auto\.(.+)\.\d+@", email)
+    return match.group(1) if match else None
+
+
+def _normalize_created_account(data: dict, email: str, business_name: str) -> dict:
+    """Normalize admin account creation responses to the runner account shape."""
+    response_data = data.get("data", data)
+    business = response_data.get("business", {})
+    admin_account = response_data.get("admin_account", {})
+    meta = response_data.get("meta", {})
+
+    pivot_uid = (
+        response_data.get("pivot_uid")
+        or response_data.get("business_id")
+        or business.get("pivot_uid")
+        or business.get("id")
+        or ""
+    )
+    user_id = (
+        response_data.get("user_id")
+        or admin_account.get("user_id")
+        or admin_account.get("id")
+        or ""
+    )
+    auth_token = (
+        response_data.get("auth_token")
+        or response_data.get("api_token")
+        or meta.get("auth_token")
+        or meta.get("api_token")
+        or ""
+    )
+
+    return {
+        "email": email,
+        "password": DEFAULT_PASSWORD,
+        "business_id": pivot_uid,
+        "pivot_uid": pivot_uid,
+        "user_id": user_id,
+        "auth_token": auth_token,
+        "api_token": auth_token,
+        "name": business_name,
+        "raw_response": data,
+    }
 
 
 def _handle_create_error(resp: requests.Response, category_name: str) -> None:
@@ -300,7 +337,7 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
     if status == 401:
         raise FatalTokenError(
             f"401 Unauthorized — token is invalid or expired. "
-            f"Set VCITA_DIRECTORY_TOKEN env var or target.directory_token in config.yaml. "
+            f"Set VCITA_ADMIN_TOKEN env var or target.admin_token in config.yaml. "
             f"Detail: {detail}"
         )
 

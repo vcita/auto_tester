@@ -35,6 +35,35 @@ def _close_templates_popup(billing_scope) -> None:
         close_button.first.click()
 
 
+def _fill_sender_billing_address(editor_scope) -> None:
+    from_section = editor_scope.locator("[data-qa='itemizable-from-fold']").first
+    if from_section.count() > 0:
+        from_section.click()
+
+    edit_address = editor_scope.locator(
+        "[data-qa='itemizable-from-business-address-edit-button']"
+    ).first
+    if edit_address.count() > 0:
+        try:
+            edit_address.click()
+        except Exception:
+            pass
+
+    billing_address = editor_scope.locator(
+        "[data-qa='itemizable-from-business-address-edit'] textarea"
+    ).first
+    if billing_address.count() == 0:
+        billing_address = editor_scope.locator(
+            'textarea[placeholder*="Billing address"], textarea'
+        ).first
+
+    billing_address.wait_for(state="visible", timeout=5000)
+    billing_address.fill("123 Test Street, Test City")
+
+    if from_section.count() > 0:
+        from_section.click()
+
+
 def test_set_invoice_numbering(page: Page, context: dict) -> None:
     """
     Configure invoice label/number and verify it appears on the invoice header.
@@ -55,7 +84,7 @@ def test_set_invoice_numbering(page: Page, context: dict) -> None:
         sales_button = page.get_by_role("button", name="Sales")
         sales_button.wait_for(state="visible", timeout=UI_TIMEOUT)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
         billing_link.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -169,7 +198,10 @@ def test_set_invoice_numbering(page: Page, context: dict) -> None:
     except Exception:
         print("  Step 5: Invoice details edit unavailable, continuing with default numbering")
 
-    print("  Step 6: Add a line item...")
+    print("  Step 6: Fill required sender billing address...")
+    _fill_sender_billing_address(editor_scope)
+
+    print("  Step 7: Add a line item...")
     item_box = editor_scope.get_by_role("textbox", name="Please select an item")
     if item_box.count() > 0:
         item_box.first.click()
@@ -221,7 +253,7 @@ def test_set_invoice_numbering(page: Page, context: dict) -> None:
         add_button.click()
         add_item_title.first.wait_for(state="hidden", timeout=12000)
 
-    print("  Step 7: Save draft and verify...")
+    print("  Step 8: Save draft and verify...")
     save_draft = editor_scope.get_by_role("button", name="Save draft")
     save_draft.wait_for(state="visible", timeout=UI_TIMEOUT)
     save_draft.click()

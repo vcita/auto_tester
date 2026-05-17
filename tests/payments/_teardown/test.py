@@ -19,19 +19,9 @@ def _get_billing_scope(page: Page):
     return page
 
 
-def _open_billing(page: Page):
-    if "/app/payments/orders" in page.url:
-        return _get_billing_scope(page)
-
-    sales_button = page.get_by_role("button", name="Sales")
-    sales_button.wait_for(state="visible", timeout=5000)
-    sales_button.click()
-    page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
-
-    billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-    billing_link.wait_for(state="visible", timeout=5000)
-    billing_link.click()
-    page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
+def _get_current_invoice_scope(page: Page):
+    if "/app/invoices/" not in page.url:
+        return None
     return _get_billing_scope(page)
 
 
@@ -70,18 +60,12 @@ def _close_any_dialogs(page: Page, billing_scope=None) -> None:
     page.keyboard.press("Escape")
 
 
-def _cancel_invoice(page: Page, billing_scope, invoice_id: str) -> None:
-    invoice_link = billing_scope.locator(f'a[href*="{invoice_id}"]')
-    if invoice_link.count() == 0:
-        return
-
-    invoice_link.first.click()
-    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
-    invoice_scope = _get_billing_scope(page)
-
+def _cancel_invoice(invoice_scope) -> None:
     menu_button = invoice_scope.locator("md-menu").filter(
-        has_text=re.compile("Edit")
+        has_text=re.compile("Edit", re.I)
     ).get_by_role("button")
+    if menu_button.count() == 0:
+        menu_button = invoice_scope.get_by_role("button", name=re.compile(r"^Edit$", re.I))
     if menu_button.count() == 0:
         return
 
@@ -115,9 +99,10 @@ def teardown_payments(page: Page, context: dict) -> None:
         return
 
     _close_any_dialogs(page)
-    billing_scope = _open_billing(page)
-    _close_any_dialogs(page, billing_scope)
-    _cancel_invoice(page, billing_scope, invoice_id)
+    invoice_scope = _get_current_invoice_scope(page)
+    if invoice_scope is not None:
+        _close_any_dialogs(page, invoice_scope)
+        _cancel_invoice(invoice_scope)
 
     keys_to_clear = [
         key

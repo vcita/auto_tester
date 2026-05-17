@@ -28,7 +28,7 @@ def _open_invoice(page: Page):
             sales_button = sales_button.first
         sales_button.wait_for(state="visible", timeout=5000)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos**", timeout=5000, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
         billing_link.wait_for(state="visible", timeout=5000)

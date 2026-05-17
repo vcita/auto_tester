@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a fresh business account via the Create Business API for each test category.
+Create a fresh Platinum business account for each test category.
 
 Standalone script that wraps the shared account_factory and env_config modules.
 
@@ -24,11 +24,12 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from src.discovery import TestDiscovery
 from src.runner.account_factory import (
     create_account,
-    load_directory_token,
+    load_admin_token,
+    load_directory_id,
     FatalTokenError,
     AccountCreationError,
 )
-from src.runner.env_config import resolve_api_base_url
+from src.runner.env_config import resolve_api_base_url, resolve_urls
 
 console = Console()
 
@@ -56,11 +57,18 @@ def run(env: str) -> None:
     console.print(f"[bold]API base:   [/bold] {api_base_url}")
 
     config = _load_config()
-    token = load_directory_token(config)
-    if not token:
+    admin_token = load_admin_token(config)
+    directory_id = load_directory_id(config) or resolve_urls(env).get("directory_id")
+    if not admin_token:
         console.print(
-            "[red]No directory token found. "
-            "Set VCITA_DIRECTORY_TOKEN env var or add target.directory_token in config.yaml.[/red]"
+            "[red]No admin token found. "
+            "Set VCITA_ADMIN_TOKEN env var or add target.admin_token in config.yaml.[/red]"
+        )
+        sys.exit(1)
+    if not directory_id:
+        console.print(
+            "[red]No directory id found. "
+            "Set VCITA_DIRECTORY_ID env var or add target.directory_id in config.yaml.[/red]"
         )
         sys.exit(1)
 
@@ -75,7 +83,7 @@ def run(env: str) -> None:
     for cat_name in category_names:
         console.print(f"[cyan]Creating account for category: {cat_name}[/cyan]")
         try:
-            account = create_account(api_base_url, token, cat_name)
+            account = create_account(api_base_url, admin_token, directory_id, cat_name)
             results.append({
                 "category": cat_name,
                 "business_id": account["business_id"],
@@ -132,7 +140,7 @@ def _print_summary(results: list[dict]) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Create a business account for each test category via the Create Business API."
+        description="Create a Platinum business account for each test category."
     )
     parser.add_argument(
         "--env",
