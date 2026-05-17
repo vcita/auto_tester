@@ -7,14 +7,14 @@ import re
 
 from playwright.sync_api import Page, expect
 
-UI_TIMEOUT = 20000
+UI_TIMEOUT = 5000
 
 
 def _get_billing_scope(page: Page):
     billing_iframe = page.locator('iframe[title="angularjs"]')
     if billing_iframe.count() > 0:
         try:
-            billing_iframe.first.wait_for(state="visible", timeout=5000)
+            billing_iframe.first.wait_for(state="visible", timeout=UI_TIMEOUT)
             return page.frame_locator('iframe[title="angularjs"]')
         except Exception:
             return page
@@ -57,10 +57,10 @@ def _select_existing_client(page: Page, billing_scope, client_search_term: str) 
                 has_text=re.compile(r".+")
             ).first
             if candidate_row.count() > 0:
-                candidate_row.wait_for(state="visible", timeout=5000)
+                candidate_row.wait_for(state="visible", timeout=UI_TIMEOUT)
             page.keyboard.press("ArrowDown")
             page.keyboard.press("Enter")
-            dialog.wait_for(state="hidden", timeout=7000)
+            dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
             return
         except Exception:
             pass
@@ -77,9 +77,9 @@ def _select_existing_client(page: Page, billing_scope, client_search_term: str) 
             first_client_row = buttons.nth(1)
     if first_client_row.count() == 0:
         raise Exception(f"Client picker did not include any client matching: {client_search_term}")
-    first_client_row.wait_for(state="visible", timeout=5000)
+    first_client_row.wait_for(state="visible", timeout=UI_TIMEOUT)
     first_client_row.click()
-    dialog.wait_for(state="hidden", timeout=5000)
+    dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
 
 
 def _fill_sender_billing_address(editor_scope) -> None:
@@ -104,7 +104,7 @@ def _fill_sender_billing_address(editor_scope) -> None:
             'textarea[placeholder*="Billing address"], textarea'
         ).first
 
-    billing_address.wait_for(state="visible", timeout=5000)
+    billing_address.wait_for(state="visible", timeout=UI_TIMEOUT)
     billing_address.fill("123 Test Street, Test City")
 
     if from_section.count() > 0:
