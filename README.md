@@ -192,6 +192,14 @@ python main.py stress_test --categories clients scheduling payments --iterations
 python main.py stress_test --categories clients --iterations 30 --env production --headless
 ```
 
+### Unit Tests
+
+Fast Python unit tests live under `unit_tests/` and should cover runner internals that can be validated without a browser, such as account payload building, parsing helpers, error handling, and local ledger behavior.
+
+```bash
+python -m pytest unit_tests
+```
+
 ---
 
 ### `cleanup_accounts` -- Delete Orphaned Accounts
