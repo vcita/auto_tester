@@ -1,41 +1,41 @@
-# Invoices Subcategory
-# Invoicing flows without online payment collection
-
 name: Invoices
-description: Tests for creating, editing, sending, canceling, and client access to invoices
-
+description: Tests for creating, editing, sending, canceling, and client access to
+  invoices
 tests:
-  - id: create_invoice
-    name: Create Invoice
-    status: draft
-    priority: high
-    description: Create a new invoice with line items and tax
-  - id: edit_invoice
-    name: Edit Invoice
-    status: draft
-    priority: high
-    description: Update invoice line items and totals
-  - id: send_invoice
-    name: Record Invoice Payment
-    status: draft
-    priority: high
-    description: Record a cash payment from the invoice action menu
-  - id: cancel_invoice
-    name: Cancel Invoice
-    status: draft
-    priority: high
-    description: Void or cancel invoice and verify status
-  - id: view_download_invoice
-    name: View and Download Invoice
-    status: draft
-    priority: low
-    description: Verify invoice public view availability and download flow
-
-# Category metadata
+- id: create_invoice
+  name: Create Invoice
+  status: draft
+  priority: high
+  description: Create a new invoice with line items and tax
+- id: edit_invoice
+  name: Edit Invoice
+  status: draft
+  priority: high
+  description: Update invoice line items and totals
+- id: send_invoice
+  name: Record Invoice Payment
+  status: draft
+  priority: high
+  description: Record a cash payment from the invoice action menu
+- id: cancel_invoice
+  name: Cancel Invoice
+  status: draft
+  priority: high
+  description: Void or cancel invoice and verify status
+- id: view_download_invoice
+  name: View and Download Invoice
+  status: draft
+  priority: low
+  description: Verify invoice public view availability and download flow
 status: draft
 priority: high
 tags:
-  - payments
-  - invoices
+- payments
+- invoices
 owner: QA Team
 created_at: 2026-02-09
+stability:
+  status: stable
+  last_stress_test: '2026-05-18'
+  pass_rate: 100.0%
+  iterations: 10
