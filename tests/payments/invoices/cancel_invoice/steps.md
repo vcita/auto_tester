@@ -10,11 +10,12 @@ Cancel or void an invoice and verify status.
 ## Steps
 1. Navigate to Invoices
 2. Open the existing invoice
-3. Click "Cancel" or "Void"
-4. Confirm cancellation
+3. If payment was recorded, mark the invoice as not cancellable after payment
+4. Otherwise click "Cancel" or "Void"
+5. Confirm cancellation
 
 ## Expected Result
-- Invoice status updates to canceled or voided
+- Invoice status updates to canceled/voided, or is marked not cancellable after payment
 
 ## Context Updates
 - Save `canceled_invoice_status`

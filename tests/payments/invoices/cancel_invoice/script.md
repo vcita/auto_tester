@@ -26,15 +26,19 @@ invoice_scope.get_by_role("link", name=re.compile("INVOICE #")).first.click()
 ```
 
 ### Step 3: Cancel invoice
-- **Action**: Open actions menu and click "Cancel invoice", then confirm.
+- **Action**: If a payment was already recorded, save `not_cancelable_after_payment`.
+  Otherwise open actions menu, click "Cancel invoice", then confirm.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
+if context.get("recorded_invoice_payment_status") == "recorded":
+    context["canceled_invoice_status"] = "not_cancelable_after_payment"
+    return
 invoice_scope.locator("md-menu").filter(has_text="Edit").get_by_role("button").click()
 invoice_scope.get_by_role("menuitem", name="Cancel invoice").click()
 dialog.get_by_role("button", name=re.compile("Confirm|Yes|Cancel invoice")).click()
 ```
 
 ## Success Verification
-- Invoice status shows canceled/voided.
+- Invoice status shows canceled/voided, or payment context marks it not cancellable.
 - Save `canceled_invoice_status` in context.
 
