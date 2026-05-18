@@ -219,7 +219,8 @@ class RunStorage:
 
     def _update_payments_health_if_needed(self, category: str) -> None:
         """Refresh tests/payments/_health.json when payments results change."""
-        if category != "payments" and not category.startswith("payments/"):
+        normalized_category = category.lower()
+        if normalized_category != "payments" and not normalized_category.startswith("payments/"):
             return
         try:
             payments_dir = self.tests_root / "payments"

@@ -1,4 +1,4 @@
-# Send Invoice - Detailed Script
+# Record Invoice Payment - Detailed Script
 
 > **Status**: Verified with Playwright MCP
 > **Last Updated**: 2026-02-12
@@ -25,15 +25,15 @@ page.get_by_text("Billing & Invoicing", exact=True).click()
 invoice_scope.get_by_role("link", name=re.compile("INVOICE #")).first.click()
 ```
 
-### Step 3: Send or resend
-- **Action**: Click "Send reminder" and confirm.
+### Step 3: Record payment
+- **Action**: Click "Take payment", choose "Record payment", record a small cash payment.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-invoice_scope.get_by_role("button", name="Send reminder").click()
-dialog.get_by_role("button", name=re.compile("Send|Resend")).click()
+invoice_scope.get_by_role("button", name=re.compile(r"^Take payment")).click()
+invoice_scope.get_by_role("menuitem", name=re.compile("Record payment")).click()
 ```
 
 ## Success Verification
-- Invoice status shows sent/issued.
-- Save `sent_invoice_status` in context.
+- Record payment dialog closes successfully.
+- Save `recorded_invoice_payment_status` in context.
 

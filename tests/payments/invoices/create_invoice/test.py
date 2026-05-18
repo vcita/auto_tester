@@ -4,6 +4,7 @@
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
 import re
+import time
 
 from playwright.sync_api import Page, expect
 
@@ -111,9 +112,70 @@ def _fill_sender_billing_address(editor_scope) -> None:
         from_section.click()
 
 
+def _first_visible_locator(locators, timeout: int = UI_TIMEOUT):
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        for locator in locators:
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                try:
+                    if candidate.is_visible():
+                        return candidate
+                except Exception:
+                    continue
+        time.sleep(0.1)
+    return None
+
+
+def _select_priced_service(page: Page, billing_scope, editor_scope, service_name: str) -> None:
+    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
+    item_box.wait_for(state="visible", timeout=UI_TIMEOUT)
+    item_box.click()
+
+    service_option = _first_visible_locator(
+        [
+            scope.get_by_role("option", name=re.compile(re.escape(service_name), re.I))
+            for scope in (page, billing_scope, editor_scope)
+        ]
+        + [
+            scope.get_by_text(service_name, exact=True)
+            for scope in (page, billing_scope, editor_scope)
+        ]
+    )
+    if service_option is None:
+        raise AssertionError(f"Invoice service option did not appear: {service_name}")
+
+    service_option.click()
+
+
+def _approve_draft_invoice(billing_scope) -> None:
+    approve_button = billing_scope.locator('button[data-qa="approve"]').filter(
+        has_text=re.compile(r"Approve draft", re.I)
+    )
+    if approve_button.count() == 0:
+        approve_button = billing_scope.get_by_role(
+            "button", name=re.compile(r"Approve draft", re.I)
+        )
+
+    approve_button.first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    approve_button.first.click()
+
+    dialog = billing_scope.get_by_role("dialog")
+    if dialog.count() > 0:
+        confirm = dialog.get_by_role(
+            "button", name=re.compile(r"^(Approve|Confirm|Yes|Send|OK)$", re.I)
+        )
+        if confirm.count() > 0:
+            confirm.first.click()
+
+    billing_scope.get_by_text("DRAFT", exact=False).first.wait_for(
+        state="hidden", timeout=UI_TIMEOUT
+    )
+
+
 def test_create_invoice(page: Page, context: dict) -> None:
     """
-    Create a new invoice with a line item and save it as draft.
+    Create a new invoice with a line item and approve it.
 
     Prerequisites:
     - User is logged in (from category _setup)
@@ -172,42 +234,10 @@ def test_create_invoice(page: Page, context: dict) -> None:
     _fill_sender_billing_address(editor_scope)
 
     print("  Step 5: Add line item...")
-    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
-    item_box.click()
-    first_service = editor_scope.get_by_role(
-        "option", name=re.compile(r"Event Test Workshop|Test Workshop", re.I)
-    ).first
-    if first_service.count() == 0:
-        first_service = editor_scope.get_by_role("option").filter(
-            has_not_text=re.compile(r"Add custom item", re.I)
-        ).first
-    if first_service.count() == 0:
-        first_service = editor_scope.get_by_role("option").first
-    first_service.wait_for(state="visible", timeout=UI_TIMEOUT)
-    first_service.click()
-
-    add_item_title = editor_scope.get_by_text("Add Item", exact=True)
-    if add_item_title.count() > 0 and add_item_title.first.is_visible():
-        name_input = editor_scope.locator('input[placeholder="Name"]').first
-        if name_input.count() == 0:
-            name_input = editor_scope.get_by_role("textbox", name=re.compile("Name", re.I)).first
-        name_input.wait_for(state="visible", timeout=UI_TIMEOUT)
-        name_input.fill("Demo class / event")
-
-        price_input = editor_scope.locator('input[placeholder*="Price"]').first
-        if price_input.count() > 0:
-            price_input.click()
-            try:
-                page.keyboard.press("Control+A")
-            except Exception:
-                page.keyboard.press("Meta+A")
-            page.keyboard.press("Backspace")
-            page.keyboard.type("10", delay=5)
-
-        add_button = editor_scope.get_by_role("button", name="Add").last
-        add_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-        add_button.click()
-        add_item_title.first.wait_for(state="hidden", timeout=UI_TIMEOUT)
+    service_name = context.get("invoice_service_name")
+    if not service_name:
+        raise ValueError("invoice_service_name missing from context - run payments _setup first")
+    _select_priced_service(page, billing_scope, editor_scope, service_name)
 
     print("  Step 6: Save draft...")
     save_draft = editor_scope.get_by_role("button", name="Save draft")
@@ -233,13 +263,19 @@ def test_create_invoice(page: Page, context: dict) -> None:
     amount_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     amount_text = amount_heading.first.inner_text().strip()
     amount_value = amount_text.replace("₪", "").replace("$", "").strip()
+    if amount_value in {"0", "0.00"}:
+        raise AssertionError("Created invoice total stayed at zero after adding line item")
 
     invoice_id = page.url.rstrip("/").split("/")[-1]
 
     expect(invoice_heading.first).to_be_visible()
     expect(amount_heading.first).to_be_visible()
 
+    print("  Step 8: Approve draft invoice...")
+    _approve_draft_invoice(billing_scope)
+
     context["created_invoice_id"] = invoice_id
     context["created_invoice_number"] = invoice_number
     context["created_invoice_amount"] = amount_value
+    context["created_invoice_status"] = "issued"
 

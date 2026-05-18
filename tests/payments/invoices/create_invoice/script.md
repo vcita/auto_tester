@@ -59,26 +59,32 @@ billing_scope.get_by_role("button", name=re.compile("You as a client")).click()
 ```
 
 ### Step 4: Add line item
-- **Action**: Open item selector and pick first service.
-- **Target**: Item selector textbox + first service option.
+- **Action**: Open item selector and choose the API-created paid service from setup.
+- **Target**: Item selector textbox + service option matching `context["invoice_service_name"]`.
+- **Reason**: Mirrors automation-js `user creates new service via API`; the invoice should use a real required-payment service with a non-zero amount.
 - **LOCATOR DECISION**:
 | Option | Pros | Cons |
 | --- | --- | --- |
 | `editor_scope.get_by_role("textbox", name="Please select an item")` | Semantic | In nested iframe |
-| `editor_scope.get_by_role("option", name=re.compile("Event Test Workshop"))` | Stable prefix | Requires existing services |
-**CHOSEN**: Use item textbox then select first Event Test Workshop option.
+| `scope.get_by_role("option", name=re.compile(service_name))` across page, billing iframe, and editor iframe | Selects the exact setup service; handles dropdown portals | Requires setup to create the service first |
+**CHOSEN**: Select the setup-created required-payment service by name.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 editor_scope.get_by_role("textbox", name="Please select an item").click()
-editor_scope.get_by_role("option", name=re.compile("Event Test Workshop")).first.click()
+service_option = _first_visible_locator([
+    scope.get_by_role("option", name=re.compile(re.escape(context["invoice_service_name"]), re.I))
+    for scope in (page, billing_scope, editor_scope)
+])
+service_option.click()
 ```
 
-### Step 5: Save draft
-- **Action**: Click "Save draft".
+### Step 5: Save and approve invoice
+- **Action**: Click "Save draft", then approve the draft from the invoice page.
 - **Target**: Save draft button.
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 editor_scope.get_by_role("button", name="Save draft").click()
+billing_scope.get_by_role("button", name=re.compile("Approve draft", re.I)).click()
 ```
 
 ### Step 6: Capture invoice info
@@ -91,6 +97,8 @@ amount_heading = billing_scope.get_by_role("heading", name=re.compile(r"^₪"))
 ```
 
 ## Success Verification
-- Invoice view opens for the new draft.
+- Invoice view opens for the new invoice.
 - Invoice number and amount are readable.
+- Invoice total is not `$0.00`.
+- Invoice is approved/issued, not left as draft.
 

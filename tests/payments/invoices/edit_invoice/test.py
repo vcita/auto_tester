@@ -4,8 +4,12 @@
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
 import re
+import time
+from decimal import Decimal
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
+
+UI_TIMEOUT = 5000
 
 
 def _get_billing_scope(page: Page):
@@ -27,27 +31,198 @@ def _get_editor_scope(billing_scope):
 
 
 def _open_invoice(page: Page):
+    if "/app/invoices/" in page.url:
+        return _get_billing_scope(page)
+
     if "/app/payments/orders" not in page.url:
         sales_button = page.locator('[data-qa="nav-sales"]')
         if sales_button.count() == 0:
             sales_button = page.get_by_role("button", name="Sales", exact=True).first
         else:
             sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=5000)
+        sales_button.wait_for(state="visible", timeout=UI_TIMEOUT)
         sales_button.click()
-        page.wait_for_url("**/app/pos", timeout=5000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/pos**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
 
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
-        billing_link.wait_for(state="visible", timeout=5000)
+        billing_link.wait_for(state="visible", timeout=UI_TIMEOUT)
         billing_link.click()
-        page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/payments/orders", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
 
     billing_scope = _get_billing_scope(page)
     invoice_link = billing_scope.get_by_role("link", name=re.compile("INVOICE #")).first
-    invoice_link.wait_for(state="visible", timeout=5000)
+    invoice_link.wait_for(state="visible", timeout=UI_TIMEOUT)
     invoice_link.click()
-    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
     return _get_billing_scope(page)
+
+
+def _first_visible_locator(locators, timeout: int = UI_TIMEOUT):
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        for locator in locators:
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                try:
+                    if candidate.is_visible():
+                        return candidate
+                except Exception:
+                    continue
+        time.sleep(0.1)
+    return None
+
+
+def _select_priced_service(page: Page, invoice_scope, editor_scope, service_name: str) -> None:
+    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
+    item_box.wait_for(state="visible", timeout=UI_TIMEOUT)
+    item_box.click()
+    item_box_bounds = item_box.bounding_box()
+
+    option_locators = [
+        scope.get_by_role("option", name=re.compile(re.escape(service_name), re.I))
+        for scope in (page, invoice_scope, editor_scope)
+    ] + [
+        scope.get_by_text(service_name, exact=True)
+        for scope in (page, invoice_scope, editor_scope)
+    ]
+    service_option = _first_visible_dropdown_option(option_locators, item_box_bounds)
+    if service_option is None:
+        raise AssertionError(f"Invoice service option did not appear: {service_name}")
+
+    service_option.click()
+
+
+def _first_visible_dropdown_option(locators, item_box_bounds):
+    deadline = time.monotonic() + UI_TIMEOUT / 1000
+    minimum_y = item_box_bounds["y"] if item_box_bounds else 0
+    while time.monotonic() < deadline:
+        for locator in locators:
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                try:
+                    box = candidate.bounding_box()
+                    if candidate.is_visible() and box and box["y"] > minimum_y:
+                        return candidate
+                except Exception:
+                    continue
+        time.sleep(0.1)
+    return None
+
+
+def _amount_to_decimal(amount_text: str) -> Decimal:
+    match = re.search(r"[\d,.]+", amount_text)
+    if not match:
+        raise AssertionError(f"Could not parse invoice amount: {amount_text}")
+    return Decimal(match.group(0).replace(",", ""))
+
+
+def _currency_symbol(amount_text: str) -> str:
+    if "₪" in amount_text:
+        return "₪"
+    if "$" in amount_text:
+        return "$"
+    return ""
+
+
+def _format_amount(symbol: str, amount: Decimal) -> str:
+    return f"{symbol}{amount:.2f}"
+
+
+def _click_edit_action(invoice_scope) -> None:
+    direct_edit = _first_visible_locator(
+        [
+            invoice_scope.locator('button[data-qa="edit"]').filter(
+                has_text=re.compile(r"^\s*Edit\s*$", re.I)
+            ),
+            invoice_scope.get_by_role("button", name=re.compile(r"^Edit$", re.I)),
+        ],
+        timeout=500,
+    )
+    if direct_edit is not None:
+        direct_edit.click()
+        return
+
+    actions_button = invoice_scope.locator(
+        'button:has-text("SEND REMINDER") + md-menu button'
+    )
+    if actions_button.count() == 0:
+        actions_button = invoice_scope.locator(
+            'button:has-text("SEND REMINDER") ~ md-menu button'
+        )
+    if actions_button.count() == 0:
+        actions_button = invoice_scope.locator(
+            'button:has-text("Send reminder") + md-menu button'
+        )
+    if actions_button.count() == 0:
+        actions_button = invoice_scope.locator(
+            'button:has-text("Send reminder") ~ md-menu button'
+        )
+    if actions_button.count() == 0:
+        actions_button = invoice_scope.locator(
+            'md-menu[ng-repeat*="moreActions"] button[ng-click*="$mdOpenMenu"]'
+        )
+    if actions_button.count() == 0:
+        actions_button = invoice_scope.locator(
+            'md-menu[ng-repeat*="moreActions"] button'
+        )
+    if actions_button.count() == 0:
+        actions_button = _top_action_overflow_button(invoice_scope)
+
+    actions_button.first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    actions_button.first.click()
+
+    menu_edit = _first_visible_locator(
+        [
+            invoice_scope.get_by_role("menuitem", name=re.compile(r"^Edit$", re.I)),
+            invoice_scope.locator('button[data-qa="edit"]').filter(
+                has_text=re.compile(r"^\s*Edit\s*$", re.I)
+            ),
+            invoice_scope.get_by_role("button", name=re.compile(r"^Edit$", re.I)),
+        ]
+    )
+    if menu_edit is None:
+        raise AssertionError("Edit action did not appear after opening invoice actions menu")
+    menu_edit.click()
+
+
+def _top_action_overflow_button(invoice_scope):
+    controls = invoice_scope.locator("button, a[ng-click]")
+    visible_controls = []
+    for index in range(controls.count()):
+        control = controls.nth(index)
+        try:
+            if not control.is_visible():
+                continue
+            text = control.inner_text().strip().lower()
+            box = control.bounding_box()
+            if box:
+                visible_controls.append(f"{text or '<empty>'}@{int(box['x'])},{int(box['y'])}")
+            if not box or box["y"] > 400 or box["x"] > 900:
+                continue
+            if text in {"", "...", "more_horiz", "more_vert"}:
+                return control
+        except Exception:
+            continue
+    raise AssertionError(
+        "Top invoice actions menu button was not found; "
+        f"visible controls: {', '.join(visible_controls[:20])}"
+    )
+
+
+def _wait_for_invoice_total(invoice_scope, expected_amount: str) -> str:
+    amount_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^[₪$]\d"))
+    deadline = time.monotonic() + UI_TIMEOUT / 1000
+    last_amount = ""
+    while time.monotonic() < deadline:
+        if amount_heading.count() > 0:
+            last_amount = amount_heading.first.inner_text().strip()
+            if last_amount == expected_amount:
+                return last_amount
+        time.sleep(0.1)
+
+    raise AssertionError(
+        f"Invoice total did not update to {expected_amount}; last visible total was {last_amount}"
+    )
 
 
 def test_edit_invoice(page: Page, context: dict) -> None:
@@ -64,42 +239,33 @@ def test_edit_invoice(page: Page, context: dict) -> None:
     invoice_scope = _open_invoice(page)
 
     amount_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^[₪$]\d"))
-    amount_heading.wait_for(state="visible", timeout=5000)
+    amount_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     original_amount = amount_heading.first.inner_text().strip()
+    expected_amount = _format_amount(
+        _currency_symbol(original_amount),
+        _amount_to_decimal(original_amount) + Decimal(str(context.get("invoice_service_price", "0"))),
+    )
 
-    menu_button = invoice_scope.locator("md-menu").filter(
-        has_text=re.compile("Edit")
-    ).get_by_role("button")
-    menu_button.wait_for(state="visible", timeout=5000)
-    menu_button.click()
-
-    edit_item = invoice_scope.get_by_role("menuitem", name="Edit")
-    edit_item.wait_for(state="visible", timeout=5000)
-    edit_item.click()
+    _click_edit_action(invoice_scope)
 
     editor_scope = _get_editor_scope(invoice_scope)
-    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
-    item_box.wait_for(state="visible", timeout=5000)
-    item_box.click()
-
-    first_service = editor_scope.get_by_role(
-        "option", name=re.compile(r"Event Test Workshop")
-    ).first
-    first_service.wait_for(state="visible", timeout=5000)
-    first_service.click()
+    service_name = context.get("invoice_service_name")
+    if not service_name:
+        raise ValueError("invoice_service_name missing from context - run payments _setup first")
+    _select_priced_service(page, invoice_scope, editor_scope, service_name)
+    editor_scope.get_by_text(expected_amount, exact=True).first.wait_for(
+        state="visible", timeout=UI_TIMEOUT
+    )
 
     save_button = editor_scope.get_by_role(
         "button", name=re.compile(r"Save draft|Save")
     )
-    save_button.wait_for(state="visible", timeout=5000)
-    save_button.click()
+    save_button.wait_for(state="visible", timeout=UI_TIMEOUT)
+    expect(save_button.first).to_be_enabled(timeout=UI_TIMEOUT)
+    save_button.first.click()
 
-    page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
     invoice_scope = _get_billing_scope(page)
-
-    updated_heading = invoice_scope.get_by_role("heading", name=re.compile(r"^[₪$]\d"))
-    updated_heading.wait_for(state="visible", timeout=5000)
-    updated_amount = updated_heading.first.inner_text().strip()
-    assert updated_amount != original_amount, "Invoice total did not change after edit"
+    updated_amount = _wait_for_invoice_total(invoice_scope, expected_amount)
     context["created_invoice_amount"] = updated_amount.replace("₪", "").replace("$", "").strip()
 

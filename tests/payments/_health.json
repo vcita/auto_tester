@@ -1,6 +1,6 @@
 {
   "scope": "payments",
-  "generated_at": "2026-05-14T16:21:11.389330",
+  "generated_at": "2026-05-18T14:31:23.129019",
   "definition": {
     "stable": "latest run status == passed",
     "source_of_truth": "tests/**/_runs/*/run.json"
@@ -8,15 +8,15 @@
   "category": {
     "name": "payments",
     "category_path": "payments",
-    "last_result": "partial",
-    "is_stable": false,
-    "last_run_id": "20260514_161917",
-    "last_run_at": "2026-05-14T16:21:02.654629",
+    "last_result": "passed",
+    "is_stable": true,
+    "last_run_id": "20260518_143040",
+    "last_run_at": "2026-05-18T14:31:23.066864",
     "summary": {
-      "passed": 5,
-      "failed": 1,
-      "skipped": 9,
-      "total": 15
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "total": 6
     }
   },
   "subcategories": [
@@ -25,8 +25,8 @@
       "category_path": "payments/settings",
       "last_result": "passed",
       "is_stable": true,
-      "last_run_id": "20260514_161917",
-      "last_run_at": "2026-05-14T16:20:39.811850",
+      "last_run_id": "20260518_123810",
+      "last_run_at": "2026-05-18T12:39:31.910579",
       "summary": {
         "passed": 4,
         "failed": 0,
@@ -37,14 +37,14 @@
     {
       "name": "invoices",
       "category_path": "payments/invoices",
-      "last_result": "partial",
-      "is_stable": false,
-      "last_run_id": "20260514_161917",
-      "last_run_at": "2026-05-14T16:21:00.155388",
+      "last_result": "passed",
+      "is_stable": true,
+      "last_run_id": "20260518_143040",
+      "last_run_at": "2026-05-18T14:31:22.462942",
       "summary": {
-        "passed": 1,
-        "failed": 1,
-        "skipped": 3,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
         "total": 5
       }
     },
@@ -81,10 +81,10 @@
     "last_result": "failed",
     "is_stable": false,
     "stable_subcategories": [
-      "settings"
+      "settings",
+      "invoices"
     ],
     "unstable_subcategories": [
-      "invoices",
       "record_payments"
     ],
     "unknown_subcategories": [

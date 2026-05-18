@@ -1,7 +1,7 @@
-# Send Invoice
+# Record Invoice Payment
 
 ## Objective
-Send or mark an invoice as sent and verify status.
+Record a cash payment from an issued invoice and verify the action completes.
 
 ## Prerequisites
 - An invoice exists (from create_invoice)
@@ -10,11 +10,12 @@ Send or mark an invoice as sent and verify status.
 ## Steps
 1. Navigate to Invoices
 2. Open the existing invoice
-3. Click "Send" or "Mark as sent"
-4. Confirm send action
+3. Click "Take payment"
+4. Select "Record payment"
+5. Record a small cash payment
 
 ## Expected Result
-- Invoice status updates to sent
+- Payment is recorded successfully
 
 ## Context Updates
-- Save `sent_invoice_status`
+- Save `recorded_invoice_payment_status`

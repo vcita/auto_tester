@@ -46,32 +46,50 @@ def _open_invoice(page: Page):
     return _get_billing_scope(page)
 
 
+def _open_record_payment_dialog(invoice_scope):
+    take_payment = invoice_scope.get_by_role("button", name=re.compile(r"^Take payment"))
+    take_payment.wait_for(state="visible", timeout=5000)
+    take_payment.click()
+
+    record_payment = invoice_scope.get_by_role(
+        "menuitem", name=re.compile("Record payment")
+    )
+    record_payment.wait_for(state="visible", timeout=5000)
+    record_payment.click()
+
+    dialog = invoice_scope.get_by_role("dialog", name=re.compile("Record payment"))
+    dialog.wait_for(state="visible", timeout=5000)
+    return dialog
+
+
+def _record_cash_payment(invoice_scope, dialog) -> None:
+    method_listbox = dialog.get_by_role("listbox", name="Payment received via")
+    method_listbox.wait_for(state="visible", timeout=5000)
+    method_listbox.click()
+    invoice_scope.get_by_role("option", name="Cash").click()
+
+    record_button = dialog.get_by_role("button", name="Record")
+    record_button.wait_for(state="visible", timeout=5000)
+    record_button.click()
+    dialog.wait_for(state="hidden", timeout=5000)
+
+
 def test_send_invoice(page: Page, context: dict) -> None:
     """
-    Send or resend an invoice and record status.
+    Record a cash payment from the invoice action menu.
 
     Prerequisites:
     - User is logged in (from category _setup)
     - Payment gateway is NOT connected
 
     Saves to context:
-    - sent_invoice_status
+    - recorded_invoice_payment_status
     """
     invoice_scope = _open_invoice(page)
 
-    send_button = invoice_scope.get_by_role("button", name="Send reminder")
-    if send_button.count() > 0:
-        send_button.first.click()
-        dialog = invoice_scope.get_by_role("dialog")
-        resend = dialog.get_by_role("button", name=re.compile("Send|Resend"))
-        resend.wait_for(state="visible", timeout=5000)
-        resend.click()
+    dialog = _open_record_payment_dialog(invoice_scope)
+    _record_cash_payment(invoice_scope, dialog)
 
-    status_text = invoice_scope.get_by_text("Invoice sent", exact=False)
-    if status_text.count() > 0:
-        context["sent_invoice_status"] = "sent"
-        return
-
-    issued_text = invoice_scope.get_by_text("Issued", exact=False)
-    context["sent_invoice_status"] = "issued" if issued_text.count() > 0 else "unknown"
+    context["recorded_invoice_payment_status"] = "recorded"
+    context["recorded_invoice_payment_amount"] = context.get("created_invoice_amount")
 

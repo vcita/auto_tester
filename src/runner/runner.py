@@ -486,6 +486,7 @@ class TestRunner:
                 )
                 context["auto_account"] = auto_account
                 context["base_url"] = self.app_base_url
+                context["api_base_url"] = self.api_base_url
                 context["username"] = auto_account["email"]
                 context["password"] = auto_account["password"]
                 print(f"  [auto-account] Created {auto_account['email']} for {category.name}", flush=True)

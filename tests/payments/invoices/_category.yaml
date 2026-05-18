@@ -16,10 +16,10 @@ tests:
     priority: high
     description: Update invoice line items and totals
   - id: send_invoice
-    name: Send Invoice
+    name: Record Invoice Payment
     status: draft
     priority: high
-    description: Send or mark invoice as sent and verify status
+    description: Record a cash payment from the invoice action menu
   - id: cancel_invoice
     name: Cancel Invoice
     status: draft
