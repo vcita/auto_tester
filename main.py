@@ -29,6 +29,7 @@ from src.discovery.test_discovery import print_discovery_tree
 from src.discovery.function_discovery import print_functions_list
 from src.models import TestStatus
 from src.runner import TestRunner, CLIReporter
+from src.runner.browser_config import get_browser_viewport, get_browser_window_size_arg
 from src.runner.storage import RunStorage
 from src.runner.stress_test import StressTestRunner
 from src.gui import run_server
@@ -616,7 +617,10 @@ def _run_create_user_then_update_config(
         browser = p.chromium.launch(
             headless=False,
             channel="chrome",
-            args=["--disable-blink-features=AutomationControlled"],
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                get_browser_window_size_arg(config),
+            ],
         )
         bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
         custom_user_agent = (
@@ -625,13 +629,14 @@ def _run_create_user_then_update_config(
         )
         video_dir = Path.cwd() / ".temp_videos"
         video_dir.mkdir(parents=True, exist_ok=True)
+        viewport = get_browser_viewport(config)
         bw_context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
+            no_viewport=True,
             locale="en-US",
             timezone_id="America/New_York",
             user_agent=custom_user_agent,
             record_video_dir=str(video_dir),
-            record_video_size={"width": 1920, "height": 1080},
+            record_video_size=viewport,
         )
         bw_context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
