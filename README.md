@@ -653,8 +653,8 @@ browser:
   slow_mo: 100                      # Milliseconds between actions
   timeout: 30000                    # Default timeout for Playwright operations
   viewport:
-    width: 1280
-    height: 720
+    width: 1440
+    height: 900
 
 execution:
   continuous: true                  # Keep running after failures

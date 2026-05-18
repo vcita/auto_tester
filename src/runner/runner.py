@@ -22,6 +22,7 @@ from .executor import TestExecutor
 from .heal import HealRequestGenerator
 from .storage import RunStorage
 from . import account_factory, env_config
+from .browser_config import get_browser_viewport, get_browser_window_size_arg
 
 # For --debug-test: pause after each minor action (human-in-the-loop debugging)
 def _get_step_callback_for_debug():
@@ -162,7 +163,8 @@ class TestRunner:
         self.keep_open = keep_open
         self.until_test = until_test
         self.debug_test = debug_test
-        self.run_config = (config or {}).get("target") if config else None
+        self.config = config or {}
+        self.run_config = self.config.get("target") if self.config else None
         self.env = env
         
         # Resolve environment URLs and tokens when env is set
@@ -537,6 +539,7 @@ class TestRunner:
                 channel='chrome',  # Use real Chrome instead of Chromium
                 args=[
                     '--disable-blink-features=AutomationControlled',
+                    get_browser_window_size_arg(self.config),
                 ]
             )
                 
@@ -553,13 +556,14 @@ class TestRunner:
                 bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
                 custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
                 
+                viewport = get_browser_viewport(self.config)
                 browser_context = browser.new_context(
-                    viewport={'width': 1920, 'height': 1080},
+                    no_viewport=True,
                     locale='en-US',
                     timezone_id='America/New_York',
                     user_agent=custom_user_agent,
                     record_video_dir=str(video_dir) if video_dir else None,
-                    record_video_size={'width': 1920, 'height': 1080},
+                    record_video_size=viewport,
                 )
                 
                 # Minimal stealth - just hide webdriver flag
