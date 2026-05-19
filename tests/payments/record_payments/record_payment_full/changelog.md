@@ -8,12 +8,16 @@ All changes to steps.md, script.md, and test.py are logged here.
 
 **Phase**: Test
 **Author**: Cursor AI
-**Reason**: Full payments category runs can start from invoice pages where Sales only expands the sidebar instead of navigating directly to Checkout.
+**Reason**: Record payment tests needed to pass both standalone and after previous payments workflow steps.
 
 **Changes**:
 
 - Added checkout navigation that handles both direct `/app/pos` navigation and expanded Sales submenu state.
 - Reused the created setup client instead of selecting an arbitrary recently active client.
+- Added invoice prerequisite creation for standalone partial, multiple, and mark-unpaid paths.
+- Hardened record-payment dialog opening by re-querying controls, searching page and iframe scopes, and using DOM-click fallback.
+- Calculated multiple-payment amounts from the actual invoice balance so taxed invoices remain valid.
+- Waited for the first payment to update the remaining balance before recording the second payment.
 
 ## 2026-03-04 - Full Rebuild
 
