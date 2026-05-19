@@ -125,6 +125,7 @@ inner.getByRole('spinbutton', { name: 'Tax rate' }).fill(tax_rate)
 - **Note**: In test.py, use `press_sequentially` per input rule.
 
 ### Step 7: Save settings
+- **Before saving**: Open "Apply default tax to", click "Select All", and verify Services, Products, and Packages are checked.
 - **Action**: Click Save button.
 - **Target**: Save button in Billing & Invoicing settings.
 - **LOCATOR DECISION**:
@@ -142,3 +143,4 @@ iframe.getByRole('button', { name: 'Save' }).click()
 ## Success Verification
 - The tax name input contains `tax_name`.
 - The tax rate input contains `tax_rate`.
+- The tax is applied to Services, Products, and Packages.

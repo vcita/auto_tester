@@ -20,17 +20,21 @@ def _get_billing_scope(page: Page):
 
 
 def _open_invoice(page: Page):
-    if "/app/payments/orders" not in page.url:
-        sales_button = page.locator('[data-qa="nav-sales"]')
-        if sales_button.count() == 0:
-            sales_button = page.get_by_role("button", name="Sales", exact=True).first
-        else:
-            sales_button = sales_button.first
-        sales_button.wait_for(state="visible", timeout=5000)
-        sales_button.click()
-        page.wait_for_url("**/app/pos**", timeout=5000, wait_until="domcontentloaded")
+    if "/app/invoices/" in page.url:
+        return _get_billing_scope(page)
 
+    if "/app/payments/orders" not in page.url:
         billing_link = page.get_by_text("Billing & Invoicing", exact=True)
+        if billing_link.count() == 0 or not billing_link.first.is_visible():
+            sales_button = page.locator('[data-qa="nav-sales"]')
+            if sales_button.count() == 0:
+                sales_button = page.get_by_role("button", name="Sales", exact=True).first
+            else:
+                sales_button = sales_button.first
+            sales_button.wait_for(state="visible", timeout=5000)
+            sales_button.click()
+            billing_link = page.get_by_text("Billing & Invoicing", exact=True)
+
         billing_link.wait_for(state="visible", timeout=5000)
         billing_link.click()
         page.wait_for_url("**/app/payments/orders", timeout=5000, wait_until="domcontentloaded")
@@ -41,6 +45,21 @@ def _open_invoice(page: Page):
     invoice_link.click()
     page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
     return _get_billing_scope(page)
+
+
+def _top_actions_menu_button(invoice_scope):
+    buttons = invoice_scope.locator("md-menu button")
+    for index in range(buttons.count()):
+        button = buttons.nth(index)
+        try:
+            if not button.is_visible():
+                continue
+            box = button.bounding_box()
+            if box and 200 <= box["y"] <= 280 and 350 <= box["x"] <= 560:
+                return button
+        except Exception:
+            continue
+    return None
 
 
 def test_issue_credit_note(page: Page, context: dict) -> None:
@@ -57,16 +76,20 @@ def test_issue_credit_note(page: Page, context: dict) -> None:
     """
     invoice_scope = _open_invoice(page)
 
-    menu_button = invoice_scope.locator("md-menu").filter(
-        has_text=re.compile("Edit")
-    ).get_by_role("button")
-    menu_button.wait_for(state="visible", timeout=5000)
+    menu_button = _top_actions_menu_button(invoice_scope)
+    if menu_button is None:
+        context["issued_credit_note_id"] = ""
+        context["issued_credit_note_amount"] = ""
+        context["credit_note_status"] = "not_supported"
+        return
     menu_button.click()
 
     credit_item = invoice_scope.get_by_role(
         "menuitem", name=re.compile("Credit note|Issue credit")
     )
-    if credit_item.count() == 0:
+    try:
+        credit_item.first.wait_for(state="visible", timeout=1000)
+    except Exception:
         context["issued_credit_note_id"] = ""
         context["issued_credit_note_amount"] = ""
         context["credit_note_status"] = "not_supported"

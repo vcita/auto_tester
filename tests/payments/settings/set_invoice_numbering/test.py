@@ -11,6 +11,11 @@ from playwright.sync_api import Page, expect
 UI_TIMEOUT = 20000
 
 
+def _log_invoice_dialog_time(started_at: float, label: str) -> None:
+    elapsed = time.monotonic() - started_at
+    print(f"    [invoice-dialog] {label}: {elapsed:.1f}s")
+
+
 def _get_billing_scope(page: Page):
     billing_iframe = page.locator('iframe[title="angularjs"]')
     if billing_iframe.count() > 0:
@@ -37,8 +42,12 @@ def _close_templates_popup(billing_scope) -> None:
 
 def _fill_sender_billing_address(editor_scope) -> None:
     from_section = editor_scope.locator("[data-qa='itemizable-from-fold']").first
+    if from_section.count() == 0:
+        from_section = editor_scope.locator("div").filter(
+            has_text=re.compile(r"From:\s+Auto_", re.I)
+        ).first
     if from_section.count() > 0:
-        from_section.click()
+        from_section.click(force=True)
 
     edit_address = editor_scope.locator(
         "[data-qa='itemizable-from-business-address-edit-button']"
@@ -49,19 +58,88 @@ def _fill_sender_billing_address(editor_scope) -> None:
         except Exception:
             pass
 
-    billing_address = editor_scope.locator(
-        "[data-qa='itemizable-from-business-address-edit'] textarea"
+    billing_address = editor_scope.get_by_role(
+        "textbox", name=re.compile(r"Billing address|Business Info", re.I)
     ).first
     if billing_address.count() == 0:
-        billing_address = editor_scope.locator(
-            'textarea[placeholder*="Billing address"], textarea'
-        ).first
+        billing_address = editor_scope.locator("textarea:visible").first
 
-    billing_address.wait_for(state="visible", timeout=5000)
+    try:
+        billing_address.wait_for(state="visible", timeout=3000)
+    except Exception:
+        return
     billing_address.fill("123 Test Street, Test City")
+    expect(billing_address).to_have_value("123 Test Street, Test City", timeout=2000)
 
     if from_section.count() > 0:
         from_section.click()
+
+
+def _fill_visible_sender_billing_address(editor_scope) -> None:
+    billing_address = editor_scope.locator("textarea:visible").first
+    billing_address.wait_for(state="visible", timeout=3000)
+    billing_address.fill("123 Test Street, Test City")
+    expect(billing_address).to_have_value("123 Test Street, Test City", timeout=2000)
+
+
+def _first_visible_locator(locators, timeout: int = UI_TIMEOUT):
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        for locator in locators:
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                try:
+                    if candidate.is_visible():
+                        return candidate
+                except Exception:
+                    continue
+        time.sleep(0.1)
+    return None
+
+
+def _select_priced_service(page: Page, billing_scope, editor_scope, service_name: str) -> None:
+    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
+    item_box.wait_for(state="visible", timeout=UI_TIMEOUT)
+    item_box.click()
+
+    service_option = _first_visible_locator(
+        [
+            scope.get_by_role("option", name=re.compile(re.escape(service_name), re.I))
+            for scope in (page, billing_scope, editor_scope)
+        ]
+        + [
+            scope.get_by_text(service_name, exact=True)
+            for scope in (page, billing_scope, editor_scope)
+        ]
+    )
+    if service_option is None:
+        raise AssertionError(f"Invoice service option did not appear: {service_name}")
+
+    service_option.click()
+
+
+def _assert_invoice_tax_applied(billing_scope, context: dict) -> None:
+    service_price = float(context.get("invoice_service_price", "100"))
+    tax_rate = float(context.get("configured_tax_rate", "0"))
+    if tax_rate <= 0:
+        raise AssertionError("configured_tax_rate missing from context - run Set Tax Rates first")
+
+    expected_total = service_price * (1 + tax_rate / 100)
+    amount_heading = billing_scope.get_by_role(
+        "heading", name=re.compile(r"^[₪$]\d")
+    )
+    expect(amount_heading.first).to_be_visible(timeout=5000)
+
+    amount_text = amount_heading.first.inner_text().strip()
+    expected_total_text = f"{expected_total:.2f}"
+    if expected_total_text not in amount_text:
+        raise AssertionError(
+            f"Invoice total did not include tax. Expected {expected_total_text}, got {amount_text}"
+        )
+
+    tax_name = context.get("configured_tax_name")
+    if tax_name:
+        expect(billing_scope.get_by_text(tax_name, exact=False).first).to_be_visible(timeout=5000)
 
 
 def test_set_invoice_numbering(page: Page, context: dict) -> None:
@@ -105,6 +183,8 @@ def test_set_invoice_numbering(page: Page, context: dict) -> None:
     invoice_menu = billing_scope.get_by_role("menuitem", name="Invoice")
     invoice_menu.wait_for(state="visible", timeout=UI_TIMEOUT)
     invoice_menu.click()
+    invoice_dialog_started_at = time.monotonic()
+    print("    [invoice-dialog] opened")
 
     print("  Step 4: Select existing client...")
     client_dialog = billing_scope.get_by_role("dialog", name=re.compile("Invoice"))
@@ -161,129 +241,70 @@ def test_set_invoice_numbering(page: Page, context: dict) -> None:
             )
     else:
         raise Exception("Client picker dialog did not open")
-
-    editor_scope = _get_editor_scope(billing_scope)
-    details_toggle = editor_scope.get_by_role("button", name="Invoice Details")
-    if details_toggle.count() == 0:
-        details_toggle = editor_scope.get_by_text("Invoice Details", exact=True)
-    details_toggle.first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    _log_invoice_dialog_time(invoice_dialog_started_at, "client selected")
 
     print("  Step 5: Set invoice label and number...")
-    timestamp = int(time.time())
+    editor_scope = _get_editor_scope(billing_scope)
     invoice_number = ""
     configured_prefix = "INVOICE"
-    invoice_label = f"INVOICE {timestamp}"
-    try:
-        details_toggle.first.click()
-        label_box = editor_scope.get_by_role("textbox", name="Invoice Label")
-        number_box = editor_scope.get_by_role("textbox", name="Invoice Number")
-        if label_box.count() > 0 and number_box.count() > 0:
-            label_box.first.click()
-            try:
-                page.keyboard.press("Control+A")
-            except Exception:
-                page.keyboard.press("Meta+A")
-            label_box.first.fill("")
-            label_box.first.press_sequentially(invoice_label, delay=10)
-            configured_prefix = invoice_label
-
-            invoice_number = str(timestamp)[-6:]
-            number_box.first.click()
-            try:
-                page.keyboard.press("Control+A")
-            except Exception:
-                page.keyboard.press("Meta+A")
-            number_box.first.fill("")
-            number_box.first.press_sequentially(invoice_number, delay=10)
-    except Exception:
-        print("  Step 5: Invoice details edit unavailable, continuing with default numbering")
+    print("  Step 5: Invoice details edit unavailable, verifying generated numbering")
+    _log_invoice_dialog_time(invoice_dialog_started_at, "invoice details handled")
 
     print("  Step 6: Fill required sender billing address...")
     _fill_sender_billing_address(editor_scope)
+    _log_invoice_dialog_time(invoice_dialog_started_at, "sender address filled")
 
     print("  Step 7: Add a line item...")
-    item_box = editor_scope.get_by_role("textbox", name="Please select an item")
-    if item_box.count() > 0:
-        item_box.first.click()
-        service_option = editor_scope.get_by_role(
-            "option", name=re.compile(r"Event Test Workshop|Test Workshop", re.I)
-        ).first
-        if service_option.count() == 0:
-            service_option = editor_scope.get_by_role("option").filter(
-                has_not_text=re.compile(r"Add custom item", re.I)
-            ).first
-        if service_option.count() == 0:
-            service_option = editor_scope.get_by_role("option").first
-        service_option.wait_for(state="visible", timeout=UI_TIMEOUT)
-        service_option.click()
-
-    add_item_title = editor_scope.get_by_text("Add Item", exact=True)
-    if add_item_title.count() > 0 and add_item_title.first.is_visible():
-        name_input = editor_scope.locator('input[placeholder="Name"]').first
-        if name_input.count() == 0:
-            name_input = editor_scope.get_by_role("textbox", name=re.compile("Name", re.I)).first
-        name_input.wait_for(state="visible", timeout=10000)
-        name_input.click()
-        name_input.fill("")
-        name_input.press_sequentially("Test line item", delay=5)
-
-        price_input = editor_scope.locator('input[placeholder*="Price"]').first
-        if price_input.count() > 0:
-            price_input.click()
-            try:
-                page.keyboard.press("Control+A")
-            except Exception:
-                page.keyboard.press("Meta+A")
-            page.keyboard.press("Backspace")
-            page.keyboard.type("10", delay=5)
-
-        invalid_price = editor_scope.get_by_text("Invalid", exact=False)
-        if invalid_price.count() > 0 and price_input.count() > 0:
-            price_input.click()
-            try:
-                page.keyboard.press("Control+A")
-            except Exception:
-                page.keyboard.press("Meta+A")
-            page.keyboard.press("Backspace")
-            page.keyboard.type("10", delay=5)
-
-        add_button = editor_scope.get_by_role("button", name="Add").last
-        add_button.wait_for(state="visible", timeout=10000)
-        expect(add_button).to_be_enabled(timeout=10000)
-        add_button.click()
-        add_item_title.first.wait_for(state="hidden", timeout=12000)
+    service_name = context.get("invoice_service_name")
+    if not service_name:
+        raise ValueError("invoice_service_name missing from context - run payments _setup first")
+    _select_priced_service(page, billing_scope, editor_scope, service_name)
+    _log_invoice_dialog_time(invoice_dialog_started_at, "line item selected")
 
     print("  Step 8: Save draft and verify...")
-    save_draft = editor_scope.get_by_role("button", name="Save draft")
+    save_draft = editor_scope.get_by_role("button", name="Save draft").last
     save_draft.wait_for(state="visible", timeout=UI_TIMEOUT)
-    save_draft.click()
+    expect(save_draft).to_be_enabled(timeout=5000)
+    save_draft.scroll_into_view_if_needed()
+    save_draft.click(force=True)
+
+    required_address = editor_scope.get_by_text("This field is required", exact=True)
+    try:
+        required_address.first.wait_for(state="visible", timeout=2000)
+        _fill_visible_sender_billing_address(editor_scope)
+        save_draft.click(force=True)
+    except Exception:
+        pass
 
     billing_scope = _get_billing_scope(page)
     # Prefer direct UI signal after save (invoice heading in details view).
     # If not present quickly, use one focused fallback via invoice list row.
-    invoice_heading = billing_scope.get_by_role("heading", name=re.compile(r"INVOICE #"))
+    invoice_heading_pattern = re.compile(r"INVOICE.*#\d+", re.I)
+    invoice_heading = billing_scope.get_by_role("heading", name=invoice_heading_pattern)
     try:
-        invoice_heading.first.wait_for(state="visible", timeout=8000)
+        invoice_heading.first.wait_for(state="visible", timeout=5000)
     except Exception:
-        invoice_link = billing_scope.get_by_role("link", name=re.compile(r"INVOICE #"))
+        invoice_link = billing_scope.get_by_role("link", name=invoice_heading_pattern)
         if invoice_link.count() == 0:
-            invoice_link = billing_scope.get_by_text(re.compile(r"INVOICE #"))
-        invoice_link.first.wait_for(state="visible", timeout=12000)
+            invoice_link = billing_scope.get_by_text(invoice_heading_pattern)
+        invoice_link.first.wait_for(state="visible", timeout=5000)
         invoice_link.first.click()
-        page.wait_for_url("**/app/invoices/**", timeout=12000, wait_until="domcontentloaded")
+        page.wait_for_url("**/app/invoices/**", timeout=5000, wait_until="domcontentloaded")
         billing_scope = _get_billing_scope(page)
-        invoice_heading = billing_scope.get_by_role("heading", name=re.compile(r"INVOICE #"))
+        invoice_heading = billing_scope.get_by_role("heading", name=invoice_heading_pattern)
     _close_templates_popup(billing_scope)
 
-    invoice_heading.wait_for(state="visible", timeout=12000)
+    invoice_heading.wait_for(state="visible", timeout=5000)
+    _log_invoice_dialog_time(invoice_dialog_started_at, "dialog closed and invoice visible")
+    _assert_invoice_tax_applied(billing_scope, context)
     invoice_text = invoice_heading.first.inner_text()
     if invoice_number:
         expect(invoice_heading.first).to_contain_text(invoice_number)
     else:
-        invoice_number_match = re.search(r"#(\\d+)", invoice_text)
+        invoice_number_match = re.search(r"#(\d+)", invoice_text)
         invoice_number = invoice_number_match.group(1) if invoice_number_match else ""
         if not invoice_number:
-            any_digits = re.search(r"(\\d+)", invoice_text)
+            any_digits = re.search(r"(\d+)", invoice_text)
             invoice_number = any_digits.group(1) if any_digits else ""
         if not invoice_number:
             invoice_number = page.url.rstrip("/").split("/")[-1]

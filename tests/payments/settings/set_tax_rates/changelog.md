@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-19 - Apply Default Tax To Existing Items
+**Phase**: Script, test
+**Author**: Cursor AI
+**Reason**: Category workflow invoices did not include configured tax unless the default tax was applied to all existing item types.
+**Changes**:
+- Added "Apply default tax to" Select All handling for services, products, and packages.
+- Added strict confirmation of the "Also apply to existing items" dialog after saving.
+- Switched tax rate input to `fill()` to avoid masked-value issues.
+- Optimized the tax settings wait by preferring the "Add new tax" button.
+- Updated invoice numbering verification to select the setup service and assert the configured tax appears on the invoice.
+
 ## 2026-02-11 - Initial Build
 **Phase**: Steps, script, test
 **Author**: Cursor AI (exploration)

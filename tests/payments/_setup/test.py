@@ -108,7 +108,6 @@ def _create_required_payment_service(context: dict) -> None:
         "price": PAYMENT_SERVICE_PRICE,
         "display": "true",
         "max_attendance": 2,
-        "tax_uids": [],
     }
 
     response = _account_request(context, "POST", "/v2/settings/services", json=payload)

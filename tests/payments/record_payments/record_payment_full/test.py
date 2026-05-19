@@ -3,9 +3,64 @@
 # Source: tests/payments/record_payments/record_payment_full/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
+import re
 import time
 
 from playwright.sync_api import Page
+
+
+def _select_checkout_client(page: Page, context: dict) -> None:
+    select_client = page.get_by_role(
+        "button", name=re.compile(r"^Select (Client|Property)$", re.I)
+    )
+    select_client.wait_for(state="visible", timeout=30000)
+    select_client.click()
+
+    iframe = page.frame_locator('iframe[title="angularjs"]')
+    dialog = iframe.get_by_role("dialog")
+    dialog.wait_for(state="visible", timeout=30000)
+
+    client_name = context.get("created_client_name") or context.get("invoice_client_search_term")
+    if client_name:
+        client = dialog.get_by_text(client_name, exact=False).first
+        if client.count() > 0:
+            client.click()
+            dialog.wait_for(state="hidden", timeout=30000)
+            return
+
+    recently_active_list = dialog.get_by_role("list").nth(1)
+    recently_active_list.get_by_role("listitem").first.click()
+    dialog.wait_for(state="hidden", timeout=30000)
+
+
+def _open_checkout(page: Page) -> None:
+    if "/app/pos" in page.url:
+        return
+
+    checkout_link = page.get_by_text("Checkout", exact=True).first
+    if checkout_link.count() > 0 and checkout_link.is_visible():
+        checkout_link.click()
+        page.wait_for_url("**/app/pos**", timeout=30000, wait_until="domcontentloaded")
+        return
+
+    sales_button = page.locator('[data-qa="nav-sales"]')
+    if sales_button.count() == 0:
+        sales_button = page.get_by_role("button", name="Sales", exact=True).first
+    else:
+        sales_button = sales_button.first
+    sales_button.wait_for(state="visible", timeout=5000)
+    sales_button.click()
+
+    try:
+        page.wait_for_url("**/app/pos**", timeout=5000, wait_until="domcontentloaded")
+        return
+    except Exception:
+        pass
+
+    checkout_link = page.get_by_text("Checkout", exact=True).first
+    checkout_link.wait_for(state="visible", timeout=5000)
+    checkout_link.click()
+    page.wait_for_url("**/app/pos**", timeout=30000, wait_until="domcontentloaded")
 
 
 def test_record_payment_full(page: Page, context: dict) -> None:
@@ -26,14 +81,7 @@ def test_record_payment_full(page: Page, context: dict) -> None:
 
     # Step 1: Navigate to Checkout
     print("  Step 1: Navigate to Checkout...")
-    sales_button = page.locator('[data-qa="nav-sales"]')
-    if sales_button.count() == 0:
-        sales_button = page.get_by_role("button", name="Sales", exact=True).first
-    else:
-        sales_button = sales_button.first
-    sales_button.wait_for(state="visible", timeout=5000)
-    sales_button.click()
-    page.wait_for_url("**/app/pos**", timeout=30000, wait_until="domcontentloaded")
+    _open_checkout(page)
 
     # Step 2: Add a Custom Item with a cost
     print("  Step 2: Add Custom Item...")
@@ -57,17 +105,7 @@ def test_record_payment_full(page: Page, context: dict) -> None:
 
     # Step 3: Select a client
     print("  Step 3: Select client...")
-    select_property = page.get_by_role("button", name="Select Property")
-    select_property.wait_for(state="visible", timeout=30000)
-    select_property.click()
-
-    iframe = page.frame_locator('iframe[title="angularjs"]')
-    dialog = iframe.get_by_role("dialog")
-    dialog.wait_for(state="visible", timeout=30000)
-
-    recently_active_list = dialog.get_by_role("list").nth(1)
-    first_client = recently_active_list.get_by_role("listitem").first
-    first_client.click()
+    _select_checkout_client(page, context)
 
     # Step 4: Click Checkout
     print("  Step 4: Click Checkout...")
