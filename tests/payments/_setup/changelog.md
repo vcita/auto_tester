@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-05-19 - Allow Default Tax Inheritance
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Payments workflow needed setup services to receive the default tax configured by settings tests.
+**Changes**:
+- Removed the explicit empty `tax_uids` payload so created services can inherit default taxes.
+
 ## 2026-05-17 - Create Paid Invoice Service Via API
 **Phase**: Steps, script, test
 **Author**: Cursor AI

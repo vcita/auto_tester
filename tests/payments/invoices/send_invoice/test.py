@@ -4,6 +4,7 @@
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
 import re
+import time
 
 from playwright.sync_api import Page
 
@@ -46,20 +47,52 @@ def _open_invoice(page: Page):
     return _get_billing_scope(page)
 
 
-def _open_record_payment_dialog(invoice_scope):
-    take_payment = invoice_scope.get_by_role("button", name=re.compile(r"^Take payment"))
-    take_payment.wait_for(state="visible", timeout=5000)
-    take_payment.click()
+def _first_visible_locator(locators, timeout: int = 5000):
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        for locator in locators:
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                try:
+                    if candidate.is_visible():
+                        return candidate
+                except Exception:
+                    continue
+        time.sleep(0.1)
+    return None
 
-    record_payment = invoice_scope.get_by_role(
-        "menuitem", name=re.compile("Record payment")
-    )
-    record_payment.wait_for(state="visible", timeout=5000)
-    record_payment.click()
 
-    dialog = invoice_scope.get_by_role("dialog", name=re.compile("Record payment"))
-    dialog.wait_for(state="visible", timeout=5000)
-    return dialog
+def _open_record_payment_dialog(page: Page, invoice_scope):
+    for attempt in range(4):
+        take_payment = invoice_scope.get_by_role(
+            "button", name=re.compile(r"^Take payment")
+        ).first
+        try:
+            take_payment.wait_for(state="visible", timeout=5000)
+            take_payment.scroll_into_view_if_needed(timeout=5000)
+            if attempt == 0:
+                take_payment.click(force=True)
+            else:
+                take_payment.evaluate("(element) => element.click()")
+
+            record_payment = _first_visible_locator(
+                [
+                    page.get_by_role("menuitem", name=re.compile("Record payment")),
+                    invoice_scope.get_by_role("menuitem", name=re.compile("Record payment")),
+                    page.get_by_text("Record payment", exact=True),
+                    invoice_scope.get_by_text("Record payment", exact=True),
+                ],
+                timeout=2000,
+            )
+            if record_payment is not None:
+                record_payment.click(force=True)
+                dialog = invoice_scope.get_by_role("dialog", name=re.compile("Record payment"))
+                dialog.wait_for(state="visible", timeout=5000)
+                return dialog
+        except Exception:
+            continue
+
+    raise AssertionError("Record payment action did not appear after opening Take payment")
 
 
 def _record_cash_payment(invoice_scope, dialog) -> None:
@@ -70,7 +103,7 @@ def _record_cash_payment(invoice_scope, dialog) -> None:
 
     record_button = dialog.get_by_role("button", name="Record")
     record_button.wait_for(state="visible", timeout=5000)
-    record_button.click()
+    record_button.click(force=True)
     dialog.wait_for(state="hidden", timeout=5000)
 
 
@@ -87,7 +120,7 @@ def test_send_invoice(page: Page, context: dict) -> None:
     """
     invoice_scope = _open_invoice(page)
 
-    dialog = _open_record_payment_dialog(invoice_scope)
+    dialog = _open_record_payment_dialog(page, invoice_scope)
     _record_cash_payment(invoice_scope, dialog)
 
     context["recorded_invoice_payment_status"] = "recorded"

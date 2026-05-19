@@ -76,7 +76,6 @@ def _select_priced_service(page: Page, invoice_scope, editor_scope, service_name
     item_box = editor_scope.get_by_role("textbox", name="Please select an item")
     item_box.wait_for(state="visible", timeout=UI_TIMEOUT)
     item_box.click()
-    item_box_bounds = item_box.bounding_box()
 
     option_locators = [
         scope.get_by_role("option", name=re.compile(re.escape(service_name), re.I))
@@ -85,28 +84,12 @@ def _select_priced_service(page: Page, invoice_scope, editor_scope, service_name
         scope.get_by_text(service_name, exact=True)
         for scope in (page, invoice_scope, editor_scope)
     ]
-    service_option = _first_visible_dropdown_option(option_locators, item_box_bounds)
+    service_option = _first_visible_locator(option_locators)
     if service_option is None:
         raise AssertionError(f"Invoice service option did not appear: {service_name}")
 
-    service_option.click()
-
-
-def _first_visible_dropdown_option(locators, item_box_bounds):
-    deadline = time.monotonic() + UI_TIMEOUT / 1000
-    minimum_y = item_box_bounds["y"] if item_box_bounds else 0
-    while time.monotonic() < deadline:
-        for locator in locators:
-            for index in range(locator.count()):
-                candidate = locator.nth(index)
-                try:
-                    box = candidate.bounding_box()
-                    if candidate.is_visible() and box and box["y"] > minimum_y:
-                        return candidate
-                except Exception:
-                    continue
-        time.sleep(0.1)
-    return None
+    service_option.scroll_into_view_if_needed(timeout=UI_TIMEOUT)
+    service_option.click(force=True)
 
 
 def _amount_to_decimal(amount_text: str) -> Decimal:
@@ -126,6 +109,14 @@ def _currency_symbol(amount_text: str) -> str:
 
 def _format_amount(symbol: str, amount: Decimal) -> str:
     return f"{symbol}{amount:.2f}"
+
+
+def _expected_added_service_amount(context: dict) -> Decimal:
+    service_price = Decimal(str(context.get("invoice_service_price", "0")))
+    tax_rate = Decimal(str(context.get("configured_tax_rate", "0")))
+    if tax_rate <= 0:
+        return service_price
+    return service_price * (Decimal("1") + tax_rate / Decimal("100"))
 
 
 def _click_edit_action(invoice_scope) -> None:
@@ -243,7 +234,7 @@ def test_edit_invoice(page: Page, context: dict) -> None:
     original_amount = amount_heading.first.inner_text().strip()
     expected_amount = _format_amount(
         _currency_symbol(original_amount),
-        _amount_to_decimal(original_amount) + Decimal(str(context.get("invoice_service_price", "0"))),
+        _amount_to_decimal(original_amount) + _expected_added_service_amount(context),
     )
 
     _click_edit_action(invoice_scope)

@@ -3,7 +3,7 @@
 from typing import Any, Dict, Optional
 
 
-DEFAULT_VIEWPORT = {"width": 1280, "height": 720}
+DEFAULT_VIEWPORT = {"width": 1440, "height": 900}
 
 
 def get_browser_viewport(config: Optional[Dict[str, Any]]) -> Dict[str, int]:

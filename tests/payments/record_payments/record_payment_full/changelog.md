@@ -4,6 +4,17 @@ All changes to steps.md, script.md, and test.py are logged here.
 
 ---
 
+## 2026-05-19 - Stabilize Workflow Navigation
+
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Full payments category runs can start from invoice pages where Sales only expands the sidebar instead of navigating directly to Checkout.
+
+**Changes**:
+
+- Added checkout navigation that handles both direct `/app/pos` navigation and expanded Sales submenu state.
+- Reused the created setup client instead of selecting an arbitrary recently active client.
+
 ## 2026-03-04 - Full Rebuild
 
 **Phase**: All files (steps.md, script.md, test.py, changelog.md)
