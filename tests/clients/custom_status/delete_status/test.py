@@ -46,6 +46,7 @@ def test_delete_status(page: Page, context: dict) -> None:
 
     print("  Step 5: Deleting now-unused custom status...")
     delete_unused_status(page, status_name)
+    assert_status_filter_options(page, status_name, should_exist=False)
 
     context["custom_status_delete_name"] = status_name
     context["custom_status_delete_client_id"] = client["id"]

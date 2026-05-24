@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-24 - Dismiss In-Use Status Dialog Explicitly
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Headless validation showed the in-use delete blocker appears as a "Cannot delete status" dialog that the generic role dialog detector did not catch.
+**Changes**:
+- Detect the "Cannot delete status" blocker by title.
+- Click the first actually visible `Ok` action and wait for the dialog to close before asserting the status remains available.
+- Check the nested Vuetage iframe where the Client Card status dialog is rendered in headless runs.
+
+## 2026-05-24 - Restore Deleted Status Filter Assertion
+**Phase**: Steps, script, test
+**Author**: Cursor AI
+**Reason**: Code review found scope loss because the migrated delete flow stopped verifying that the deleted status disappears from CRM Status filter options.
+**Changes**:
+- Restored the deleted-status filter option assertion after unused status deletion.
+- Switched CRM list navigation to visible sidebar navigation through Dashboard before opening filters.
+
 ## 2026-05-24 - Verify Deletion In Client Card Settings
 **Phase**: Steps, script, test
 **Author**: Cursor AI

@@ -50,10 +50,10 @@ client = {
 - Return to Client Card settings.
 - Remove the custom status chip.
 - Accept the delete confirmation when shown.
-- Verify the status no longer appears in Client Card settings.
+- Verify the status no longer appears as a CRM Status filter option.
 
 ## Success Verification
 - In-use status deletion is blocked.
 - The client can be reassigned to `Lead`.
 - The unused status is deleted.
-- The deleted status is no longer listed in Client Card settings.
+- The deleted status is no longer available in the Status filter.

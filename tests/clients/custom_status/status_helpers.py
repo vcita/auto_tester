@@ -5,8 +5,8 @@ from typing import Iterable
 import requests
 from playwright.sync_api import Page, expect
 
-REQUEST_TIMEOUT = 30
-UI_TIMEOUT = 30000
+REQUEST_TIMEOUT = 10
+UI_TIMEOUT = 5000
 
 
 def create_client_via_api(context: dict, client: dict) -> dict:
@@ -132,10 +132,7 @@ def assert_client_status(page: Page, status_name: str) -> None:
 def attempt_delete_status_in_use(page: Page, status_name: str) -> None:
     status_scope = open_client_status_settings(page)
     click_status_delete(status_scope, status_name)
-    dialog = visible_dialog(page)
-    if dialog:
-        dismiss = dialog.get_by_role("button", name=re.compile(r"Cancel|OK|Ok|Close", re.I)).first
-        dismiss.click()
+    dismiss_status_delete_blocker_if_visible(page)
     status_chip(status_scope, status_name).wait_for(state="visible", timeout=UI_TIMEOUT)
 
 
@@ -168,26 +165,58 @@ def click_status_delete(status_scope, status_name: str) -> None:
     close_button.click()
 
 
-def visible_dialog(page: Page):
+def dismiss_status_delete_blocker_if_visible(page: Page) -> None:
     candidates = [
-        page.get_by_role("dialog"),
-        page.frame_locator('iframe[title="angularjs"]').get_by_role("dialog"),
+        (
+            page.get_by_text("Cannot delete status", exact=True),
+            page.get_by_text("Ok", exact=True),
+        ),
+        (
+            page.frame_locator('iframe[title="angularjs"]').get_by_text(
+                "Cannot delete status", exact=True
+            ),
+            page.frame_locator('iframe[title="angularjs"]').get_by_text("Ok", exact=True),
+        ),
+        (
+            page.frame_locator('iframe[title="angularjs"]')
+            .frame_locator("#vue_iframe_layout")
+            .get_by_text("Cannot delete status", exact=True),
+            page.frame_locator('iframe[title="angularjs"]')
+            .frame_locator("#vue_iframe_layout")
+            .get_by_text("Ok", exact=True),
+        ),
     ]
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        for candidate in candidates:
-            if candidate.count() > 0 and candidate.first.is_visible():
-                return candidate.first
+        for title, ok_button in candidates:
+            if title.count() > 0 and title.first.is_visible():
+                click_first_visible(ok_button)
+                title.first.wait_for(state="hidden", timeout=UI_TIMEOUT)
+                return
         time.sleep(0.1)
-    return None
+
+
+def click_first_visible(locator) -> None:
+    for index in range(locator.count()):
+        candidate = locator.nth(index)
+        if candidate.is_visible():
+            candidate.click()
+            return
+    locator.first.click()
 
 
 def open_clients_list(page: Page) -> None:
     if re.search(r"/app/clients/?$", page.url):
         wait_for_clients_table(page)
         return
-    app_base = page.url.split("/app/")[0]
-    page.goto(f"{app_base}/app/clients", wait_until="domcontentloaded")
+    if "/app/dashboard" not in page.url:
+        dashboard_link = page.get_by_text("Dashboard", exact=True)
+        dashboard_link.wait_for(state="visible", timeout=UI_TIMEOUT)
+        dashboard_link.click()
+        page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    clients_link = page.get_by_text("Clients", exact=True).first
+    clients_link.wait_for(state="visible", timeout=UI_TIMEOUT)
+    clients_link.click()
     page.wait_for_url("**/app/clients", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
     wait_for_clients_table(page)
 
