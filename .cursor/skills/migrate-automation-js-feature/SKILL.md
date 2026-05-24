@@ -38,8 +38,19 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 7. After a successful migration, run the original and migrated tests and report the comparison.
    - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
-   - Summarize whether scope was preserved against `migration_mapping.md`.
-   - Summarize whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
+   - Report the comparison in chat using this table format:
+
+     | Check | automation-js original | auto_tester migration |
+     | --- | --- | --- |
+     | Command | `<command>` | `<command>` |
+     | Result | `<scenario/step pass-fail count>` | `<test pass-fail count>` |
+     | Duration | `<duration>` | `<duration>` |
+     | Duration improvement | Baseline | `<percent faster/slower than original>` |
+     | Scope coverage | `<what original covered>` | `<how mapping preserves it>` |
+     | Quality notes | `<legacy stability/selector/wait notes>` | `<selector stability, waits, cleanup, intentional workflow differences>` |
+
+   - Summarize under the table whether scope was preserved against `migration_mapping.md`.
+   - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
 
 ## Definition Of Done
 
