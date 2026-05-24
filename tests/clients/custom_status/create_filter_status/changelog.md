@@ -1,0 +1,60 @@
+# Changelog
+
+## 2026-05-24 - Stabilize Second Client Status
+**Phase**: Steps, script, test
+**Author**: Cursor AI
+**Reason**: Repeated focused runs showed the `status` field on API client creation is not consistently reflected in CRM filtering.
+**Changes**:
+- Keep creating the second client through the API with the custom status payload.
+- Open the API-created second client and ensure the status is present via the same UI path before asserting the two-client filter result.
+
+## 2026-05-24 - Extend CRM Index Wait
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: API-created clients can lag behind CRM table indexing; the second API-created client was not visible within the first 60 seconds.
+**Changes**:
+- Extended the dynamic filtered-client condition wait to 150 seconds.
+
+## 2026-05-24 - Scope CRM Filter Readiness
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Focused run found `get_by_role("button", name="Filters")` also matched the active filter summary button.
+**Changes**:
+- Wait for the CRM table filter action via `.table-actions__filter` instead of the ambiguous button role.
+
+## 2026-05-24 - Open API Client By ID For Status Assignment
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: The CRM table intentionally remained empty under the custom status filter, so searching from that state could not open the API-created client.
+**Changes**:
+- Open the API-created client detail page by returned client ID before assigning the custom status.
+
+## 2026-05-24 - Stabilize Settings To Clients Navigation
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Focused run left the Clients page on a spinner after clicking from Client Card settings, so the Filters toolbar never rendered.
+**Changes**:
+- Navigate directly to the app Clients route from settings before waiting for the CRM toolbar.
+
+## 2026-05-24 - Clear Status Filter Before Client Search
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Focused run timed out opening the API-created client because the Status filter remained active after the empty-filter assertion.
+**Changes**:
+- Switched filter clearing to click the visible `Clear all` action and wait for it to disappear before searching the client list.
+
+## 2026-05-24 - Fix Status Input Strict Mode
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Focused run found `div.client-custom-statuses input` matched both the visible text input and a hidden combobox input.
+**Changes**:
+- Switched custom status creation to the visible `Add statuses` placeholder locator.
+
+## 2026-05-24 - Initial Migration
+**Phase**: Steps, script, test
+**Author**: Cursor AI
+**Reason**: Migrated automation-js custom status create/filter scenario into auto_tester.
+**Changes**:
+- Added Phase 1 steps covering custom status creation, assignment, and CRM filtering.
+- Added Phase 2 script mapping legacy Selenium page-object behavior to Playwright actions.
+- Added Phase 3 test using API client setup and UI validation for status assignment/filtering.

@@ -1,6 +1,6 @@
 {
   "scope": "payments",
-  "generated_at": "2026-05-19T14:16:35.354424",
+  "generated_at": "2026-05-24T16:00:35.947352",
   "definition": {
     "stable": "latest run status == passed",
     "source_of_truth": "tests/**/_runs/*/run.json"
@@ -10,13 +10,13 @@
     "category_path": "payments",
     "last_result": "passed",
     "is_stable": true,
-    "last_run_id": "20260519_141350",
-    "last_run_at": "2026-05-19T14:16:35.241639",
+    "last_run_id": "20260524_155942",
+    "last_run_at": "2026-05-24T16:00:35.881796",
     "summary": {
-      "passed": 15,
+      "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "total": 15
+      "total": 6
     }
   },
   "subcategories": [
@@ -39,8 +39,8 @@
       "category_path": "payments/invoices",
       "last_result": "passed",
       "is_stable": true,
-      "last_run_id": "20260519_141350",
-      "last_run_at": "2026-05-19T14:15:07.955821",
+      "last_run_id": "20260524_155942",
+      "last_run_at": "2026-05-24T16:00:35.273009",
       "summary": {
         "passed": 5,
         "failed": 0,
