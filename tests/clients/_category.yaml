@@ -11,6 +11,7 @@ execution_order:
   - edit_matter
   - edit_contact
   - notes
+  - custom_status
   - delete_matter
 # Test metadata (order also in execution_order above)
 tests:

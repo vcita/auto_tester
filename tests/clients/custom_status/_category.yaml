@@ -1,0 +1,26 @@
+# Custom Status Subcategory
+# Tests for creating, filtering, assigning, and deleting client custom statuses.
+
+name: Custom Status
+description: Tests for CRM client custom status management and filtering
+
+tests:
+  - id: create_filter_status
+    name: Create And Filter Custom Status
+    status: active
+    priority: high
+    description: Create a custom status, assign it to clients, and verify CRM filtering
+  - id: delete_status
+    name: Delete Custom Status
+    status: active
+    priority: high
+    description: Verify in-use custom statuses cannot be deleted and unused statuses can be removed
+
+status: active
+priority: high
+tags:
+  - clients
+  - crm
+  - custom_status
+owner: QA Team
+created_at: 2026-05-24
