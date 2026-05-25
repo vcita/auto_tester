@@ -1,0 +1,21 @@
+# Recently Active Subcategory
+# Tests for the dashboard recently active clients widget.
+
+name: Recently Active
+description: Tests for recently active clients on the dashboard
+
+tests:
+  - id: recently_active_clients
+    name: Recently Active Clients
+    status: active
+    priority: high
+    description: Verify dashboard recently active clients empty, one-client, and ordering states
+
+status: active
+priority: high
+tags:
+  - clients
+  - dashboard
+  - recently_active
+owner: QA Team
+created_at: 2026-05-24

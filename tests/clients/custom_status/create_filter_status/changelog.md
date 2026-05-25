@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-05-25 - Fresh Validation Passed
+**Phase**: Validation
+**Author**: Cursor AI
+**Reason**: Backfilled the migration tracker with fresh original-vs-migrated evidence.
+**Changes**:
+- Original automation-js feature passed with 2 scenarios and 20 steps in 1m47.029s.
+- Migrated custom_status scope passed with 2/2 tests in 73.6 seconds.
+- Final stress validation passed 3/3 iterations after filter popover retry stabilization.
+
+## 2026-05-25 - Retry Opening Status Filter
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Stress validation captured the clients table loaded with both expected clients, but the filter popover was closed while waiting for the Status filter option.
+**Changes**:
+- Retry opening the Filters popover once before failing on a missing Status filter control.
+
+## 2026-05-25 - Extend Clients Table Readiness Wait
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Stress validation showed the Clients page can stay on the loading spinner for more than the generic 5 second UI timeout after returning from a client detail page.
+**Changes**:
+- Added a dedicated 45 second timeout for waiting on the CRM table filter toolbar.
+- Kept the existing dynamic filtered-client assertion for actual data indexing.
+
+## 2026-05-25 - Use Current Client Header Edit Selector
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Fresh headed validation reached the client page but timed out waiting for the legacy contact details edit button.
+**Changes**:
+- Reused the current client-card edit selector from the edit contact test.
+- Wait for the Angular iframe and edit contact dialog before changing the status.
+
 ## 2026-05-24 - Stabilize Second Client Status
 **Phase**: Steps, script, test
 **Author**: Cursor AI

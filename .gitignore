@@ -61,6 +61,9 @@ runs_index/
 .cursor/heal_requests/*.md
 .cursor/bug_reports/*.md
 
+# Local migration planning artifacts
+**/migration_mapping.md
+
 # Keep the directory structure
 !tests/.gitkeep
 !.cursor/heal_requests/.gitkeep

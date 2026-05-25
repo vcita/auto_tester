@@ -5,12 +5,13 @@
 name: Clients
 description: Tests for creating, managing, and deleting matters (clients/properties/patients)
 
-# Full run order: test ids and subcategory folder names (notes runs after edit_contact)
+# Full run order: test ids and subcategory folder names
 execution_order:
   - create_matter
   - edit_matter
   - edit_contact
   - notes
+  - recently_active
   - custom_status
   - delete_matter
 # Test metadata (order also in execution_order above)
