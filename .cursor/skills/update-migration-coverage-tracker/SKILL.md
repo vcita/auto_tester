@@ -45,7 +45,7 @@ Keep these summary metrics current:
 
 - Total feature files: count all `*.feature` files under `automation-js/features`.
 - Total scenarios: count lines starting with `Scenario:` or `Scenario Outline:` under `automation-js/features`.
-- Migrated feature files: count rows in the Migration Coverage table with status `Migrated`.
+- Migrated feature files: count distinct feature paths whose full scenario set is covered by migrated rows. Do not count a feature file as migrated when only some of its scenarios were migrated.
 - Migrated scenarios: count original scenarios covered by migrated rows.
 - Remaining feature files: total feature files minus migrated feature files.
 - Remaining scenarios: total scenarios minus migrated scenarios.
@@ -56,6 +56,8 @@ Use a structured parser or a small script for counts. Do not update totals by me
 
 1. Fetch the current Confluence page in markdown.
 2. Add or update one row in the Migration Coverage table for the migrated scope.
+   - Prefer one row per legacy feature file when the full file is migrated.
+   - If only selected scenarios from a feature file are migrated, make that clear in `Scope covered` and update scenario progress only.
 3. Update Summary rows:
    - `Migration progress by feature file`
    - `Migration progress by scenario`
@@ -105,6 +107,8 @@ Use this Migration Coverage table structure:
 | Feature file | auto_tester path | Status | Scope covered | Original result | Migrated result | Duration improvement | Stability | Jira | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `features/...` | `tests/...` | Migrated | concise scope summary | `scenario/step count`, `duration` | `test pass count`, `duration` | `N.N% faster` | focused/stress evidence | Jira link | PR link or TBD |
+
+For partial feature-file migrations, keep the same feature path but write the migrated scenario name(s) in `Scope covered`; do not increment `Migrated feature files` until every scenario in that feature file is migrated.
 
 ## Final Response
 
