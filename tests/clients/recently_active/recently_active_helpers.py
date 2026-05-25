@@ -5,9 +5,9 @@ from typing import Iterable
 import requests
 from playwright.sync_api import Page, expect
 
-REQUEST_TIMEOUT = 30
-UI_TIMEOUT = 10000
-INDEX_TIMEOUT_SECONDS = 90
+REQUEST_TIMEOUT = 5
+UI_TIMEOUT = 5000
+INDEX_TIMEOUT_SECONDS = 5
 RECENTLY_ACTIVE_VIEW_STORAGE_KEY = "clients-widget-selected-view"
 
 
@@ -145,7 +145,7 @@ def _has_legacy_recently_active_container(page: Page) -> bool:
 
 
 def _legacy_recently_active_container(page: Page):
-    deadline = time.monotonic() + 30
+    deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
         for scope in [page, *page.frames]:
             try:
