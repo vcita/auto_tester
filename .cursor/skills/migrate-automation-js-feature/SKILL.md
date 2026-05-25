@@ -22,6 +22,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Map each legacy step to the auto_tester category/subcategory/test structure.
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
+   - Treat `migration_mapping.md` as a local planning artifact. It is important for preventing scope loss, but it should not be committed or included in the PR.
 4. Implement in strict auto_tester phase order:
    - `steps.md`: user-facing WHAT, no selectors or code.
    - `script.md`: Playwright-oriented HOW, including locator choices and waits.
@@ -58,7 +59,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 The migration is complete only when all three checks pass:
 
 - **High Quality**: phase files are synchronized, helpers are reused or extracted, Python compiles, lints are clean, and changes are logged.
-- **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation is represented or explicitly justified in `migration_mapping.md`.
+- **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation was checked against the local `migration_mapping.md`; the mapping file itself stays out of the PR.
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.
