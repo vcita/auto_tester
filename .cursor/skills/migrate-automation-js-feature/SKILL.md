@@ -51,6 +51,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 
    - Summarize under the table whether scope was preserved against `migration_mapping.md`.
    - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
+8. After the migration satisfies the Definition Of Done, use the `update-migration-coverage-tracker` skill to update the Confluence coverage tracker with real run evidence and current progress totals.
 
 ## Definition Of Done
 
@@ -60,6 +61,7 @@ The migration is complete only when all three checks pass:
 - **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation is represented or explicitly justified in `migration_mapping.md`.
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
+- **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.
 
 ## Translation Rules
 

@@ -3,10 +3,11 @@ import time
 from typing import Iterable
 
 import requests
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, expect
 
 REQUEST_TIMEOUT = 10
 UI_TIMEOUT = 5000
+CLIENTS_TABLE_TIMEOUT = 45000
 
 
 def create_client_via_api(context: dict, client: dict) -> dict:
@@ -105,11 +106,17 @@ def open_client_from_list(page: Page, client_name: str, client_id: str | None = 
 
 
 def set_client_status(page: Page, status_name: str) -> None:
+    page.locator('iframe[title="angularjs"]').wait_for(state="visible", timeout=15000)
     outer = page.frame_locator('iframe[title="angularjs"]')
     inner = outer.frame_locator("#vue_iframe_layout")
-    edit_button = inner.locator("div.contact-details button.edit-button")
-    edit_button.wait_for(state="visible", timeout=UI_TIMEOUT)
+    edit_button = inner.locator(".contact-header > .v-icon.notranslate.edit-button")
+    try:
+        edit_button.wait_for(state="visible", timeout=10000)
+    except PlaywrightTimeoutError:
+        edit_button = inner.locator("div.contact-details button.edit-button")
+        edit_button.wait_for(state="visible", timeout=UI_TIMEOUT)
     edit_button.click()
+    outer.locator("text=Edit contact info").wait_for(state="visible", timeout=UI_TIMEOUT)
 
     status_select = outer.locator('f-client-field[field="statusField"] md-select')
     status_select.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -222,16 +229,26 @@ def open_clients_list(page: Page) -> None:
 
 
 def open_status_filter(page: Page) -> None:
-    filters_button = page.locator(".table-actions__filter")
-    filters_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    filters_button.click()
+    filters_button = page.locator(".table-actions__filter").first
     status_filter = page.locator('[data-qa*="item-client_data_associated_with_field_filter"]').first
-    status_filter.wait_for(state="visible", timeout=UI_TIMEOUT)
+    filters_button.wait_for(state="visible", timeout=UI_TIMEOUT)
+    for attempt in range(2):
+        filters_button.click()
+        try:
+            status_filter.wait_for(state="visible", timeout=UI_TIMEOUT)
+            break
+        except PlaywrightTimeoutError:
+            if attempt == 1:
+                raise
+            page.wait_for_timeout(300)
     status_filter.click()
 
 
 def wait_for_clients_table(page: Page) -> None:
-    page.locator(".table-actions__filter").first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    page.locator(".table-actions__filter").first.wait_for(
+        state="visible",
+        timeout=CLIENTS_TABLE_TIMEOUT,
+    )
 
 
 def visible_client_names(page: Page) -> list[str]:
