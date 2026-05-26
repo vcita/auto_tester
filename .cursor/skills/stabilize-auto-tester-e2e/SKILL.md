@@ -29,6 +29,8 @@ description: Stabilize auto_tester E2E categories and subcategories by investiga
    - Confirm the parent category and every tested subcategory have the expected `stability` block.
    - Do not rely only on the runner's final summary; full-category runs may stamp the parent category without stamping each subcategory file.
    - Preserve existing YAML comments and formatting when adding missing stability blocks manually from real 10/10 output.
+   - If the runner rewrites `_category.yaml`, keep the real stability result but restore comments and indentation before committing.
+   - If waits, timeouts, navigation behavior, or retry logic changed after a stress run, rerun stress before trusting existing `stable` metadata.
 
 ## Setup Data
 
@@ -45,6 +47,16 @@ For auto-account runs, use runner-provided context:
 - `context["api_base_url"]`
 - `context["username"]`
 - `context["password"]`
+
+## Scope And Quality Guardrail
+
+For every stabilization change:
+
+- Re-check `steps.md`, `script.md`, and `test.py` together.
+- Confirm no user-facing assertion, setup path, edge case, or validation intent was removed.
+- If an assertion is removed as redundant, document which remaining assertion preserves the same behavior coverage.
+- Do not mark a test stable if stability was achieved by reducing scope or weakening assertions.
+- Include scope/quality preservation in the final report.
 
 ## Selector Strategy
 
@@ -69,6 +81,18 @@ Do not shorten waits blindly. First determine whether runtime is caused by:
 - Waiting for a condition that never becomes true.
 
 Reduce runtime by removing avoidable setup work or unnecessary fixed waits. Keep explicit waits around real UI transitions.
+
+When enforcing the 5-second wait policy:
+
+- Pass an explicit 5-second `timeout` to `page.goto(...)`; otherwise Playwright can use its default navigation timeout.
+- Cap explicit element, URL, dialog, loader, and polling waits at 5 seconds.
+- If a 5-second cap exposes flakiness, investigate the readiness signal, selector, setup data, or product behavior instead of increasing the timeout.
+- After changing timeout caps, rerun the relevant stress test and update/stamp stability only from that final run.
+
+## Infrastructure Flakes
+
+- Treat account-creation HTTP 5xx responses as transient infrastructure; retry once, then fail normally if the retry also fails.
+- Keep fatal authentication/configuration errors non-retryable.
 
 ## Validation Output
 
