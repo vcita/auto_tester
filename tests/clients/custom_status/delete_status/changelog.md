@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-26 - Retry Client Card Settings Readiness
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Stress validation showed the Client Card settings page can stay on the full-page loader before status deletion.
+**Changes**:
+- Retry opening Client Card settings until the Client status tab and status input are ready.
+- Keep the delete flow waiting on UI state instead of adding a fixed sleep.
+- Removed redundant CRM filter-list checks from the delete scenario; Client Card settings remains the source-of-truth for blocked and completed deletion.
+
 ## 2026-05-24 - Dismiss In-Use Status Dialog Explicitly
 **Phase**: Test
 **Author**: Cursor AI

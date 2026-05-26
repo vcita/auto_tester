@@ -106,7 +106,17 @@ def create_account(api_base_url: str, admin_token: str, directory_id: str, categ
             return _normalize_created_account(data, email, business_name)
         except FatalTokenError:
             raise
-        except AccountCreationError:
+        except AccountCreationError as exc:
+            last_error = exc
+            if _is_retryable_create_error(exc) and attempt < MAX_RETRIES:
+                logger.warning(
+                    "Retry %d/%d for %s after transient create error...",
+                    attempt + 1,
+                    MAX_RETRIES,
+                    category_name,
+                )
+                time.sleep(RETRY_BACKOFF ** (attempt + 1))
+                continue
             raise
         except Exception as exc:
             last_error = exc
@@ -348,3 +358,7 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
         raise AccountCreationError(f"HTTP {status} server error for {category_name}: {detail}")
 
     resp.raise_for_status()
+
+
+def _is_retryable_create_error(exc: AccountCreationError) -> bool:
+    return "server error" in str(exc).lower()

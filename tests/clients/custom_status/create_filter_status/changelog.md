@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-26 - Stabilize Clients Page Readiness
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: 10-run stress validation showed intermittent clients-page navigation/loading timeouts before opening the Status filter.
+**Changes**:
+- Navigate directly to the Clients route instead of relying on sidebar navigation from settings.
+- Wait for Clients page readiness before opening filters.
+- Retry the Status filter dropdown when the filter options render slowly.
+- Retry the Client Card settings page when it remains on the initial loader.
+- Reapply the Status filter when the Clients table remains stuck on its blocking loader.
+
 ## 2026-05-25 - Fresh Validation Passed
 **Phase**: Validation
 **Author**: Cursor AI

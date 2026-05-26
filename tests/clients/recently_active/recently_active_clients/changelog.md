@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-26 - Retry Dashboard Widget Readiness
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: 10-run stress validation had one timeout while the dashboard clients widget was still not ready after appointment creation.
+**Changes**:
+- Retry transient Playwright readiness timeouts inside the recently-active indexing window.
+- Keep the assertion data-driven instead of adding a fixed sleep.
+
 ## 2026-05-24 - Cache Staff Lookup
 **Phase**: Test
 **Author**: Cursor AI

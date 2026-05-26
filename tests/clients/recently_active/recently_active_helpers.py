@@ -3,10 +3,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 import requests
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, expect
 
 REQUEST_TIMEOUT = 5
 UI_TIMEOUT = 5000
+PAGE_READY_TIMEOUT = 5_000
 INDEX_TIMEOUT_SECONDS = 5
 RECENTLY_ACTIVE_VIEW_STORAGE_KEY = "clients-widget-selected-view"
 
@@ -104,22 +105,28 @@ def assert_recently_active_clients(page: Page, expected_names: Iterable[str]) ->
     expected = list(expected_names)
     deadline = time.monotonic() + INDEX_TIMEOUT_SECONDS
     last_actual: list[str] = []
+    last_error: str | None = None
 
     while time.monotonic() < deadline:
-        open_dashboard(page)
-        names = _visible_recently_active_names(page)
-        last_actual = names[: len(expected)]
-        if last_actual == expected:
-            return
+        try:
+            open_dashboard(page)
+            names = _visible_recently_active_names(page)
+            last_actual = names[: len(expected)]
+            last_error = None
+            if last_actual == expected:
+                return
+        except PlaywrightTimeoutError as error:
+            last_error = str(error).splitlines()[0]
         time.sleep(2)
 
-    raise AssertionError(f"Expected recently active clients {expected}, got {last_actual}")
+    suffix = f"; last readiness error: {last_error}" if last_error else ""
+    raise AssertionError(f"Expected recently active clients {expected}, got {last_actual}{suffix}")
 
 
 def open_dashboard(page: Page) -> None:
     app_base = _app_base_url(page)
     page.goto(f"{app_base}/app/dashboard", wait_until="domcontentloaded")
-    page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/dashboard**", timeout=PAGE_READY_TIMEOUT, wait_until="domcontentloaded")
 
 
 def _visible_recently_active_names(page: Page) -> list[str]:
@@ -164,8 +171,11 @@ def _legacy_recently_active_container(page: Page):
 
 def _new_dashboard_clients_widget(page: Page):
     widget = page.locator(".clients-widget").first
-    widget.wait_for(state="visible", timeout=UI_TIMEOUT)
-    widget.locator('[data-qa="VcSelectField"]').first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    widget.wait_for(state="visible", timeout=PAGE_READY_TIMEOUT)
+    widget.locator('[data-qa="VcSelectField"]').first.wait_for(
+        state="visible",
+        timeout=PAGE_READY_TIMEOUT,
+    )
     return widget
 
 
