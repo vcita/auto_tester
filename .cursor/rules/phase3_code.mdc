@@ -187,7 +187,7 @@ def setup_{category}(page: Page, context: TestContext):
 
 ### CRITICAL: Wait Strategy
 
-**Copy wait conditions from script.md.** Script documents long timeouts (30-45s) on meaningful events and forbids arbitrary short waits; see `phase2_script.mdc` § CRITICAL: Wait Strategy. When generating test.py, use the exact wait code from VERIFIED PLAYWRIGHT CODE. If script doesn't specify: use `locator.wait_for(state="visible"|"hidden", timeout=30000)` or `page.wait_for_url(...)`. Never use `wait_for_timeout()` alone for action completion. Acceptable small delays (100-300ms) only for focus/animation, and only when script shows them.
+**Copy wait conditions from script.md.** Script documents state-based waits capped at 5 seconds and forbids fixed sleeps for action completion; see `phase2_script.mdc` § CRITICAL: Wait Strategy. When generating test.py, use the exact wait code from VERIFIED PLAYWRIGHT CODE. If script doesn't specify: use `locator.wait_for(state="visible"|"hidden", timeout=5000)` or `page.wait_for_url(..., timeout=5000)`. Never use `wait_for_timeout()` alone for action completion. Acceptable small delays (100-300ms) are last resort only for focus/animation, and only when script shows why no state-based wait is available.
 
 ### Handling Virtual Scrolling / Lazy-Loaded Lists (Endless Scroll)
 
@@ -199,13 +199,13 @@ Many vcita lists (services, clients, appointments) use endless scroll - items no
 # WRONG - item may exist but not be rendered, and one scroll may not be enough
 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
 add_button.scroll_into_view_if_needed()
-page.wait_for_timeout(500)
 service_btn = iframe.get_by_role('button').filter(has_text=service_name)
-service_btn.wait_for(state='visible', timeout=10000)  # May still timeout!
+# Do not add a sleep or increase timeout here; scroll through the virtual list and
+# wait for a concrete count/item state instead.
 
 # RIGHT - scroll multiple times until end of list, then search
 # Step 1: Wait for list section to load
-iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=5000)
 
 # Step 2: Scroll multiple times until no more items load
 max_scrolls = 10
@@ -219,7 +219,7 @@ for scroll_attempt in range(max_scrolls):
         # Scroll the last visible service into view to trigger loading more
         last_service = all_services.nth(current_count - 1)
         last_service.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)  # Wait for new items to load
+        wait_for_list_count_to_change(all_services, current_count, timeout_ms=5000)
         
         # Check if new items loaded
         new_count = all_services.count()
@@ -231,11 +231,11 @@ for scroll_attempt in range(max_scrolls):
         # No services found yet, scroll to "Add" button to trigger initial load
         add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
         add_button.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)
+        wait_for_list_count_to_change(all_services, current_count, timeout_ms=5000)
 
 # Step 3: NOW search for the specific item
 service_btn = iframe.get_by_role('button').filter(has_text=service_name)
-service_btn.wait_for(state='visible', timeout=10000)  # SUCCESS!
+service_btn.wait_for(state='visible', timeout=5000)  # SUCCESS!
 ```
 
 **When to apply this pattern:**

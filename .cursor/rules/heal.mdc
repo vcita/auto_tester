@@ -336,7 +336,7 @@ MCP Debugging:
    
    # RIGHT - hover first to reveal buttons, then wait for button to appear
    parent_element.hover()
-   menu_button.wait_for(state="visible", timeout=30000)  # Long timeout, continues immediately when button appears
+   menu_button.wait_for(state="visible", timeout=5000)  # Capped state wait
    menu_button.click()
    ```
 
@@ -361,9 +361,9 @@ MCP Debugging:
    ```python
    # After clicking menu item
    menu_item.click()
-   # Wait for dialog to appear - event-based wait with long timeout
+   # Wait for dialog to appear - state-based wait capped at 5s
    dialog = outer_iframe.get_by_role('dialog')
-   dialog.wait_for(state="visible", timeout=30000)  # Long timeout, continues immediately when dialog appears
+   dialog.wait_for(state="visible", timeout=5000)
    
    # Check outer iframe first (where dialogs often appear)
    submit_btn = outer_iframe.get_by_role('button', name='Submit')
@@ -431,26 +431,26 @@ page.get_by_role("button", name="Submit").click()
 
 **CRITICAL: Wait Strategy When Healing**
 
-When fixing timeout or wait-related issues, follow the **long wait on meaningful event** policy:
+When fixing timeout or wait-related issues, follow the **state-based wait with 5-second cap** policy:
 
-1. **Use event-based waits with long timeouts (30-45s)**:
-   - `locator.wait_for(state="visible", timeout=30000)` - continues immediately when element appears
-   - `page.wait_for_url("**/dashboard**", timeout=30000)` - continues immediately when URL matches
-   - `dialog.wait_for(state="hidden", timeout=30000)` - continues immediately when dialog closes
+1. **Use meaningful state waits capped at 5 seconds**:
+   - `locator.wait_for(state="visible", timeout=5000)`
+   - `page.wait_for_url("**/dashboard**", timeout=5000)`
+   - `dialog.wait_for(state="hidden", timeout=5000)`
 
-2. **Never shorten timeouts** - Instead, make waits more robust:
-   - ❌ WRONG: `timeout=5000` → `timeout=10000` (just increasing arbitrary timeout)
-   - ✅ RIGHT: Replace `page.wait_for_timeout(2000)` with `element.wait_for(state="visible", timeout=30000)` (event-based wait)
+2. **Never fix timing by increasing waits or adding sleeps**:
+   - ❌ WRONG: `timeout=5000` → `timeout=10000`
+   - ❌ WRONG: Add `page.wait_for_timeout(2000)` after an action
+   - ✅ RIGHT: Replace `page.wait_for_timeout(2000)` with a concrete state wait capped at 5s
 
 3. **For polling loops** (when direct event-based wait isn't possible):
    - Use short polling intervals (100-200ms) to check frequently
-   - Use long overall timeout (30-45s) for the entire operation
+   - Use a 5-second max overall timeout for the entire operation
    - Exit immediately when condition is found
 
-4. **Why long timeouts work**:
-   - Tests continue immediately when condition is met (fast on fast systems)
-   - Only wait full duration if condition never appears (real failure, not network glitch)
-   - Makes tests robust and stable on slow systems
+4. **If 5 seconds is not enough**:
+   - Investigate whether the selector, readiness signal, account setup, network request, or product behavior is wrong
+   - Do not mask the issue with a longer timeout
 
 **Example fixes:**
 
@@ -458,14 +458,14 @@ When fixing timeout or wait-related issues, follow the **long wait on meaningful
 # BEFORE (arbitrary timeout - flaky)
 page.wait_for_timeout(2000)  # How do we know it's done?
 
-# AFTER (event-based wait with long timeout - robust)
-dialog.wait_for(state="hidden", timeout=30000)  # Continues immediately when dialog closes
+# AFTER (state-based wait capped at 5s)
+dialog.wait_for(state="hidden", timeout=5000)
 
-# BEFORE (short timeout - fails on slow systems)
+# BEFORE (already at max; do not increase it)
 element.wait_for(state="visible", timeout=5000)
 
-# AFTER (long timeout - works on slow systems, fast on fast systems)
-element.wait_for(state="visible", timeout=30000)  # Continues immediately when visible
+# AFTER
+# Investigate selector/readiness/setup/product behavior instead of increasing timeout
 ```
 
 ### 6. Update changelog.md
