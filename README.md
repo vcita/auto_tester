@@ -10,6 +10,10 @@ AI-driven browser test automation framework for [vcita](https://www.vcita.com), 
 - **Sequential execution** -- tests share browser state within a category
 - **Real user actions only** -- no direct URL navigation (except login); simulate actual clicks
 
+## Planning New Tests
+
+Before building a new product flow test, use the [auto_tester New Flow Test Design Template](https://myvcita.atlassian.net/wiki/spaces/MT/pages/4690149402/auto_tester+New+Flow+Test+Design+Template) to agree on scope, setup, expected user flow, validation, and stress-test readiness.
+
 ---
 
 ## Quick Start
@@ -109,7 +113,7 @@ python main.py status
 
 ### `health` -- Generate Health Snapshot
 
-Aggregates run results for a category and writes a `_health.json` file summarizing pass rates, recent failures, and trends. Currently supports the `payments` category only.
+Aggregates run results for a category and writes a `_health.json` file summarizing pass rates, recent failures, and trends.
 
 | Flag | Description |
 |------|-------------|
@@ -118,6 +122,7 @@ Aggregates run results for a category and writes a `_health.json` file summarizi
 ```bash
 python main.py health
 python main.py health --category payments
+python main.py health --category clients
 ```
 
 ---
