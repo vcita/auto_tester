@@ -58,9 +58,9 @@ Playwright MCP is configured in `.cursor/mcp.json`:
    # WRONG - buttons won't be visible
    menu_button.click()
    
-   # RIGHT - hover first to reveal buttons
+   # RIGHT - hover first to reveal buttons, then wait for the button state
    parent_element.hover()
-   page.wait_for_timeout(1500)  # Wait for buttons to appear
+   menu_button.wait_for(state="visible", timeout=5000)
    menu_button.click()
    ```
 
@@ -85,7 +85,7 @@ Playwright MCP is configured in `.cursor/mcp.json`:
    ```python
    # After clicking menu item
    menu_item.click()
-   page.wait_for_timeout(2000)  # Wait for dialog
+   outer_iframe.get_by_role('dialog').wait_for(state="visible", timeout=5000)
    
    # Check outer iframe first (where dialogs often appear)
    submit_btn = outer_iframe.get_by_role('button', name='Submit')
@@ -496,13 +496,13 @@ Dropdowns that don't work with the built-in browser work perfectly with Playwrig
 # WRONG - may fail due to endless scroll (only scrolls once)
 add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
 add_button.scroll_into_view_if_needed()
-page.wait_for_timeout(500)
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=5000)
 service_in_list = iframe.get_by_role('button').filter(has_text=name)
-service_in_list.wait_for(state='visible', timeout=10000)  # MAY STILL TIMEOUT!
+service_in_list.wait_for(state='visible', timeout=5000)  # MAY STILL TIMEOUT!
 
 # RIGHT - scroll multiple times until no more items load
 # Step 1: Wait for list to load
-iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=5000)
 
 # Step 2: Scroll to bottom multiple times until no new items appear
 max_scrolls = 10
@@ -516,7 +516,7 @@ for scroll_attempt in range(max_scrolls):
         # Scroll the last visible service into view to trigger loading more
         last_service = all_services.nth(current_count - 1)
         last_service.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)  # Wait for new items to load
+        wait_for_list_count_to_change(all_services, current_count, timeout_ms=5000)
         
         # Check if new items loaded
         new_count = all_services.count()
@@ -528,11 +528,11 @@ for scroll_attempt in range(max_scrolls):
         # No services found yet, scroll to "Add" button to trigger initial load
         add_button = iframe.get_by_role('button', name='Add 1 on 1 Appointment')
         add_button.scroll_into_view_if_needed()
-        page.wait_for_timeout(1000)
+        wait_for_list_count_to_change(all_services, current_count, timeout_ms=5000)
 
 # Step 3: NOW search for the specific item
 service_in_list = iframe.get_by_role('button').filter(has_text=name)
-service_in_list.wait_for(state='visible', timeout=10000)  # SUCCESS!
+service_in_list.wait_for(state='visible', timeout=5000)  # SUCCESS!
 ```
 
 #### How to scroll in MCP exploration:
@@ -545,7 +545,7 @@ for (let i = 0; i < 10; i++) {
   if (count > 0) {
     const lastService = services.nth(count - 1);
     await lastService.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(1000);
+    await expect.poll(async () => services.count(), { timeout: 5000 }).not.toBe(count);
     const newCount = await services.count();
     if (newCount === previousCount) break; // No new items
     previousCount = newCount;
