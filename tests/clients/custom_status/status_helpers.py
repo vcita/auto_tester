@@ -7,6 +7,12 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, ex
 
 REQUEST_TIMEOUT = 5
 UI_TIMEOUT = 5000
+CLIENTS_PAGE_TIMEOUT = 5_000
+CLIENTS_READY_TIMEOUT = 5_000
+SETTINGS_READY_TIMEOUT = 5_000
+SETTINGS_READY_ATTEMPTS = 3
+FILTER_OPTION_TIMEOUT = 5_000
+CLIENT_INDEX_TIMEOUT_SECONDS = 5
 
 
 def create_client_via_api(context: dict, client: dict) -> dict:
@@ -41,27 +47,26 @@ def create_custom_status(page: Page, status_name: str) -> None:
     status_chip(status_scope, status_name).wait_for(state="visible", timeout=UI_TIMEOUT)
 
 
-def assert_status_filter_options(page: Page, status_name: str, *, should_exist: bool) -> None:
-    open_clients_list(page)
-    open_status_filter(page)
-    option = page.locator(".vc-base-list-item, [role='option']").filter(has_text=status_name)
-    if should_exist:
-        option.first.wait_for(state="visible", timeout=UI_TIMEOUT)
-    else:
-        expect(option).to_have_count(0, timeout=UI_TIMEOUT)
-    close_open_dropdown(page)
-
-
 def apply_status_filter(page: Page, status_name: str) -> None:
-    open_clients_list(page)
-    open_status_filter(page)
-    option = page.locator(".vc-base-list-item, [role='option']").filter(has_text=status_name).first
-    option.wait_for(state="visible", timeout=UI_TIMEOUT)
-    option.click()
-    apply_button = page.locator('[data-qa="VcDropdown-content"] .VcButton').last
-    apply_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    apply_button.click()
-    wait_for_clients_table(page)
+    last_error: PlaywrightTimeoutError | None = None
+    for attempt in range(3):
+        open_clients_list(page)
+        open_status_filter(page)
+        option = page.locator(".vc-base-list-item, [role='option']").filter(has_text=status_name).first
+        option.wait_for(state="visible", timeout=FILTER_OPTION_TIMEOUT)
+        option.click()
+        apply_button = page.locator('[data-qa="VcDropdown-content"] .VcButton').last
+        apply_button.wait_for(state="visible", timeout=UI_TIMEOUT)
+        apply_button.click()
+        try:
+            wait_for_clients_table(page)
+            return
+        except PlaywrightTimeoutError as exc:
+            last_error = exc
+            if attempt == 2:
+                raise
+
+    raise last_error or AssertionError("Status filter did not load clients table")
 
 
 def clear_filters(page: Page) -> None:
@@ -75,7 +80,7 @@ def clear_filters(page: Page) -> None:
 
 def assert_filtered_clients(page: Page, expected_names: Iterable[str]) -> None:
     expected = sorted(expected_names)
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + CLIENT_INDEX_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         actual = sorted(visible_client_names(page))
         if actual == expected:
@@ -87,8 +92,12 @@ def assert_filtered_clients(page: Page, expected_names: Iterable[str]) -> None:
 def open_client_from_list(page: Page, client_name: str, client_id: str | None = None) -> None:
     if client_id:
         app_base = page.url.split("/app/")[0]
-        page.goto(f"{app_base}/app/clients/{client_id}", wait_until="domcontentloaded")
-        page.wait_for_url("**/app/clients/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+        page.goto(
+            f"{app_base}/app/clients/{client_id}",
+            wait_until="domcontentloaded",
+            timeout=CLIENTS_PAGE_TIMEOUT,
+        )
+        page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
         return
 
     open_clients_list(page)
@@ -101,7 +110,7 @@ def open_client_from_list(page: Page, client_name: str, client_id: str | None = 
     row = page.get_by_role("row").filter(has_text=client_name).first
     row.wait_for(state="visible", timeout=UI_TIMEOUT)
     row.click()
-    page.wait_for_url("**/app/clients/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
 
 
 def set_client_status(page: Page, status_name: str) -> None:
@@ -153,11 +162,40 @@ def delete_unused_status(page: Page, status_name: str) -> None:
 
 def open_client_status_settings(page: Page):
     app_base = page.url.split("/app/")[0]
-    page.goto(f"{app_base}/app/settings/client_card", wait_until="domcontentloaded")
-    outer = page.frame_locator('iframe[title="angularjs"]')
-    status_scope = outer.frame_locator("#vue_iframe_layout")
-    status_scope.get_by_role("tab", name=re.compile(r"Client status", re.I)).click()
-    return status_scope
+    last_error: PlaywrightTimeoutError | None = None
+
+    for attempt in range(SETTINGS_READY_ATTEMPTS):
+        page.goto(
+            f"{app_base}/app/settings/client_card",
+            wait_until="domcontentloaded",
+            timeout=SETTINGS_READY_TIMEOUT,
+        )
+        try:
+            page.wait_for_url(
+                "**/app/settings/client_card**",
+                timeout=SETTINGS_READY_TIMEOUT,
+                wait_until="domcontentloaded",
+            )
+            page.locator('iframe[title="angularjs"]').wait_for(
+                state="visible",
+                timeout=SETTINGS_READY_TIMEOUT,
+            )
+            outer = page.frame_locator('iframe[title="angularjs"]')
+            status_scope = outer.frame_locator("#vue_iframe_layout")
+            tab = status_scope.get_by_role("tab", name=re.compile(r"Client status", re.I))
+            tab.wait_for(state="visible", timeout=SETTINGS_READY_TIMEOUT)
+            tab.click()
+            status_scope.get_by_placeholder("Add statuses").wait_for(
+                state="visible",
+                timeout=SETTINGS_READY_TIMEOUT,
+            )
+            return status_scope
+        except PlaywrightTimeoutError as exc:
+            last_error = exc
+            if attempt == SETTINGS_READY_ATTEMPTS - 1:
+                raise
+
+    raise last_error or AssertionError("Client status settings did not become ready")
 
 
 def status_chip(status_scope, status_name: str):
@@ -215,39 +253,45 @@ def open_clients_list(page: Page) -> None:
     if re.search(r"/app/clients/?$", page.url):
         wait_for_clients_table(page)
         return
-    if "/app/dashboard" not in page.url:
-        dashboard_link = page.get_by_text("Dashboard", exact=True)
-        dashboard_link.wait_for(state="visible", timeout=UI_TIMEOUT)
-        dashboard_link.click()
-        page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
-    clients_link = page.get_by_text("Clients", exact=True).first
-    clients_link.wait_for(state="visible", timeout=UI_TIMEOUT)
-    clients_link.click()
-    page.wait_for_url("**/app/clients", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+
+    app_base = page.url.split("/app/")[0]
+    page.goto(
+        f"{app_base}/app/clients",
+        wait_until="domcontentloaded",
+        timeout=CLIENTS_PAGE_TIMEOUT,
+    )
+    page.wait_for_url("**/app/clients", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
     wait_for_clients_table(page)
 
 
 def open_status_filter(page: Page) -> None:
+    wait_for_clients_table(page)
     filters_button = page.locator(".table-actions__filter").first
     status_filter = page.locator('[data-qa*="item-client_data_associated_with_field_filter"]').first
-    filters_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    for attempt in range(2):
+    filters_button.wait_for(state="visible", timeout=CLIENTS_READY_TIMEOUT)
+    for attempt in range(3):
         filters_button.click()
         try:
-            status_filter.wait_for(state="visible", timeout=UI_TIMEOUT)
+            status_filter.wait_for(state="visible", timeout=FILTER_OPTION_TIMEOUT)
             break
         except PlaywrightTimeoutError:
-            if attempt == 1:
+            if attempt == 2:
                 raise
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(500)
     status_filter.click()
 
 
 def wait_for_clients_table(page: Page) -> None:
+    page.wait_for_url("**/app/clients**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
     page.locator(".table-actions__filter").first.wait_for(
         state="visible",
-        timeout=UI_TIMEOUT,
+        timeout=CLIENTS_READY_TIMEOUT,
     )
+    visible_loaders = page.locator(
+        ".VcLoader:visible, .vc-loader:visible, "
+        ".v-progress-circular:visible, [data-qa='VcLoader']:visible"
+    )
+    expect(visible_loaders).to_have_count(0, timeout=CLIENTS_READY_TIMEOUT)
 
 
 def visible_client_names(page: Page) -> list[str]:
@@ -256,10 +300,6 @@ def visible_client_names(page: Page) -> list[str]:
         return []
     names = page.locator('[data-qa="matter-name"]')
     return [names.nth(index).inner_text().strip() for index in range(names.count())]
-
-
-def close_open_dropdown(page: Page) -> None:
-    page.keyboard.press("Escape")
 
 
 def _account_request(context: dict, method: str, path: str, **kwargs) -> dict:

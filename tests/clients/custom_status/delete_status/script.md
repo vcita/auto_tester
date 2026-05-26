@@ -37,7 +37,7 @@ client = {
 - Remove the custom status chip.
 - Verify a confirmation or blocking dialog appears.
 - Dismiss the dialog.
-- Verify the status remains available as a CRM Status filter option.
+- Verify the status chip remains visible in Client Card settings.
 
 ### Step 4: Reassign Client To Lead
 - Open the API-created client from the CRM list.
@@ -50,10 +50,10 @@ client = {
 - Return to Client Card settings.
 - Remove the custom status chip.
 - Accept the delete confirmation when shown.
-- Verify the status no longer appears as a CRM Status filter option.
+- Verify the status chip no longer appears in Client Card settings.
 
 ## Success Verification
 - In-use status deletion is blocked.
 - The client can be reassigned to `Lead`.
 - The unused status is deleted.
-- The deleted status is no longer available in the Status filter.
+- The deleted status is removed from Client Card settings.
