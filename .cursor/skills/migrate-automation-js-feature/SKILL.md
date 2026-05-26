@@ -39,6 +39,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 7. After a successful migration, run the original and migrated tests and report the comparison.
    - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
+   - Use the latest post-stabilization run evidence; do not compare against earlier runs if the test code, waits, setup, or selector logic changed afterward.
    - Report the comparison in chat using this table format:
 
      | Check | automation-js original | auto_tester migration |
@@ -53,6 +54,10 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Summarize under the table whether scope was preserved against `migration_mapping.md`.
    - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
 8. After the migration satisfies the Definition Of Done, use the `update-migration-coverage-tracker` skill to update the Confluence coverage tracker with real run evidence and current progress totals.
+9. After stabilization changes, re-check `steps.md`, `script.md`, and `test.py` together:
+   - Make sure the phase docs do not claim assertions that were removed from executable code.
+   - If an assertion is intentionally removed as redundant or out of scope, document why behavior coverage is still preserved.
+   - Re-run the migration comparison after those changes.
 
 ## Definition Of Done
 
@@ -82,6 +87,7 @@ The migration is complete only when all three checks pass:
 - Legacy CRM filter assertions need dynamic waits because CRM indexing can lag API-created clients.
 - Legacy Client Card settings status chips map to the Client status tab in `Settings / Client & Contact info`.
 - In-use delete protection can be asserted by the status remaining present; a blocking dialog may or may not be displayed depending on current UI behavior.
+- Do not duplicate behavior checks across migrated scenarios just because the legacy helper chain allowed it; if one migrated scenario already owns CRM filter coverage, a delete scenario can stay focused on Client Card deletion behavior when that matches the legacy page object source of truth.
 
 ## Skill Extraction Checkpoint
 
