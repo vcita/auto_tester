@@ -125,7 +125,11 @@ def assert_recently_active_clients(page: Page, expected_names: Iterable[str]) ->
 
 def open_dashboard(page: Page) -> None:
     app_base = _app_base_url(page)
-    page.goto(f"{app_base}/app/dashboard", wait_until="domcontentloaded")
+    page.goto(
+        f"{app_base}/app/dashboard",
+        wait_until="domcontentloaded",
+        timeout=PAGE_READY_TIMEOUT,
+    )
     page.wait_for_url("**/app/dashboard**", timeout=PAGE_READY_TIMEOUT, wait_until="domcontentloaded")
 
 

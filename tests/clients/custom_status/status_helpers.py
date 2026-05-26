@@ -92,7 +92,11 @@ def assert_filtered_clients(page: Page, expected_names: Iterable[str]) -> None:
 def open_client_from_list(page: Page, client_name: str, client_id: str | None = None) -> None:
     if client_id:
         app_base = page.url.split("/app/")[0]
-        page.goto(f"{app_base}/app/clients/{client_id}", wait_until="domcontentloaded")
+        page.goto(
+            f"{app_base}/app/clients/{client_id}",
+            wait_until="domcontentloaded",
+            timeout=CLIENTS_PAGE_TIMEOUT,
+        )
         page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
         return
 
@@ -161,7 +165,11 @@ def open_client_status_settings(page: Page):
     last_error: PlaywrightTimeoutError | None = None
 
     for attempt in range(SETTINGS_READY_ATTEMPTS):
-        page.goto(f"{app_base}/app/settings/client_card", wait_until="domcontentloaded")
+        page.goto(
+            f"{app_base}/app/settings/client_card",
+            wait_until="domcontentloaded",
+            timeout=SETTINGS_READY_TIMEOUT,
+        )
         try:
             page.wait_for_url(
                 "**/app/settings/client_card**",
@@ -247,7 +255,11 @@ def open_clients_list(page: Page) -> None:
         return
 
     app_base = page.url.split("/app/")[0]
-    page.goto(f"{app_base}/app/clients", wait_until="domcontentloaded")
+    page.goto(
+        f"{app_base}/app/clients",
+        wait_until="domcontentloaded",
+        timeout=CLIENTS_PAGE_TIMEOUT,
+    )
     page.wait_for_url("**/app/clients", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
     wait_for_clients_table(page)
 
