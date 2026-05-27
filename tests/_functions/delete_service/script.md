@@ -55,11 +55,22 @@ page.wait_for_url("**/app/settings**", timeout=5000)
 ```python
 page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
 iframe = page.frame_locator('iframe[title="angularjs"]')
-iframe.get_by_role('button', name='Define the services your').click(timeout=5000)
+try:
+    services_button = iframe.get_by_role('button', name='Define the services your')
+    services_button.wait_for(state="visible", timeout=5000)
+    services_button.click(timeout=5000)
+except PlaywrightTimeoutError:
+    page.reload(wait_until="domcontentloaded", timeout=5000)
+    page.wait_for_url("**/app/settings**", timeout=5000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
+    iframe = page.frame_locator('iframe[title="angularjs"]')
+    services_button = iframe.get_by_role('button', name='Define the services your')
+    services_button.wait_for(state="visible", timeout=5000)
+    services_button.click(timeout=5000)
 page.wait_for_url("**/app/settings/services", timeout=5000)
 ```
 
-- **How verified**: Clicked in MCP, navigated to Services page
+- **How verified**: Stress run showed Settings can remain on its loader; reloading Settings once preserves the UI path and gives the Services button a fresh readiness check.
 - **Wait for**: URL contains "/app/settings/services"
 
 ### Step 3: Click on Service in List
@@ -112,19 +123,18 @@ page.wait_for_url("**/app/settings/services/**", timeout=5000)
 | `iframe.get_by_role('button', name='Delete')` | Semantic | Can miss the Angular toolbar button |
 | Scoped button/text fallbacks for `Delete` | Handles Angular/VcButton markup while staying on the service detail page | More than one fallback |
 
-**CHOSEN**: Require the service name to be visible, try scoped `button`, `[role="button"]`, and exact text fallbacks, then require the confirmation dialog to appear. If the service detail page is still on the skeleton loader, reload once and retry with the same 5000ms caps.
+**CHOSEN**: Click the visible Delete button using the same role-based click as `tests/scheduling/services/delete_service/test.py`, then fall back to scoped `button`, `[role="button"]`, and exact text locators. Each candidate must open the confirmation dialog before it is accepted. If the first pass does not open the dialog, re-acquire the service detail iframe and retry with the same 5000ms caps.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 dialog = iframe.get_by_role('dialog')
 for attempt in range(2):
     if attempt == 1:
-        page.reload(wait_until="domcontentloaded", timeout=5000)
         page.wait_for_url("**/app/settings/services/**", timeout=5000)
         page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
         iframe = page.frame_locator('iframe[title="angularjs"]')
-    iframe.get_by_text(name).first.wait_for(state='visible', timeout=5000)
     delete_candidates = [
+        iframe.get_by_role('button', name='Delete'),
         iframe.locator('button').filter(has_text='Delete').first,
         iframe.locator('[role="button"]').filter(has_text='Delete').first,
         iframe.get_by_text('Delete', exact=True).first,
@@ -134,12 +144,15 @@ for attempt in range(2):
         if delete_btn.count() == 0:
             continue
         delete_btn.wait_for(state='visible', timeout=5000)
-        delete_btn.evaluate("element => element.click()")
-        dialog.wait_for(state='visible', timeout=5000)
-        break
+        delete_btn.click(timeout=5000)
+        try:
+            dialog.wait_for(state='visible', timeout=5000)
+            break
+        except Exception:
+            continue
 ```
 
-- **How verified**: Clicked in MCP, confirmation dialog appeared
+- **How verified**: `scheduling/appointments` focused run passed, then `stress_test --categories scheduling/appointments --iterations 10 --env integration --headless` passed 10/10 with UI service deletion in teardown.
 - **Wait for**: Dialog becomes visible
 
 ### Step 5: Confirm Deletion

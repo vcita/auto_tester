@@ -1,5 +1,24 @@
 # Delete Service Function - Changelog
 
+## 2026-05-27 - Stabilized Restored UI Delete Flow
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stress follow-up)
+**Reason**: Fresh stress testing after restoring UI deletion showed repeated `appointments` teardown failures in the UI path: Settings sometimes stayed on the loader before the Services button was ready, and the first Delete click candidate did not always open the confirmation dialog even when the button was visible.
+
+**Fix Applied**:
+1. Kept the full UI path intact.
+2. Added one Settings reload retry before clicking the Services section when the Settings page is still loading.
+3. Replaced the service-detail coordinate click with the role-based Delete button click used by the dedicated service deletion test, plus scoped visible locator fallbacks.
+4. Changed the Delete retry to re-acquire the service detail iframe instead of reloading the detail page, because the reload itself timed out while the page was already usable.
+5. Require each Delete click candidate to prove success by opening the confirmation dialog before continuing.
+
+**Scope / Quality**: This stabilizes the UI interactions without reintroducing API deletion or bypassing Settings, Services list selection, Delete, confirmation, or list verification.
+
+**Validation**: `PYENV_VERSION=3.11.9 python main.py stress_test --categories scheduling/appointments --iterations 10 --env integration --headless` passed 10/10.
+
+---
+
 ## 2026-05-27 - Restored UI Deletion Scope
 
 **Phase**: test.py, script.md
