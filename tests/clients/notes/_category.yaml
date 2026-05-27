@@ -30,3 +30,8 @@ tags:
   - matters
 owner: QA Team
 created_at: 2026-01-21
+stability:
+  status: stable
+  last_stress_test: '2026-05-27'
+  pass_rate: 100.0%
+  iterations: 10

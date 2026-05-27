@@ -1,5 +1,17 @@
 # Create Service - Changelog
 
+## 2026-05-27 - Cap Service Return Navigation
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: Full `scheduling` stress hit the older Settings sidebar round-trip after saving the advanced service edit, including a 10000ms navigation wait.
+
+**Changes**:
+- Return directly to `/app/settings/services` after saving the service edit.
+- Cap touched service-list, URL, iframe, and heading waits at 5000ms.
+- Preserve the created-service ID/name/description assertions and context values.
+
+---
+
 ## 2026-01-27 19:56 - Healed (Timeout waiting for Settings navigation after error page recovery)
 **Phase**: test.py, script.md
 **Author**: Cursor AI (heal)

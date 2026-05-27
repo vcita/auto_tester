@@ -1,6 +1,6 @@
 ---
 name: update-migration-coverage-tracker
-description: Update the automation-js to auto_tester Confluence coverage tracker after a legacy automation-js Gherkin feature or scenario is fully migrated, validated, and compared. Use when a migration reaches done, when backfilling migration coverage, or when the user asks to update migration progress totals.
+description: Update the automation-js to auto_tester Confluence coverage tracker after a legacy automation-js Gherkin feature or scenario is migrated, stabilized, validated, and compared. Use when a migration reaches done, when a migrated test is stabilized, when backfilling migration coverage, or when the user asks to update migration progress totals.
 ---
 
 # Update Migration Coverage Tracker
@@ -13,6 +13,12 @@ Use this skill only after a migration has enough evidence to update shared cover
 - The migrated auto_tester scope is implemented and validated.
 - Original and migrated runs were executed, with result and duration captured.
 - Scope coverage was checked against `migration_mapping.md`.
+
+Also use this skill after stabilizing an already migrated test when the tracker row should reflect new evidence:
+
+- The stabilized auto_tester scope maps to an existing migrated legacy feature or scenario.
+- The stabilization run produced real focused or `stress_test` output.
+- Status, stability evidence, migrated runtime, or duration improvement changed.
 
 Do not mark a row `Migrated` from partial implementation, failed focused runs, unresolved heal requests, or guessed runtime data.
 
@@ -39,6 +45,8 @@ Collect these values before editing the page:
 - Stability evidence, using only real focused or `stress_test` output.
 - Jira link and PR link, or `TBD` if unavailable.
 
+For stabilization-only updates, keep existing original run data unless new legacy evidence was collected. Update only the changed migrated result, duration, status, stability evidence, Jira, or PR fields.
+
 ## Counting Rules
 
 Keep these summary metrics current:
@@ -58,6 +66,7 @@ Use a structured parser or a small script for counts. Do not update totals by me
 2. Add or update one row in the Migration Coverage table for the migrated scope.
    - Prefer one row per legacy feature file when the full file is migrated.
    - If only selected scenarios from a feature file are migrated, make that clear in `Scope covered` and update scenario progress only.
+   - If stabilizing an existing migrated scope, update the existing row instead of adding a duplicate row.
 3. Update Summary rows:
    - `Migration progress by feature file`
    - `Migration progress by scenario`

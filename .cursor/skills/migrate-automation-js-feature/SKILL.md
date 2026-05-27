@@ -73,6 +73,8 @@ The migration is complete only when all three checks pass:
 
 - Preserve legacy API setup when the original test used API setup, but verify user-visible behavior through the UI.
 - Prefer API setup for prerequisites that are not the feature under test.
+- Do not replace a legacy UI action with an API call when that UI action is part of the scenario scope, assertion path, or reusable function objective.
+- If an API shortcut is considered for speed or stability, first prove the removed UI path is outside the migrated scope and document that decision in `script.md` and `changelog.md`.
 - If a legacy API shortcut is not stable in auto_tester, keep the API-created entity and ensure the user-visible state through the UI before asserting downstream behavior.
 - Use `data-qa` selectors first, then roles/labels, then stable text. Use raw CSS only for existing stable project selectors such as CRM table actions. If no stable selector exists, document the fallback in `script.md` and suggest the exact `data-qa` that should be added to the product code.
 - Replace fixed sleeps with condition waits. Poll only for asynchronous product indexing or eventual consistency, and make the expected condition explicit.

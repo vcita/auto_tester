@@ -6,6 +6,8 @@ Deletes a note from a matter to verify note deletion functionality.
 
 from playwright.sync_api import Page, expect
 
+from tests.clients.notes.note_helpers import UI_TIMEOUT
+
 
 def test_delete_note(page: Page, context: dict):
     """Delete the note edited by edit_note test."""
@@ -35,7 +37,7 @@ def test_delete_note(page: Page, context: dict):
     
     # Step 2: Set up iframe locators and wait for iframe
     angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=15000)
+    angular_iframe.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
@@ -47,7 +49,7 @@ def test_delete_note(page: Page, context: dict):
     
     # Wait for the edited note to be visible in the list
     note_item = inner_iframe.get_by_role("listitem").filter(has_text="EDITED:")
-    note_item.wait_for(state="visible", timeout=10000)
+    note_item.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 4: Find the note and click three dots menu
     print(f"  Step 3: Opening note menu...")
@@ -57,22 +59,22 @@ def test_delete_note(page: Page, context: dict):
     # Step 5: Click Remove option
     print(f"  Step 4: Clicking Remove...")
     remove_option = inner_iframe.get_by_role("listitem").filter(has_text="Remove")
-    remove_option.wait_for(state="visible", timeout=5000)
+    remove_option.wait_for(state="visible", timeout=UI_TIMEOUT)
     remove_option.click()
     
     # Step 6: Confirm deletion - wait for OK button in confirmation dialog
     print(f"  Step 5: Confirming deletion...")
     ok_button = outer_iframe.get_by_role("button", name="Ok")
-    ok_button.wait_for(state="visible", timeout=5000)
+    ok_button.wait_for(state="visible", timeout=UI_TIMEOUT)
     ok_button.click()
     
     # Wait for confirmation dialog to close
-    ok_button.wait_for(state="hidden", timeout=10000)
+    ok_button.wait_for(state="hidden", timeout=UI_TIMEOUT)
     
     # Step 7: Verify note is deleted
     print(f"  Step 6: Verifying note was deleted...")
     deleted_note = inner_iframe.get_by_role("listitem").filter(has_text="EDITED:")
-    deleted_note.wait_for(state="hidden", timeout=10000)
+    deleted_note.wait_for(state="hidden", timeout=UI_TIMEOUT)
     
     # Clean up note-related context
     if "created_note_content" in context:

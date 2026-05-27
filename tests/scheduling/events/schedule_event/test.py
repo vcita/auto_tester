@@ -6,6 +6,8 @@
 from datetime import datetime, timedelta
 from playwright.sync_api import Page, expect
 
+from tests.scheduling.appointments.appointment_helpers import UI_TIMEOUT, open_calendar_page
+
 
 def test_schedule_event(page: Page, context: dict) -> None:
     """
@@ -25,11 +27,11 @@ def test_schedule_event(page: Page, context: dict) -> None:
     # Step 1: Verify on Calendar Page
     print("  Step 1: Verifying on Calendar page...")
     if "/app/calendar" not in page.url:
-        raise ValueError(f"Expected to be on Calendar page, but URL is {page.url}")
+        open_calendar_page(page)
     
     # Step 2: Click New Button
     print("  Step 2: Clicking New button...")
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)  # Long timeout for slow systems, continues immediately when iframe appears
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     new_btn = inner_iframe.get_by_role('button', name='New')
@@ -42,7 +44,7 @@ def test_schedule_event(page: Page, context: dict) -> None:
     group_event_option.click()
     # Wait for dialog: service combobox is the specific element that appears
     service_combobox = inner_iframe.get_by_role('combobox')
-    service_combobox.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when combobox appears
+    service_combobox.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 4: Select Group Event Service
     # Require service from _setup (context); no fallback - if expected option not found, test must fail per project rules.
@@ -52,14 +54,14 @@ def test_schedule_event(page: Page, context: dict) -> None:
         raise ValueError("event_group_service_name not in context - run events _setup first")
     service_combobox.click()
     listbox = inner_iframe.get_by_role('listbox')
-    listbox.wait_for(state='visible', timeout=30000)
+    listbox.wait_for(state='visible', timeout=UI_TIMEOUT)
     service_option = inner_iframe.get_by_role('option').filter(has_text=expected_name).first
-    service_option.wait_for(state='visible', timeout=30000)
+    service_option.wait_for(state='visible', timeout=UI_TIMEOUT)
     service_name = expected_name
     service_option.click()
     # Wait for dialog to show start date control after service selection
     start_date_buttons = inner_iframe.get_by_role('button', name='Start date:')
-    start_date_buttons.first.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
+    start_date_buttons.first.wait_for(state='visible', timeout=UI_TIMEOUT)
 
     # Step 5: Set Start Date to Tomorrow (must be future so Cancel Event is available later)
     print("  Step 5: Setting start date to tomorrow...")
@@ -80,23 +82,21 @@ def test_schedule_event(page: Page, context: dict) -> None:
     else:
         start_date_btn = start_date_buttons.nth(0)
     
-    start_date_btn.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
+    start_date_btn.wait_for(state='visible', timeout=UI_TIMEOUT)
     start_date_btn.scroll_into_view_if_needed()
     page.wait_for_timeout(300)  # Brief settle before click (allowed)
 
     start_date_btn.click()
     # HEALED: get_by_role('menu').first matched the scheduler's allDayEventsContainer (role=menu), not the date
     # picker; waiting for it to hide never succeeded. Wait for date picker by the day button visibility instead.
-    tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
-    if tomorrow_date_btn.count() == 0:
-        tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day))
+    tomorrow_date_btn = inner_iframe.locator("button:visible").filter(has_text=str(tomorrow_day))
     if tomorrow_date_btn.count() == 0:
         raise ValueError(f"Date button for day {tomorrow_day} not found in date picker")
-    tomorrow_date_btn.first.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
+    tomorrow_date_btn.last.wait_for(state='visible', timeout=UI_TIMEOUT)
     # Use the last matching button (calendar grid usually has the day in current month last)
-    day_btn = tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1)
+    day_btn = tomorrow_date_btn.last
     day_btn.click()
-    day_btn.wait_for(state='hidden', timeout=30000)  # Long timeout for slow systems, continues immediately when button hides
+    page.wait_for_timeout(300)  # Brief settle after date selection (allowed)
 
     # Step 6: Verify End Date is Set (Auto-updated)
     print("  Step 6: Verifying end date auto-updated...")
@@ -115,13 +115,21 @@ def test_schedule_event(page: Page, context: dict) -> None:
     print("  Step 7: Verifying default times...")
     # Times are set by default (4:00 PM - 5:00 PM)
     # No action needed unless specific times are required
+
+    address_field = inner_iframe.get_by_role('textbox', name='Address').first
+    if address_field.count() > 0:
+        address_field.click(timeout=UI_TIMEOUT)
+        address_field.press_sequentially('123 Test Street', delay=30)
+        page.wait_for_timeout(300)  # Brief settle for address input (allowed)
+        page.keyboard.press('Tab')
+        page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
     
     # Step 8: Click Create Event
     print("  Step 8: Clicking Create Event...")
     schedule_dialog = inner_iframe.get_by_role('dialog')
     create_btn = inner_iframe.get_by_role('button', name='Create Event')
     create_btn.click()
-    schedule_dialog.wait_for(state='hidden', timeout=30000)  # Long timeout for slow systems, continues immediately when dialog closes
+    schedule_dialog.wait_for(state='hidden', timeout=UI_TIMEOUT)
 
     # Step 9: Verify Event Created (MCP-validated: search filters list; row with service name visible)
     print("  Step 9: Verifying event in Event List...")
@@ -129,20 +137,20 @@ def test_schedule_event(page: Page, context: dict) -> None:
     calendar_menu.click()
     event_list_item = page.locator('[data-qa="VcMenuItem-calendar-subitem-event_list"]')
     # HEALED 2026-01-27: Submenu item can be attached but hidden when Calendar submenu is collapsed; wait for attached then force click.
-    event_list_item.wait_for(state='attached', timeout=10000)
+    event_list_item.wait_for(state='attached', timeout=UI_TIMEOUT)
     event_list_item.first.evaluate('el => el.click()')  # Force click (sidebar may be collapsed)
-    page.wait_for_url("**/app/event-list**", timeout=15000)
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)  # Long timeout for slow systems, continues immediately when iframe appears
+    page.wait_for_url("**/app/event-list**", timeout=UI_TIMEOUT)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
-    inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when field appears
+    inner_iframe.get_by_role('textbox', name='Search by event name').wait_for(state='visible', timeout=UI_TIMEOUT)
 
     # Search by event name to filter to our event
     event_service_name = context.get("event_group_service_name")
     if not event_service_name:
         raise ValueError("event_group_service_name not in context")
     search_field = inner_iframe.get_by_role('textbox', name='Search by event name')
-    search_field.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when field appears
+    search_field.wait_for(state='visible', timeout=UI_TIMEOUT)
     search_field.click()
     page.wait_for_timeout(100)  # Brief delay for focus (allowed)
     search_field.press_sequentially(event_service_name, delay=30)
@@ -150,12 +158,12 @@ def test_schedule_event(page: Page, context: dict) -> None:
     # HEALED: [cursor="pointer"] is not an HTML attribute (it's CSS); use get_by_text to find event.
     # Same name can appear in multiple places (e.g. two rows); use .first to avoid strict mode violation.
     event_cell = inner_iframe.get_by_text(event_service_name).first
-    event_cell.wait_for(state='visible', timeout=30000)  # Long timeout for slow systems, continues immediately when cell appears
+    event_cell.wait_for(state='visible', timeout=UI_TIMEOUT)
 
     # Return to Calendar via "Calendar View" submenu (clicking "Calendar" only toggles menu when on Event List; MCP-validated)
     calendar_view_item = page.get_by_text("Calendar View", exact=True)
     calendar_view_item.click()
-    page.wait_for_url("**/app/calendar**", timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
+    page.wait_for_url("**/app/calendar**", timeout=UI_TIMEOUT)
 
     print(f"  [OK] Event scheduled and verified in Event List")
     print(f"       Date/Time: {context.get('scheduled_event_time')}")

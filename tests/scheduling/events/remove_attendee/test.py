@@ -386,11 +386,21 @@ def test_remove_attendee(page: Page, context: dict) -> None:
     # Dialog with "Submit" appears after Cancel registration (outer iframe)
     confirmation_clicked = False
     try:
-        submit_btn = outer_iframe.get_by_role('button', name='Submit')
+        submit_btn = inner_iframe.get_by_role('button', name='Submit')
         submit_btn.first.wait_for(state='visible', timeout=5000)
         submit_btn.first.click()
         confirmation_clicked = True
-        outer_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
+        inner_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
+    except Exception:
+        pass
+
+    try:
+        if not confirmation_clicked:
+            submit_btn = outer_iframe.get_by_role('button', name='Submit')
+            submit_btn.first.wait_for(state='visible', timeout=5000)
+            submit_btn.first.click()
+            confirmation_clicked = True
+            outer_iframe.get_by_role('dialog').wait_for(state='hidden', timeout=5000)
     except Exception:
         pass
 
@@ -416,6 +426,9 @@ def test_remove_attendee(page: Page, context: dict) -> None:
                     break
             except Exception:
                 continue
+
+    if not confirmation_clicked:
+        raise ValueError("Cancel registration confirmation was not submitted")
 
     # Step 6: Verify Attendee Removed
     print("  Step 6: Verifying attendee was removed...")

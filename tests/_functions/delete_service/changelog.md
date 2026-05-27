@@ -1,5 +1,56 @@
 # Delete Service Function - Changelog
 
+## 2026-05-27 - Stabilized Restored UI Delete Flow
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stress follow-up)
+**Reason**: Fresh stress testing after restoring UI deletion showed repeated `appointments` teardown failures in the UI path: Settings sometimes stayed on the loader before the Services button was ready, and the first Delete click candidate did not always open the confirmation dialog even when the button was visible.
+
+**Fix Applied**:
+1. Kept the full UI path intact.
+2. Added one Settings reload retry before clicking the Services section when the Settings page is still loading.
+3. Replaced the service-detail coordinate click with the role-based Delete button click used by the dedicated service deletion test, plus scoped visible locator fallbacks.
+4. Changed the Delete retry to re-acquire the service detail iframe instead of reloading the detail page, because the reload itself timed out while the page was already usable.
+5. Require each Delete click candidate to prove success by opening the confirmation dialog before continuing.
+
+**Scope / Quality**: This stabilizes the UI interactions without reintroducing API deletion or bypassing Settings, Services list selection, Delete, confirmation, or list verification.
+
+**Validation**: `PYENV_VERSION=3.11.9 python main.py stress_test --categories scheduling/appointments --iterations 10 --env integration --headless` passed 10/10.
+
+---
+
+## 2026-05-27 - Restored UI Deletion Scope
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (scope correction)
+**Reason**: API-based teardown skipped Settings navigation, Services list selection, Delete action, confirmation, and removal verification, reducing the UI E2E scope this function is meant to cover.
+
+**Fix Applied**:
+1. Removed the `created_service_id` API deletion shortcut.
+2. Removed API helper code and token/base URL handling from the UI function.
+3. Restored the full Settings → Services → service row → Delete → Ok → list verification flow for all callers.
+
+**Scope / Quality**: `created_service_id` may still be cleared after deletion, but it no longer changes the deletion path. The function now validates the UI deletion behavior every time.
+
+---
+
+## 2026-05-27 - Stabilized ID-Based Service Teardown
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/appointments` 10-iteration stress failed in teardown while navigating Settings → Services; screenshot showed the Settings loader still spinning.
+
+**Root Cause**: Service teardown depended on the Settings landing page, service editor toolbar, and virtualized Services list even when the created service ID was already known.
+
+**Fix Applied**:
+1. If `created_service_id` exists, delete via the same backend route used by Restangular: `DELETE /v2/settings/services/{id}`.
+2. Keep the old UI path only as a fallback for callers without a service ID.
+3. Cap touched API/UI waits/navigation at 5000ms.
+
+**Scope / Quality**: This is teardown cleanup, not the service deletion behavior test. The dedicated scheduling/services delete flow still covers UI deletion; teardown now removes generated setup data by ID without weakening appointment assertions.
+
+---
+
 ## 2026-01-31 - Healed (Services list endless scroll — scroll to find service before click)
 
 **Phase**: test.py, script.md

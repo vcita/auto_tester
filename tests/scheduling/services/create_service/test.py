@@ -7,6 +7,8 @@ import re
 import time
 from playwright.sync_api import Page, expect
 
+UI_TIMEOUT = 5000
+
 
 def test_create_service(page: Page, context: dict) -> None:
     """
@@ -33,13 +35,13 @@ def test_create_service(page: Page, context: dict) -> None:
         print("  Step 1a: Not on Services page - navigating via Settings...")
         # HEALED 2026-01-27: After error page recovery, we're on dashboard. Settings should be visible.
         # Wait for page to be ready
-        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_load_state("domcontentloaded", timeout=UI_TIMEOUT)
         
         # Find and click Settings link
         settings_link = page.get_by_text("Settings", exact=True)
-        settings_link.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when visible
+        settings_link.wait_for(state="visible", timeout=UI_TIMEOUT)
         # HEALED 2026-01-27: Ensure Settings link is actually clickable (not just visible)
-        settings_link.wait_for(state="attached", timeout=10000)
+        settings_link.wait_for(state="attached", timeout=UI_TIMEOUT)
         # Scroll into view if needed
         settings_link.scroll_into_view_if_needed()
         page.wait_for_timeout(200)  # Brief settle before click (allowed)
@@ -54,7 +56,7 @@ def test_create_service(page: Page, context: dict) -> None:
         # HEALED 2026-01-27: Wait for navigation with multiple strategies
         # Strategy 1: Wait for URL change with domcontentloaded
         try:
-            page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")  # Long timeout, continues immediately when URL matches
+            page.wait_for_url("**/app/settings**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
             print("  Step 1a: Successfully navigated to Settings")
         except Exception as url_error:
             # Strategy 2: Check if URL already changed (navigation might have been instant)
@@ -74,21 +76,21 @@ def test_create_service(page: Page, context: dict) -> None:
                         settings_submenu = page.locator('[data-qa*="settings"], [href*="settings"]').first
                         if settings_submenu.count() > 0:
                             settings_submenu.click()
-                            page.wait_for_url("**/app/settings**", timeout=30000, wait_until="domcontentloaded")
+                            page.wait_for_url("**/app/settings**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
                         else:
                             raise url_error
                     except Exception:
                         raise url_error
                 else:
                     raise url_error
-        page.wait_for_selector('iframe[title="angularjs"]', timeout=15000)
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
         iframe = page.frame_locator('iframe[title="angularjs"]')
         services_button = iframe.get_by_role("button", name="Define the services your")
-        services_button.wait_for(state="visible", timeout=15000)
+        services_button.wait_for(state="visible", timeout=UI_TIMEOUT)
         services_button.click()
-        page.wait_for_url("**/app/settings/services**", timeout=30000, wait_until="domcontentloaded")  # Long timeout, continues immediately when URL matches
+        page.wait_for_url("**/app/settings/services**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
 
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     
     # Generate unique service name
@@ -110,7 +112,7 @@ def test_create_service(page: Page, context: dict) -> None:
     one_on_one_option.click()
     # Wait for dialog to appear
     dialog = iframe.get_by_role("dialog")
-    dialog.wait_for(state="visible", timeout=10000)
+    dialog.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 4: Fill Service Name
     print(f"  Step 4: Entering service name: {service_name}")
@@ -159,11 +161,11 @@ def test_create_service(page: Page, context: dict) -> None:
     create_btn = iframe.get_by_role("button", name="Create")
     create_btn.click()
     # Wait for dialog to close (indicates creation completed)
-    dialog.wait_for(state="hidden", timeout=15000)
+    dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
     
     # HEALED 2026-01-27: Wait for dialog to close (indicates creation completed) instead of arbitrary timeout
     # The dialog closing is the event that indicates the service was saved
-    dialog.wait_for(state="hidden", timeout=15000)
+    dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
     
     # Step 10: Refresh Services List (Navigate away and back via UI)
     print("  Step 10: Refreshing services list...")
@@ -171,27 +173,27 @@ def test_create_service(page: Page, context: dict) -> None:
     # After service creation, navigate away and back to Services to refresh the list.
     # Navigate to Settings main page
     page.get_by_text("Settings", exact=True).click()
-    page.wait_for_url("**/app/settings", timeout=10000)
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.wait_for_url("**/app/settings", timeout=UI_TIMEOUT)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     # Navigate back to Services
     services_button = iframe.get_by_role("button", name="Define the services your")
-    services_button.wait_for(state="visible", timeout=10000)
+    services_button.wait_for(state="visible", timeout=UI_TIMEOUT)
     services_button.click()
-    page.wait_for_url("**/app/settings/services", timeout=10000)
+    page.wait_for_url("**/app/settings/services", timeout=UI_TIMEOUT)
     
     # Wait for Services heading to confirm page loaded
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
-    services_heading.wait_for(state="visible", timeout=10000)
+    services_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Wait for "My Services" text to confirm list section loaded
-    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 11: Verify Service Created and Open Advanced Edit
     print("  Step 11: Verifying service was created...")
     # HEALED: Services list uses endless scroll - must scroll multiple times until end
     # Wait for "My Services" text to confirm the list section has loaded
-    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Scroll multiple times until no more services load (endless scroll pattern)
     # Scroll to bottom repeatedly until the service appears or we've scrolled enough times
@@ -254,15 +256,15 @@ def test_create_service(page: Page, context: dict) -> None:
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
     # get_by_text() correctly finds the service button even when it contains additional text
     service_in_list = iframe.get_by_text(service_name)
-    service_in_list.wait_for(state="visible", timeout=10000)
+    service_in_list.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Click on service to open advanced edit
     service_in_list.click()
-    page.wait_for_url("**/app/settings/services/**")
+    page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
     
     # Wait for advanced edit page to load (Service name field visible)
     advanced_name_field = iframe.get_by_role("textbox", name="Service name *")
-    advanced_name_field.wait_for(state="visible", timeout=10000)
+    advanced_name_field.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Get service ID from URL
     url = page.url
@@ -284,29 +286,20 @@ def test_create_service(page: Page, context: dict) -> None:
     save_btn.click()
     # Wait for save to complete - the page refreshes, so wait for the name field to reappear
     advanced_name_field = iframe.get_by_role("textbox", name="Service name *")
-    advanced_name_field.wait_for(state="visible", timeout=10000)
+    advanced_name_field.wait_for(state="visible", timeout=UI_TIMEOUT)
     page.wait_for_timeout(500)  # Brief settle time after save
     
-    # Step 14: Navigate Back to Services List (via UI, not direct URL)
+    # Step 14: Navigate Back to Services List
     print("  Step 14: Navigating back to services list...")
-    # Click Settings in sidebar to go to Settings main page
-    settings_menu = page.get_by_text("Settings", exact=True)
-    settings_menu.click()
-    page.wait_for_url("**/app/settings", timeout=10000)
-    
-    # Re-acquire iframe reference after navigation
-    angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=10000)
+    app_base = page.url.split("/app/")[0]
+    page.goto(f"{app_base}/app/settings/services", wait_until="domcontentloaded", timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings/services**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    page.locator('iframe[title="angularjs"]').wait_for(state="visible", timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
-    
-    # Click Services button to navigate back to Services page
-    services_btn = iframe.get_by_role("button", name="Define the services your")
-    services_btn.click()
-    page.wait_for_url("**/app/settings/services", timeout=10000)
     
     # Wait for services page to load
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
-    services_heading.wait_for(state="visible", timeout=15000)
+    services_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Save to context
     context["created_service_id"] = service_id

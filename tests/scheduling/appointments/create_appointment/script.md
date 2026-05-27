@@ -21,14 +21,12 @@
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 if "/app/calendar" not in page.url:
-    # Navigate to Calendar if not already there
-    calendar_menu = page.get_by_text("Calendar", exact=True)
-    calendar_menu.click()
-    page.wait_for_url("**/app/calendar**", timeout=10000)
+    open_calendar_page(page)
 ```
 
 - **How verified**: Verified URL check in MCP
 - **Wait for**: URL contains "/app/calendar"
+- **Note**: `open_calendar_page` selects "Calendar View" if the parent Calendar menu only expands.
 
 ### Step 2: Wait for Calendar to Load
 
@@ -37,11 +35,11 @@ if "/app/calendar" not in page.url:
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
 outer_iframe = page.frame_locator('iframe[title="angularjs"]')
 inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
 new_btn = inner_iframe.get_by_role('button', name='New')
-new_btn.wait_for(state='visible', timeout=10000)
+new_btn.wait_for(state='visible', timeout=5000)
 ```
 
 - **How verified**: Verified in MCP
@@ -142,11 +140,12 @@ client_option.wait_for(state='visible', timeout=5000)
 client_option = outer_iframe.get_by_role('button').filter(has_text=client_name)
 client_option.wait_for(state='visible', timeout=5000)
 client_option.click()
-# Wait for service panel to load (event-based)
-inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=10000)
+service_picker = inner_iframe.locator('[data-qa="service-picker-modal"]:visible')
+service_picker.wait_for(state='visible', timeout=5000)
+inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=5000)
 ```
 
-- **How verified**: Clicked in MCP, service selection panel appeared
+- **How verified**: Stress failure showed the client dialog could close without opening the service picker. The implementation retries the New Appointment → client selection handoff once and requires the service picker before continuing.
 - **Wait for**: "My Services" text visible (service panel loaded)
 
 ### Step 7: Search for Test Service
@@ -158,8 +157,10 @@ inner_iframe.get_by_text('My Services').wait_for(state='visible', timeout=10000)
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # Service search in the nested frame
-service_search = inner_iframe.get_by_role('searchbox', name='Search')
-service_search.click()
+service_picker = inner_iframe.locator('[data-qa="service-picker-modal"]:visible')
+service_picker.wait_for(state='visible', timeout=5000)
+service_search = service_picker.get_by_role('searchbox', name='Search')
+service_search.click(timeout=5000)
 page.wait_for_timeout(100)  # Brief delay for focus (allowed)
 service_search.press_sequentially(service_name, delay=30)
 # Service list filters; service row appears (event-based wait in Step 8)
@@ -177,26 +178,25 @@ service_search.press_sequentially(service_name, delay=30)
 | Option | Pros | Cons |
 |--------|------|------|
 | `inner_iframe.get_by_text(service_name, exact=True)` | Simple | Matches 2 elements (tooltip + label) - FAILS |
-| `inner_iframe.locator('.service-item').filter(has_text=service_name)` | Unique, clicks row | Requires class knowledge |
+| `inner_iframe.locator('[data-qa="service-picker-modal"]').locator('.service-item').filter(has_text=service_name)` | Scopes selection to the modal, avoiding the background calendar sidebar service list | Requires class knowledge for the service row because no per-row data-qa exists |
 
-**CHOSEN**: `inner_iframe.locator('.service-item').filter(has_text=service_name)` - Clicks the unique service row.
+**CHOSEN**: Search for `service_name`, then scope `.service-item` to `[data-qa="service-picker-modal"]` and click the matching row. This avoids accidentally clicking the same service name in the background calendar sidebar.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-# CRITICAL: Use .service-item class to click on the service ROW, not just the text
-# Using get_by_text() would match multiple elements (tooltip activator AND service label)
-service_row = inner_iframe.locator('.service-item').filter(has_text=service_name)
+service_row = service_picker.locator('.service-item').filter(has_text=service_name).first
 service_row.wait_for(state='visible', timeout=5000)
-service_row.click()
+service_row.locator('[data-qa="service-name"]').click(timeout=5000)
+service_picker.wait_for(state='hidden', timeout=5000)
 # Wait for service picker to close and appointment form to load (event-based).
 # Single detection: Schedule button by accessible name (regex) or "Schedule" only (one compound locator).
 schedule_btn = inner_iframe.get_by_role('button', name=re.compile(r'Schedule\s*appointment', re.IGNORECASE)).or_(
     inner_iframe.get_by_role('button', name=re.compile(r'^Schedule$', re.IGNORECASE))
 ).first
-schedule_btn.wait_for(state='visible', timeout=15000)
+schedule_btn.wait_for(state='visible', timeout=5000)
 ```
 
-- **How verified**: Clicked in MCP, appointment form appeared with date/time options
+- **How verified**: Stress failure screenshot showed the service picker remained open after a service-row click while later global controls still matched. Source inspection showed `.service-item` also appears in the background calendar service list, so the selector is now scoped to the visible modal `data-qa` and waits for that picker to close.
 - **Wait for**: Schedule button visible (appointment form loaded)
 
 ### Step 8b: Fill Address if present – HEALED 2026-01-31
@@ -216,6 +216,32 @@ if address_field.count() > 0:
     page.keyboard.press('Tab')
     page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
 ```
+
+### Step 8c: Select Start Time
+
+- **Action**: Select a future start time when the appointment form exposes the start-time picker.
+- **Target**: HourPicker inside `[data-qa="service-start-time-input"]`.
+
+**LOCATOR DECISION:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `[data-qa="service-start-time-input"] input` + `[data-qa="item-10:00 AM"]` | Stable app selectors from the HourPicker component | None |
+| Generic `button[name="select"]` / coordinate click | Can hit the service picker or wrong form control | Brittle |
+
+**CHOSEN**: Use the start-time input data-qa and HourPicker option data-qa.
+
+**VERIFIED PLAYWRIGHT CODE**:
+```python
+start_time_input = inner_iframe.locator('[data-qa="service-start-time-input"] input').first
+start_time_input.wait_for(state='visible', timeout=5000)
+start_time_input.click(timeout=5000)
+time_option = inner_iframe.locator('[data-qa="item-10:00 AM"]').first
+time_option.wait_for(state='visible', timeout=5000)
+time_option.click(timeout=5000)
+```
+
+- **How verified**: Source inspection of `AppointmentDialog.vue`, `HourPicker.vue`, and `TextInputWithSelect.vue` showed stable `data-qa` hooks for both the input and generated time option.
 
 ### Step 9: Click Schedule Appointment
 

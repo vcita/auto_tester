@@ -10,6 +10,7 @@ from playwright.sync_api import Page, expect
 from tests._functions.login.test import fn_login
 from tests._functions.create_service.test import fn_create_service
 from tests._functions.create_client.test import fn_create_client
+from tests.scheduling.appointments.appointment_helpers import open_calendar_page
 
 
 def setup_appointments(page: Page, context: dict) -> None:
@@ -60,9 +61,7 @@ def setup_appointments(page: Page, context: dict) -> None:
     
     # Step 3: Navigate to Calendar
     print("  Setup Step 3: Navigating to Calendar...")
-    calendar_menu = page.get_by_text("Calendar", exact=True)
-    calendar_menu.click()
-    page.wait_for_url("**/app/calendar**", timeout=10000)
+    open_calendar_page(page)
     
     # Verify we're on the calendar page
     import re

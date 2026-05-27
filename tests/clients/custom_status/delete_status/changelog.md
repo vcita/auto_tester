@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-27 - Stabilize Status Reassignment
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Full `clients` stress showed the shared status reassignment helper could miss the current client-detail frame or the rendered Status dropdown.
+**Changes**:
+- Reuse the hardened client-detail readiness and contact edit dialog opening path.
+- Select the visible Angular Material Status dropdown/options before saving the reassignment to `Lead`.
+- Keep the source-of-truth assertions that deletion is blocked while in use and succeeds after reassignment.
+
 ## 2026-05-26 - Retry Client Card Settings Readiness
 **Phase**: Test
 **Author**: Cursor AI
