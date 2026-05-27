@@ -157,6 +157,9 @@ class Category:
     
     # Deprecated: subcategory-only ordering. Use execution_order in parent instead.
     run_after: Optional[str] = None
+
+    # Optional account lifecycle metadata for categories that need a dedicated account.
+    account_profile: Optional[dict] = None
     
     @property
     def full_path(self) -> str:

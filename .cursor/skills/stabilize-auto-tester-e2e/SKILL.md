@@ -19,13 +19,16 @@ description: Stabilize auto_tester E2E categories and subcategories by investiga
    - Timing/wait issue.
    - Product state issue, such as an action no longer available after payment.
    - Infrastructure issue.
-5. Fix the root cause with the smallest stable change.
-6. Compile edited Python files with `python -m py_compile`.
-7. Run lints for edited files.
-8. Rerun the same focused scope without `--headless` unless the user asks otherwise.
-9. Update health files only from real runner output.
-10. If the stabilized scope is migrated from automation-js, update the migration coverage tracker with the new status, runtime, and stability evidence.
-11. After any stress test completes, verify all status artifacts before reporting done:
+5. When stabilizing migrated automation-js coverage, run the original automation-js test or scenario when it is runnable.
+   - Use the old run to compare UI paths, helper behavior, generated data, popups, tabs, and expected assertions.
+   - If the new test gets stuck or the correct UI action is unclear, pause and ask the user for a hint on what to press, a photo, a screenshot, or any other clue that can reveal the intended path.
+6. Fix the root cause with the smallest stable change.
+7. Compile edited Python files with `python -m py_compile`.
+8. Run lints for edited files.
+9. Rerun the same focused scope without `--headless` unless the user asks otherwise.
+10. Update health files only from real runner output.
+11. If the stabilized scope is migrated from automation-js, update the migration coverage tracker with the new status, runtime, and stability evidence.
+12. After any stress test completes, verify all status artifacts before reporting done:
    - Check `git diff` for every related `_category.yaml` and `_health.json`.
    - Confirm the parent category and every tested subcategory have the expected `stability` block.
    - Do not rely only on the runner's final summary; full-category runs may stamp the parent category without stamping each subcategory file.

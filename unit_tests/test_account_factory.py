@@ -14,6 +14,13 @@ def test_parse_email_category_supports_current_format():
     assert account_factory.parse_email_category("auto.payments.1778566207@vcita.com") == "payments"
 
 
+def test_build_auto_email_sanitizes_category_segment():
+    email = account_factory.build_auto_email("eu_strict_invoices", 1778566207)
+
+    assert email == "auto.eu-strict-invoices.1778566207@vcita.com"
+    assert account_factory.AUTO_EMAIL_PATTERN.match(email)
+
+
 def test_create_account_posts_admin_payload_for_platinum(monkeypatch):
     posted = {}
     recorded_emails = []
@@ -64,3 +71,35 @@ def test_create_account_posts_admin_payload_for_platinum(monkeypatch):
     assert account["pivot_uid"] == "biz-123"
     assert account["auth_token"] == "api-token-123"
     assert account["user_id"] == "user-123"
+
+
+def test_update_account_country_posts_nested_business_payload(monkeypatch):
+    posted = {}
+
+    class FakeResponse:
+        ok = True
+        status_code = 200
+        text = ""
+
+    def fake_post(url, json, headers, timeout):
+        posted["url"] = url
+        posted["json"] = json
+        posted["headers"] = headers
+        posted["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(account_factory.requests, "post", fake_post)
+
+    account_factory.update_account_country(
+        "https://api.example.com/", "admin-token", "biz-123", "Italy"
+    )
+
+    assert posted["url"] == "https://api.example.com/platform/v1/businesses/biz-123"
+    assert posted["headers"] == {"Authorization": "Admin admin-token"}
+    assert posted["json"] == {
+        "business": {
+            "business": {
+                "country_name": "Italy",
+            },
+        },
+    }

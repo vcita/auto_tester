@@ -17,26 +17,30 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Page objects under `automation-js/pages`.
    - API helpers under `automation-js/api`.
    - Table parsers and context helpers when scenarios use table assertions or `[context.*]`.
-3. Create `migration_mapping.md` before implementation.
+3. Run the original automation-js test before or during creation when it is runnable.
+   - Use the old run to observe real UI behavior, timing, generated data, popups, tabs, and legacy helper side effects.
+   - If the new test gets stuck or the UI path is unclear, pause and ask the user for a hint on what to press, a photo, a screenshot, or any other clue that can reveal the intended path.
+   - Use the old run evidence to build the mapping and avoid replacing a legacy UI action with an API shortcut by mistake.
+4. Create `migration_mapping.md` before implementation.
    - List every original scenario, action, assertion, setup, and edge case.
    - Map each legacy step to the auto_tester category/subcategory/test structure.
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
    - Treat `migration_mapping.md` as a local planning artifact. It is important for preventing scope loss, but it should not be committed or included in the PR.
-4. Implement in strict auto_tester phase order:
+5. Implement in strict auto_tester phase order:
    - `steps.md`: user-facing WHAT, no selectors or code.
    - `script.md`: Playwright-oriented HOW, including locator choices and waits.
    - `test.py`: executable code.
    - `changelog.md`: every creation, fix, and validation-relevant decision.
-5. Register the test in `_category.yaml`.
+6. Register the test in `_category.yaml`.
    - Add new subcategories to parent `execution_order` when the parent uses it.
    - Test IDs must match folder names.
-6. Validate before calling the migration done.
+7. Validate before calling the migration done.
    - `PYENV_VERSION=3.11.9 python -m py_compile <edited .py files>`
    - `PYENV_VERSION=3.11.9 python main.py list --category <category>`
    - Focused run: `PYENV_VERSION=3.11.9 python main.py run --category <category/subcategory> --env integration --headless`
    - Stability run when browser validation passes: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`
-7. After a successful migration, run the original and migrated tests and report the comparison.
+8. After a successful migration, run the original and migrated tests and report the comparison.
    - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
    - Use the latest post-stabilization run evidence; do not compare against earlier runs if the test code, waits, setup, or selector logic changed afterward.
@@ -53,8 +57,8 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 
    - Summarize under the table whether scope was preserved against `migration_mapping.md`.
    - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
-8. After the migration satisfies the Definition Of Done, use the `update-migration-coverage-tracker` skill to update the Confluence coverage tracker with real run evidence and current progress totals.
-9. After stabilization changes, re-check `steps.md`, `script.md`, and `test.py` together:
+9. After the migration satisfies the Definition Of Done, use the `update-migration-coverage-tracker` skill to update the Confluence coverage tracker with real run evidence and current progress totals.
+10. After stabilization changes, re-check `steps.md`, `script.md`, and `test.py` together:
    - Make sure the phase docs do not claim assertions that were removed from executable code.
    - If an assertion is intentionally removed as redundant or out of scope, document why behavior coverage is still preserved.
    - Re-run the migration comparison after those changes.
