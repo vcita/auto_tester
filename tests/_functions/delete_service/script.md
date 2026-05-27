@@ -15,32 +15,36 @@
 
 ## Actions
 
-### Step 1: Delete by ID for Teardown – HEALED 2026-05-27
+### Step 1: Navigate to Settings
 
-- **Action**: API cleanup when `created_service_id` exists; otherwise fall back to Settings → Services list UI deletion.
+- **Action**: Navigate through the application UI to Settings before opening Services.
 
 **LOCATOR DECISION:**
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `DELETE /v2/settings/services/{created_service_id}` | Avoids Settings loader/editor/list in teardown and uses the backend route Restangular calls | Requires service ID and auto-account token |
-| Settings → Services list | Works when only service name is known | Can hit Settings loader, editor toolbar, or endless-scroll list |
+| Settings sidebar link | Exercises the same UI path as a user | Can be slow when the app is still settling |
+| Direct service URL | Faster when service ID is known | Skips Settings and Services navigation coverage |
 
-**CHOSEN**: Use the `/v2/settings/services/{id}` API when `created_service_id` exists. If it is unavailable, retain the Settings → Services UI fallback. All waits/API calls are capped at 5000ms.
+**CHOSEN**: Always use the Settings → Services UI path. This function is part of UI E2E coverage, so `created_service_id` must not bypass the UI deletion flow.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-service_id = context.get("created_service_id")
-if service_id:
-    requests.delete(
-        f"{_resolve_api_base_url(context)}/v2/settings/services/{service_id}",
-        headers=_account_headers(context),
-        timeout=5,
-    )
+page.wait_for_load_state("domcontentloaded", timeout=5000)
+if "/app/calendar" in page.url:
+    dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
+    dashboard_link.click(timeout=5000)
+    page.wait_for_url("**/app/dashboard**", timeout=5000)
+
+settings_link = page.get_by_text("Settings", exact=True)
+settings_link.wait_for(state="visible", timeout=5000)
+settings_link.scroll_into_view_if_needed()
+settings_link.click(timeout=5000)
+page.wait_for_url("**/app/settings**", timeout=5000)
 ```
 
-- **How verified**: Focused appointments stress passed after switching to `/v2/settings/services/{id}`.
-- **Wait for**: API response within 5 seconds.
+- **How verified**: UI path restored after API deletion was found to reduce E2E scope.
+- **Wait for**: URL contains "/app/settings".
 
 ### Step 2: Click Services button
 
@@ -69,7 +73,7 @@ page.wait_for_url("**/app/settings/services", timeout=5000)
 | `iframe.get_by_role('button').filter(has_text=name)` | Dynamic, matches by name | Service may be below fold — must scroll first |
 | Scroll then same locator | Same as delete_service category test; finds service | Requires scroll loop |
 
-**CHOSEN**: Skip this list step when direct service ID navigation succeeded. Otherwise wait for "My Services", scroll loop (up to 10 times) until service button is found or end of list (same pattern as tests/scheduling/services/delete_service/test.py). Then `iframe.get_by_role('button').filter(has_text=name)` with a 5000ms wait and click.
+**CHOSEN**: Wait for "My Services", scroll loop (up to 10 times) until service button is found or end of list (same pattern as tests/scheduling/services/delete_service/test.py). Then `iframe.get_by_role('button').filter(has_text=name)` with a 5000ms wait and click.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
@@ -105,7 +109,7 @@ page.wait_for_url("**/app/settings/services/**", timeout=5000)
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `iframe.get_by_role('button', name='Delete')` | Semantic | Can miss the Angular button on direct service-detail navigation |
+| `iframe.get_by_role('button', name='Delete')` | Semantic | Can miss the Angular toolbar button |
 | Scoped button/text fallbacks for `Delete` | Handles Angular/VcButton markup while staying on the service detail page | More than one fallback |
 
 **CHOSEN**: Require the service name to be visible, try scoped `button`, `[role="button"]`, and exact text fallbacks, then require the confirmation dialog to appear. If the service detail page is still on the skeleton loader, reload once and retry with the same 5000ms caps.

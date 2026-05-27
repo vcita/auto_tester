@@ -40,6 +40,8 @@ Prefer API setup for prerequisites that are not the feature under test:
 - Create clients, services, and other required records through API when existing patterns are available.
 - Store created data in `context` with names the tests already use.
 - Keep UI coverage focused on the category behavior being tested.
+- Never convert a UI action to an API call when that UI action is part of the tested scope or the reusable function's stated objective.
+- If a UI cleanup function exists to cover a user flow, stabilize that UI flow instead of bypassing it through an API shortcut.
 
 For auto-account runs, use runner-provided context:
 
@@ -55,8 +57,10 @@ For every stabilization change:
 
 - Re-check `steps.md`, `script.md`, and `test.py` together.
 - Confirm no user-facing assertion, setup path, edge case, or validation intent was removed.
+- Confirm no user-facing UI action was replaced by an API call when that action is part of the declared test/function scope.
 - If an assertion is removed as redundant, document which remaining assertion preserves the same behavior coverage.
 - Do not mark a test stable if stability was achieved by reducing scope or weakening assertions.
+- Do not mark a test stable if stability was achieved by bypassing the UI path that the test is intended to validate.
 - Include scope/quality preservation in the final report.
 
 ## Selector Strategy

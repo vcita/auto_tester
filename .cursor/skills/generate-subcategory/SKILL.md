@@ -99,6 +99,8 @@ created_at: <YYYY-MM-DD>
 - State-changing actions (create/update/delete) MUST have a verification step
 - Verify by checking actual data (list items, page content, URL), never toasts
 - Use `Call: function_name` for reusable operations (login, create_client, etc.)
+- Do not define a UI-scoped action and later satisfy it with an API call. If the step says the user deletes, edits, creates, or navigates in the UI, that UI path is part of the test scope.
+- Use API setup/cleanup only for prerequisites outside the behavior being tested, not as a replacement for a declared UI action.
 - Keep steps concise — typically 5-10 steps per test
 - Prerequisites reference context from `_setup` or prior tests in the subcategory
 

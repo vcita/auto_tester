@@ -1,5 +1,20 @@
 # Delete Service Function - Changelog
 
+## 2026-05-27 - Restored UI Deletion Scope
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (scope correction)
+**Reason**: API-based teardown skipped Settings navigation, Services list selection, Delete action, confirmation, and removal verification, reducing the UI E2E scope this function is meant to cover.
+
+**Fix Applied**:
+1. Removed the `created_service_id` API deletion shortcut.
+2. Removed API helper code and token/base URL handling from the UI function.
+3. Restored the full Settings → Services → service row → Delete → Ok → list verification flow for all callers.
+
+**Scope / Quality**: `created_service_id` may still be cleared after deletion, but it no longer changes the deletion path. The function now validates the UI deletion behavior every time.
+
+---
+
 ## 2026-05-27 - Stabilized ID-Based Service Teardown
 
 **Phase**: test.py, script.md

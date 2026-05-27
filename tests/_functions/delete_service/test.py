@@ -6,11 +6,9 @@
 import re
 from typing import Callable, Optional
 
-import requests
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, expect
+from playwright.sync_api import Page, expect
 
 UI_TIMEOUT = 5_000
-REQUEST_TIMEOUT = 5
 
 
 def fn_delete_service(
@@ -45,38 +43,10 @@ def fn_delete_service(
             step_callback(msg)
         else:
             print(f"  {msg}")
-    
-    service_id = context.get("created_service_id")
-    if service_id:
-        _pause("Step 1a: Delete service directly by ID via API")
-        _delete_service_via_api(context, service_id)
-        _clear_created_service_context(context)
-        print(f"  [OK] Successfully deleted service: {name}")
-        return
 
-    # Step 1: Navigate to Service detail page
-    navigated_to_detail = False
-    if service_id and "/app/" in page.url:
-        _pause("Step 1a: Open service detail page directly by ID")
-        app_base = page.url.split("/app/")[0]
-        try:
-            page.goto(
-                f"{app_base}/app/settings/services/{service_id}",
-                wait_until="domcontentloaded",
-                timeout=UI_TIMEOUT,
-            )
-            page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
-            page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
-            navigated_to_detail = True
-        except PlaywrightTimeoutError:
-            page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
-            page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
-            page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
-            navigated_to_detail = True
-
-    _pause("Step 1b: Ensure on app (if on calendar, navigate to dashboard first)")
+    _pause("Step 1a: Ensure on app (if on calendar, navigate to dashboard first)")
     page.wait_for_load_state("domcontentloaded", timeout=UI_TIMEOUT)
-    if not navigated_to_detail and "/app/calendar" in page.url:
+    if "/app/calendar" in page.url:
         _pause("Step 1b: On calendar - click Dashboard in sidebar")
         dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
         dashboard_link.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -86,73 +56,68 @@ def fn_delete_service(
         page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded", timeout=UI_TIMEOUT)
 
-    if not navigated_to_detail:
-        _pause("Step 1c: Click Settings in sidebar")
-        # Sidebar may be in main frame or app iframe; use page so all frames are searched.
-        settings_link = page.get_by_text("Settings", exact=True)
-        settings_link.wait_for(state="visible", timeout=UI_TIMEOUT)
-        settings_link.scroll_into_view_if_needed()
-        page.wait_for_timeout(200)  # Brief settle (allowed)
-        settings_link.click(timeout=UI_TIMEOUT)
-        _pause("Step 1d: Wait for settings URL")
-        page.wait_for_url("**/app/settings**", timeout=UI_TIMEOUT)
+    _pause("Step 1c: Click Settings in sidebar")
+    # Sidebar may be in main frame or app iframe; use page so all frames are searched.
+    settings_link = page.get_by_text("Settings", exact=True)
+    settings_link.wait_for(state="visible", timeout=UI_TIMEOUT)
+    settings_link.scroll_into_view_if_needed()
+    page.wait_for_timeout(200)  # Brief settle (allowed)
+    settings_link.click(timeout=UI_TIMEOUT)
+    _pause("Step 1d: Wait for settings URL")
+    page.wait_for_url("**/app/settings**", timeout=UI_TIMEOUT)
 
-        _pause("Step 2a: Wait for iframe, then click Services button")
-        # Step 2: Click Services button
-        page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
-    else:
-        _pause("Step 2a: Wait for service detail iframe")
+    _pause("Step 2a: Wait for iframe, then click Services button")
+    # Step 2: Click Services button
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
-    if not navigated_to_detail:
-        iframe.get_by_role('button', name='Define the services your').click(timeout=UI_TIMEOUT)
-        _pause("Step 2b: Wait for services URL")
-        page.wait_for_url("**/app/settings/services", timeout=UI_TIMEOUT)
+    iframe.get_by_role('button', name='Define the services your').click(timeout=UI_TIMEOUT)
+    _pause("Step 2b: Wait for services URL")
+    page.wait_for_url("**/app/settings/services", timeout=UI_TIMEOUT)
     
     # HEALED 2026-01-31: Services list uses endless scroll (same as delete_service category test).
     # Scroll until the service button is in view or we reach the end of the list.
-    if not navigated_to_detail:
-        _pause("Step 2c: Wait for My Services list to load")
-        iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
-        _pause("Step 3a: Scroll to find service in list")
-        max_scrolls = 10
-        previous_last_text = ""
-        no_change_count = 0
-        for scroll_attempt in range(max_scrolls):
-            try:
-                service_row = iframe.get_by_role("button").filter(has_text=name)
-                if service_row.count() > 0:
-                    break
-            except Exception:
-                pass
-            try:
-                all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
-                service_count = all_services.count()
-                if service_count > 0:
-                    last_service = all_services.nth(service_count - 1)
-                    current_last_text = (last_service.text_content() or "")[:200]
-                    if current_last_text == previous_last_text and previous_last_text != "":
-                        no_change_count += 1
-                        if no_change_count >= 2:
-                            break
-                    else:
-                        no_change_count = 0
-                        previous_last_text = current_last_text
-                    last_service.scroll_into_view_if_needed()
-                    page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
+    _pause("Step 2c: Wait for My Services list to load")
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
+    _pause("Step 3a: Scroll to find service in list")
+    max_scrolls = 10
+    previous_last_text = ""
+    no_change_count = 0
+    for scroll_attempt in range(max_scrolls):
+        try:
+            service_row = iframe.get_by_role("button").filter(has_text=name)
+            if service_row.count() > 0:
+                break
+        except Exception:
+            pass
+        try:
+            all_services = iframe.get_by_role("button").filter(has_text=re.compile("Test Consultation|Appointment Test|Free estimate|Another Test|Test Debug|Test Group Workshop|Lawn mowing|On-site|MCP Test|UNIQUE TEST|SCROLL TEST"))
+            service_count = all_services.count()
+            if service_count > 0:
+                last_service = all_services.nth(service_count - 1)
+                current_last_text = (last_service.text_content() or "")[:200]
+                if current_last_text == previous_last_text and previous_last_text != "":
+                    no_change_count += 1
+                    if no_change_count >= 2:
+                        break
                 else:
-                    add_btn = iframe.get_by_role("button", name="Add 1 on 1 Appointment")
-                    add_btn.scroll_into_view_if_needed()
-                    page.wait_for_timeout(300)  # Brief settle (allowed)
-            except Exception:
+                    no_change_count = 0
+                    previous_last_text = current_last_text
+                last_service.scroll_into_view_if_needed()
+                page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
+            else:
                 add_btn = iframe.get_by_role("button", name="Add 1 on 1 Appointment")
                 add_btn.scroll_into_view_if_needed()
                 page.wait_for_timeout(300)  # Brief settle (allowed)
-        # Step 3: Click on Service in List
-        service_in_list = iframe.get_by_role("button").filter(has_text=name)
-        service_in_list.wait_for(state="visible", timeout=UI_TIMEOUT)
-        service_in_list.click(timeout=UI_TIMEOUT)
-        _pause("Step 3b: Wait for service detail URL")
-        page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
+        except Exception:
+            add_btn = iframe.get_by_role("button", name="Add 1 on 1 Appointment")
+            add_btn.scroll_into_view_if_needed()
+            page.wait_for_timeout(300)  # Brief settle (allowed)
+    # Step 3: Click on Service in List
+    service_in_list = iframe.get_by_role("button").filter(has_text=name)
+    service_in_list.wait_for(state="visible", timeout=UI_TIMEOUT)
+    service_in_list.click(timeout=UI_TIMEOUT)
+    _pause("Step 3b: Wait for service detail URL")
+    page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
     
     _pause("Step 4: Click Delete button")
     # Step 4: Click Delete Button
@@ -208,43 +173,6 @@ def fn_delete_service(
     _clear_created_service_context(context)
     
     print(f"  [OK] Successfully deleted service: {name}")
-
-
-def _delete_service_via_api(context: dict, service_id: str) -> None:
-    response = requests.delete(
-        f"{_resolve_api_base_url(context)}/v2/settings/services/{service_id}",
-        headers=_account_headers(context),
-        timeout=REQUEST_TIMEOUT,
-    )
-    if not response.ok:
-        raise requests.HTTPError(
-            f"{response.status_code} {response.reason} deleting service {service_id}: {response.text[:500]}",
-            response=response,
-        )
-
-
-def _resolve_api_base_url(context: dict) -> str:
-    api_base_url = context.get("api_base_url")
-    if api_base_url:
-        return api_base_url.rstrip("/")
-
-    base_url = (context.get("base_url") or "").rstrip("/")
-    if "meet2know.com" in base_url:
-        return "https://api2.meet2know.com"
-    if "vcita.com" in base_url:
-        return "https://api.vcita.biz"
-    if "app-" in base_url and ".external.int-eks.vchost.co" in base_url:
-        return base_url.replace("https://app-", "https://core-", 1)
-
-    raise ValueError("api_base_url is missing from context and could not be inferred")
-
-
-def _account_headers(context: dict) -> dict:
-    auto_account = context.get("auto_account") or {}
-    token = auto_account.get("api_token") or auto_account.get("auth_token")
-    if not token:
-        raise ValueError("auto_account api_token is missing from context")
-    return {"Authorization": f"Bearer {token}"}
 
 
 def _clear_created_service_context(context: dict) -> None:

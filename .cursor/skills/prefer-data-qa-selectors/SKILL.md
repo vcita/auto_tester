@@ -14,6 +14,15 @@ When building or updating UI tests:
 3. Keep selector intent explicit and consistent across the file.
 4. If a stable selector is missing, note that `data-qa` should be added in the app code.
 
+## UI Scope Preservation
+
+Do not replace a UI action with an API call when that action is part of the behavior the test, reusable function, or helper is meant to cover.
+
+- Stabilize the selector, wait, navigation, or product readiness signal instead of bypassing the UI.
+- API setup is acceptable for prerequisites that are outside the tested behavior.
+- API cleanup is acceptable only when cleanup itself is not the tested behavior and does not replace a reusable UI action function whose objective is to exercise the UI.
+- If replacing UI with API is proposed, explicitly confirm that the removed UI path is outside scope before making the change.
+
 ## Selector Priority
 
 Use this order:
