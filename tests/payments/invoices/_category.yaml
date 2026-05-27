@@ -1,6 +1,13 @@
 name: Invoices
 description: Tests for creating, editing, sending, canceling, and client access to
   invoices
+execution_order:
+- create_invoice
+- edit_invoice
+- send_invoice
+- cancel_invoice
+- view_download_invoice
+- eu_strict_invoices
 tests:
 - id: create_invoice
   name: Create Invoice

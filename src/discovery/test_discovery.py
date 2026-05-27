@@ -94,6 +94,7 @@ class TestDiscovery:
             teardown=teardown,
             execution_order=execution_order,
             run_after=yaml_data.get("run_after"),  # Deprecated; used only when execution_order is not set
+            account_profile=yaml_data.get("account_profile"),
         )
         
         # Build test metadata lookup from YAML

@@ -1,0 +1,33 @@
+name: EU Strict Invoices
+description: Tests for EU strict invoices that require a dedicated European account
+account_profile:
+  type: isolated
+  slug: euinv
+  country_name: Italy
+  cleanup: always
+tests:
+- id: refund_credit_notes
+  name: EU Strict Invoice Refund Credit Notes
+  status: active
+  priority: high
+  description: Verify EU strict invoices create credit notes after full and partial
+    refunds
+  tags:
+  - payments
+  - invoices
+  - eu-strict
+  - refunds
+  - credit-notes
+status: active
+priority: high
+tags:
+- payments
+- invoices
+- eu-strict
+owner: QA Team
+created_at: 2026-05-27
+stability:
+  status: stable
+  last_stress_test: '2026-05-27'
+  pass_rate: 100.0%
+  iterations: 10

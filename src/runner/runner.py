@@ -9,6 +9,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+import time
 
 from playwright.sync_api import sync_playwright, Browser, Page
 
@@ -479,9 +480,11 @@ class TestRunner:
             "has_teardown": category.teardown is not None,
         })
         
+        skip_parent_setups = self._path_targets_isolated_account(category_chain)
+
         # Create fresh context for this category
         context = self.context_manager.create_fresh()
-        if self.env and self.admin_token and self.directory_id:
+        if self.env and self.admin_token and self.directory_id and not skip_parent_setups:
             try:
                 auto_account = account_factory.create_account(
                     self.api_base_url, self.admin_token, self.directory_id, category.name
@@ -508,7 +511,7 @@ class TestRunner:
                 print(f"  [auto-account] Account creation failed for {category.name}: {exc}")
                 result.stopped_early = True
                 return result
-        elif self.env:
+        elif self.env and not skip_parent_setups:
             missing = []
             if not self.admin_token:
                 missing.append("VCITA_ADMIN_TOKEN or target.admin_token")
@@ -584,7 +587,7 @@ class TestRunner:
             
             try:
                 # Run setup if exists
-                if category.setup and category.setup.is_valid:
+                if category.setup and category.setup.is_valid and not skip_parent_setups:
                     test_start_offset = time_module.time() - video_start_time
                     setup_result = self._run_single_test(
                         test_path=self.tests_root / category.path / "_setup",
@@ -620,12 +623,17 @@ class TestRunner:
                         self._cleanup_auto_account(context, result, category.name)
                         return result
 
-                # Path mode: xxx/yyy/zzz -> root setup done; run each intermediate setup, then leaf setup + tests
+                # Path mode: xxx/yyy/zzz -> root setup done; run each intermediate setup, then leaf setup + tests.
+                # Isolated-account paths own their setup and browser session, so parent setups are intentionally skipped.
                 if category_chain and len(category_chain) >= 2:
                     for i in range(1, len(category_chain)):
                         parent_cat = category_chain[i - 1]
                         subcat = category_chain[i]
                         path_str = "/".join((c.path.name for c in category_chain[: i + 1] if c.path))
+                        if skip_parent_setups:
+                            continue
+                        if self._requires_isolated_account(subcat):
+                            continue
                         if subcat.setup and subcat.setup.is_valid:
                             test_start_offset = time_module.time() - video_start_time
                             setup_result = self._run_single_test(
@@ -673,14 +681,15 @@ class TestRunner:
                         parent_category=parent_of_leaf,
                         until_test=until_test,
                         debug_test=debug_test,
-                        skip_setup=True,
+                        skip_setup=not self._requires_isolated_account(leaf),
+                        restore_parent_session=not skip_parent_setups,
                     )
                     if subcat_failed:
                         result.stopped_early = True
                     if not getattr(result, "until_test_reached", False) and not getattr(result, "debug_test_reached", False):
                         # Teardown for parent chain only (leaf teardown already ran in _run_subcategory_inline)
                         parent_chain = category_chain[:-1]
-                        if parent_chain:
+                        if parent_chain and not skip_parent_setups:
                             self._run_teardown_chain_reverse(
                                 parent_chain, page, context, result,
                                 video_timestamps, video_start_time, time_module,
@@ -1176,6 +1185,8 @@ class TestRunner:
         until_test: Optional[str] = None,
         debug_test: Optional[str] = None,
         skip_setup: bool = False,
+        isolated_handled: bool = False,
+        restore_parent_session: bool = True,
     ) -> tuple[bool, str]:
         """
         Run a subcategory inline within the parent category's browser session.
@@ -1196,6 +1207,22 @@ class TestRunner:
         Returns:
             Tuple of (failed: bool, failed_test_name: str or None)
         """
+        if not isolated_handled and self._requires_isolated_account(subcategory):
+            return self._run_isolated_subcategory_inline(
+                subcategory=subcategory,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=parent_category,
+                until_test=until_test,
+                debug_test=debug_test,
+                skip_setup=skip_setup,
+                restore_parent_session=restore_parent_session,
+            )
+
         print(f"\n    >>> Subcategory: {subcategory.name}")
         
         # Build category path: parent/subcategory (e.g., "scheduling/appointments")
@@ -1346,6 +1373,179 @@ class TestRunner:
         
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
+
+    def _requires_isolated_account(self, category: Category) -> bool:
+        profile = getattr(category, "account_profile", None) or {}
+        return profile.get("type") == "isolated"
+
+    def _path_targets_isolated_account(self, category_chain: Optional[List[Category]]) -> bool:
+        if not category_chain or len(category_chain) < 2:
+            return False
+        return any(self._requires_isolated_account(category) for category in category_chain[1:])
+
+    def _run_isolated_subcategory_inline(
+        self,
+        subcategory: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+        parent_category: Category,
+        until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
+        skip_setup: bool = False,
+        restore_parent_session: bool = True,
+    ) -> tuple[bool, str]:
+        profile = getattr(subcategory, "account_profile", None) or {}
+        if not (self.env and self.admin_token and self.directory_id):
+            result.test_results.append(TestResult(
+                test_name=f"{subcategory.name}/_isolated_account",
+                test_path=subcategory.path,
+                test_type="setup",
+                status="failed",
+                duration_ms=0,
+                error="Isolated account requires --env plus admin token and directory id",
+            ))
+            return True, f"{subcategory.name}/_isolated_account"
+
+        country_name = profile.get("country_name") or account_factory.COUNTRY
+        cleanup_policy = profile.get("cleanup", "passed")
+        isolated_account = None
+        isolated_context = dict(context)
+        subcat_failed = True
+        failed_name = f"{subcategory.name}/_isolated_account"
+
+        try:
+            isolated_account = self._create_isolated_account_with_retry(subcategory, profile)
+            isolated_context["auto_account"] = isolated_account
+            isolated_context["base_url"] = self.app_base_url
+            isolated_context["api_base_url"] = self.api_base_url
+            isolated_context["username"] = isolated_account["email"]
+            isolated_context["password"] = isolated_account["password"]
+            print(
+                f"  [auto-account] Created isolated {isolated_account['email']} "
+                f"for {subcategory.name}",
+                flush=True,
+            )
+
+            if isolated_account.get("user_id"):
+                account_factory.set_automation_feature_flags(
+                    self.api_base_url, self.admin_token, isolated_account["user_id"]
+                )
+            if country_name != account_factory.COUNTRY:
+                account_factory.update_account_country(
+                    self.api_base_url,
+                    self.admin_token,
+                    isolated_account["pivot_uid"],
+                    country_name,
+                )
+                print(
+                    f"  [auto-account] Updated isolated account country to {country_name}",
+                    flush=True,
+                )
+
+            self._clear_browser_session(page)
+            subcat_failed, failed_name = self._run_subcategory_inline(
+                subcategory=subcategory,
+                page=page,
+                context=isolated_context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=parent_category,
+                until_test=until_test,
+                debug_test=debug_test,
+                skip_setup=skip_setup,
+                isolated_handled=True,
+                restore_parent_session=restore_parent_session,
+            )
+            return subcat_failed, failed_name
+        except (account_factory.AccountCreationError, account_factory.FatalTokenError) as exc:
+            result.test_results.append(TestResult(
+                test_name=f"{subcategory.name}/_isolated_account",
+                test_path=subcategory.path,
+                test_type="setup",
+                status="failed",
+                duration_ms=0,
+                error=str(exc),
+            ))
+            return True, f"{subcategory.name}/_isolated_account"
+        finally:
+            if isolated_account and self.admin_token:
+                should_cleanup = cleanup_policy == "always" or (
+                    cleanup_policy == "passed" and not subcat_failed
+                )
+                if should_cleanup:
+                    deleted = account_factory.delete_account(
+                        self.api_base_url,
+                        self.admin_token,
+                        isolated_account["pivot_uid"],
+                        email=isolated_account["email"],
+                    )
+                    verb = "Deleted" if deleted else "Failed to delete"
+                    print(
+                        f"  [auto-account] {verb} isolated {isolated_account['email']}",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"  [auto-account] Keeping isolated {isolated_account['email']} "
+                        f"for debugging",
+                        flush=True,
+                    )
+
+            if restore_parent_session and not getattr(result, "until_test_reached", False) and not getattr(result, "debug_test_reached", False):
+                self._restore_parent_session(page, context)
+
+    def _restore_parent_session(self, page, context: dict) -> None:
+        username = context.get("username")
+        password = context.get("password")
+        base_url = context.get("base_url") or self.app_base_url
+        if not (username and password and base_url):
+            return
+
+        self._clear_browser_session(page)
+
+        from tests._functions.login.test import fn_login
+
+        fn_login(page, context, username=username, password=password, base_url=base_url)
+
+    def _clear_browser_session(self, page) -> None:
+        try:
+            page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        except Exception:
+            pass
+        page.context.clear_cookies()
+
+    def _create_isolated_account_with_retry(self, subcategory: Category, profile: dict) -> dict:
+        category_name = (
+            profile.get("slug")
+            or (subcategory.path.name if subcategory.path else subcategory.name)
+        )
+        last_error = None
+        for attempt in range(4):
+            try:
+                return account_factory.create_account(
+                    self.api_base_url,
+                    self.admin_token,
+                    self.directory_id,
+                    category_name,
+                )
+            except account_factory.AccountCreationError as exc:
+                last_error = exc
+                if "transient forbidden" not in str(exc).lower() or attempt == 3:
+                    raise
+                wait_seconds = 15 * (attempt + 1)
+                print(
+                    f"  [auto-account] Isolated account creation was transiently forbidden; "
+                    f"retrying in {wait_seconds}s",
+                    flush=True,
+                )
+                time.sleep(wait_seconds)
+        raise last_error
     
     def _run_subcategory_teardown(
         self,

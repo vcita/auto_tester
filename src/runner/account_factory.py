@@ -70,7 +70,13 @@ def load_directory_id(config: Optional[dict] = None) -> Optional[str]:
     return None
 
 
-def create_account(api_base_url: str, admin_token: str, directory_id: str, category_name: str) -> dict:
+def create_account(
+    api_base_url: str,
+    admin_token: str,
+    directory_id: str,
+    category_name: str,
+    country_name: str = COUNTRY,
+) -> dict:
     """
     Create a business account for a single category.
 
@@ -81,14 +87,14 @@ def create_account(api_base_url: str, admin_token: str, directory_id: str, categ
     """
     timestamp = int(time.time())
     email = build_auto_email(category_name, timestamp)
-    business_name = f"Auto_{category_name}_{timestamp}"
+    business_name = f"Auto_{normalize_email_category(category_name)}_{timestamp}"
 
     options = {
         "email": email,
         "business_name": business_name,
         "password": DEFAULT_PASSWORD,
         "directory_id": directory_id,
-        "country_name": COUNTRY,
+        "country_name": country_name,
         "package_subscription_id": PLATINUM_PACKAGE_SUBSCRIPTION_ID,
     }
     payload = {"generate_api_token": True, "options": json.dumps(options)}
@@ -129,7 +135,14 @@ def create_account(api_base_url: str, admin_token: str, directory_id: str, categ
 
 def build_auto_email(category_name: str, timestamp: Optional[int] = None) -> str:
     account_timestamp = timestamp if timestamp is not None else int(time.time())
-    return f"auto.{category_name.lower()}.{account_timestamp}@vcita.com"
+    safe_category = normalize_email_category(category_name)
+    return f"auto.{safe_category}.{account_timestamp}@vcita.com"
+
+
+def normalize_email_category(category_name: str) -> str:
+    """Convert category names to an email-safe segment."""
+    normalized = re.sub(r"[^a-z0-9-]+", "-", category_name.lower()).strip("-")
+    return normalized or "category"
 
 
 def set_automation_feature_flags(
@@ -148,6 +161,27 @@ def set_automation_feature_flags(
     except Exception as exc:
         logger.warning("Set feature flags for %s failed: %s", user_id, exc)
         return False
+
+
+def update_account_country(
+    api_base_url: str, admin_token: str, pivot_uid: str, country_name: str
+) -> None:
+    """Update a business country after feature flags are active."""
+    url = f"{api_base_url.rstrip('/')}/platform/v1/businesses/{pivot_uid}"
+    headers = {"Authorization": f"Admin {admin_token}"}
+    payload = {
+        "business": {
+            "business": {
+                "country_name": country_name,
+            },
+        },
+    }
+    response = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+    if not response.ok:
+        raise AccountCreationError(
+            f"Failed to update country for {pivot_uid} to {country_name}: "
+            f"HTTP {response.status_code} {response.text[:300]}"
+        )
 
 
 def delete_account(
