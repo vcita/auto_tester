@@ -1,7 +1,7 @@
 # Notes Setup - Detailed Script
 
 ## Objective
-Create the matter required by add, edit, and delete note tests without depending on the full `clients/create_matter` UI flow.
+Open the matter required by add, edit, and delete note tests without changing full-category cleanup ownership.
 
 ## Initial State
 - Parent Clients setup has logged in.
@@ -9,12 +9,17 @@ Create the matter required by add, edit, and delete note tests without depending
 
 ## Actions
 
-### Step 1: Create Matter Via API
-- **Action**: Call helper
+### Step 1: Resolve Matter
+- **Action**: Reuse `created_matter_id` when present.
+- **Full clients behavior**: Use the matter created by `clients/create_matter`.
+
+### Step 2: Create Matter Via API For Isolated Runs
+- **Action**: Call helper only when `created_matter_id` is absent.
 - **Function**: `create_note_matter_via_api`
 - **Expected return**: created matter details
+- **Context**: Also save `notes_setup_matter_id` for teardown.
 
-### Step 2: Navigate To Matter Page
+### Step 3: Navigate To Matter Page
 - **Action**: Open direct client detail URL
 - **Target**: `/app/clients/{created_matter_id}`
 - **Wait for**: URL contains `/app/clients/`
@@ -23,3 +28,4 @@ Create the matter required by add, edit, and delete note tests without depending
 ## Success Verification
 - Created matter ID exists in context.
 - Browser URL contains the created matter ID.
+- Full-category runs do not replace the original `created_matter_id`.

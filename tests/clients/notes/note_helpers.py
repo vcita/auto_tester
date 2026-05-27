@@ -40,6 +40,21 @@ def create_note_matter_via_api(context: dict) -> dict:
     }
 
 
+def delete_note_matter_via_api(context: dict) -> None:
+    matter_id = context.get("notes_setup_matter_id")
+    if not matter_id:
+        return
+
+    _account_request(context, "DELETE", f"/platform/v1/clients/{matter_id}")
+    print(f"  [OK] Deleted isolated note matter via API: {matter_id}")
+    context.pop("notes_setup_matter_id", None)
+    context.pop("notes_setup_matter_name", None)
+    context.pop("notes_setup_matter_email", None)
+    context.pop("created_matter_id", None)
+    context.pop("created_matter_name", None)
+    context.pop("created_matter_email", None)
+
+
 def navigate_to_matter_page(page: Page, context: dict, matter_id: str) -> None:
     app_base = _app_base_url(page, context)
     matter_url = f"{app_base}/app/clients/{matter_id}"
