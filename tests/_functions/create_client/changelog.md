@@ -1,5 +1,17 @@
 # Create Client Function - Changelog
 
+## 2026-05-27 - Stabilized First Name Field Detection
+
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: Events setup hit a strict-mode violation because `text=First Name` matched both helper text and the actual field.
+
+**Fix Applied**: Detect and wait for the actual `First Name *` textbox by role instead of generic text.
+
+**Scope / Quality**: Client creation still fills first name, last name, and email, then verifies the created client URL.
+
+---
+
 ## 2026-01-26 - Healed (Navigate to dashboard via UI)
 
 **Phase**: test.py

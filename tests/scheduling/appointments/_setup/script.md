@@ -39,17 +39,18 @@ This creates a minimal client with required fields only.
 
 ### Step 3: Navigate to Calendar
 
-- **Action**: Click
-- **Target**: Calendar menu item in sidebar
+- **Action**: Navigate
+- **Target**: Calendar View page
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-calendar_menu = page.get_by_text("Calendar", exact=True)
-calendar_menu.click()
-page.wait_for_url("**/app/calendar**", timeout=10000)
+from tests.scheduling.appointments.appointment_helpers import open_calendar_page
+
+open_calendar_page(page)
 ```
 
 - **Wait for**: URL contains "/app/calendar"
+- **Note**: The helper uses direct `/app/calendar` navigation first, reloads once if the shell remains on a loader, then falls back to the Calendar View submenu. Each wait/navigation call is capped at 5000ms.
 
 ## Success Verification
 

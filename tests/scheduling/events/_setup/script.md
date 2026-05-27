@@ -4,7 +4,8 @@
 Prepare the system for event scheduling tests by creating a group event service and a test client, then navigate to Calendar.
 
 ## Initial State
-- **Assumes parent (Scheduling) setup has already run**: browser is on Settings > Services page.
+- **Assumes parent (Scheduling) setup has already run**: user is authenticated, but a full category run may arrive here from an appointment teardown page.
+- Events setup resets the browser to Settings > Services with direct navigation before creating the group event service.
 - User is logged in (login runs in parent or Step 0 if needed).
 
 ## Actions

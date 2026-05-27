@@ -1,5 +1,21 @@
 # Edit Group Event - Changelog
 
+## 2026-05-26 - Stabilized Currency-Agnostic Price Field
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/services` stress failed in Edit Group Event when editing price.
+**Error**: The account rendered `Service price (USD) *`, but the test only targeted `Service price (ILS) *`.
+
+**Fix Applied**:
+1. Replaced the ILS-specific price spinbutton selector with a currency-agnostic `Service price` regex.
+2. Capped touched waits, navigation waits, and key clicks in this test at 5000ms.
+
+**Scope / Quality**:
+- The test still verifies max attendees, duration, and price on the edit page.
+- No assertions were removed; the selector now matches the same user-facing price field across account currencies.
+
+---
+
 ## 2026-01-24 10:34:43 - Healed (Incorrect Assertion - List View Doesn't Show Attendee Count)
 **Phase**: script.md, test.py, steps.md
 **Author**: Cursor AI (heal)

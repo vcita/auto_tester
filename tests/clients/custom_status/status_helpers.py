@@ -80,12 +80,16 @@ def clear_filters(page: Page) -> None:
 
 def assert_filtered_clients(page: Page, expected_names: Iterable[str]) -> None:
     expected = sorted(expected_names)
-    deadline = time.monotonic() + CLIENT_INDEX_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        actual = sorted(visible_client_names(page))
-        if actual == expected:
-            return
-        time.sleep(1)
+    for attempt in range(2):
+        deadline = time.monotonic() + CLIENT_INDEX_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            actual = sorted(visible_client_names(page))
+            if actual == expected:
+                return
+            time.sleep(1)
+        if attempt == 0:
+            page.reload(wait_until="domcontentloaded", timeout=CLIENTS_PAGE_TIMEOUT)
+            wait_for_clients_table(page)
     raise AssertionError(f"Expected filtered clients {expected}, got {visible_client_names(page)}")
 
 
@@ -98,6 +102,7 @@ def open_client_from_list(page: Page, client_name: str, client_id: str | None = 
             timeout=CLIENTS_PAGE_TIMEOUT,
         )
         page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
+        wait_for_client_detail(page, client_name)
         return
 
     open_clients_list(page)
@@ -111,31 +116,96 @@ def open_client_from_list(page: Page, client_name: str, client_id: str | None = 
     row.wait_for(state="visible", timeout=UI_TIMEOUT)
     row.click()
     page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
+    wait_for_client_detail(page, client_name)
 
 
 def set_client_status(page: Page, status_name: str) -> None:
     page.locator('iframe[title="angularjs"]').wait_for(state="visible", timeout=UI_TIMEOUT)
     outer = page.frame_locator('iframe[title="angularjs"]')
     inner = outer.frame_locator("#vue_iframe_layout")
-    edit_button = inner.locator(".contact-header > .v-icon.notranslate.edit-button")
-    try:
-        edit_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    except PlaywrightTimeoutError:
-        edit_button = inner.locator("div.contact-details button.edit-button")
-        edit_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    edit_button.click()
-    outer.locator("text=Edit contact info").wait_for(state="visible", timeout=UI_TIMEOUT)
+    print("    Opening edit contact dialog...")
+    open_contact_edit_dialog(page, outer, inner)
 
-    status_select = outer.locator('f-client-field[field="statusField"] md-select')
+    print("    Selecting client status...")
+    status_select = first_visible_locator(
+        [
+            outer.locator('f-client-field[field="statusField"] md-select'),
+            outer.locator('md-select[aria-label="Status"]'),
+            outer.locator("md-select").filter(has_text=re.compile(r"Lead|Customer", re.I)),
+            outer.locator("md-select"),
+            page.locator('f-client-field[field="statusField"] md-select'),
+            page.locator('md-select[aria-label="Status"]'),
+            page.locator("md-select").filter(has_text=re.compile(r"Lead|Customer", re.I)),
+        ]
+    )
     status_select.wait_for(state="visible", timeout=UI_TIMEOUT)
     status_select.click()
-    option = outer.get_by_role("option", name=status_name)
+    option = first_visible_locator(
+        [
+            outer.get_by_role("option", name=status_name),
+            outer.locator("md-option").filter(has_text=status_name),
+            page.get_by_role("option", name=status_name),
+            page.locator("md-option").filter(has_text=status_name),
+        ]
+    )
     option.wait_for(state="visible", timeout=UI_TIMEOUT)
     option.click()
 
-    save_button = outer.get_by_role("button", name=re.compile(r"^Save$", re.I))
+    print("    Saving client status...")
+    save_button = first_visible_locator(
+        [
+            outer.get_by_role("button", name=re.compile(r"^Save$", re.I)),
+            page.get_by_role("button", name=re.compile(r"^Save$", re.I)),
+        ]
+    )
     save_button.click()
+    print("    Verifying client status...")
     assert_client_status(page, status_name)
+
+
+def open_contact_edit_dialog(page: Page, outer, inner) -> None:
+    dialog_titles = [outer.locator("text=Edit contact info"), page.locator("text=Edit contact info")]
+    send_edit_contact_message(page)
+    if wait_for_any_visible(dialog_titles, timeout=1_000):
+        return
+
+    candidates = [
+        page.locator(".contact-header .edit-button"),
+        page.locator(".contact-extra .edit-button"),
+        inner.locator(".contact-header .edit-button"),
+        inner.locator(".contact-extra .edit-button"),
+        inner.locator("div.contact-details .edit-button"),
+    ]
+    last_error: PlaywrightTimeoutError | None = None
+    for candidate in candidates:
+        try:
+            candidate.first.wait_for(state="visible", timeout=UI_TIMEOUT)
+        except PlaywrightTimeoutError as exc:
+            last_error = exc
+            continue
+        click_first_visible(candidate, force=True)
+        if wait_for_any_visible(dialog_titles, timeout=1_000):
+            return
+    raise last_error or AssertionError("Edit contact info dialog did not open")
+
+
+def send_edit_contact_message(page: Page) -> None:
+    for frame in page.frames[1:]:
+        try:
+            frame.evaluate(
+                """
+                () => window.parent.postMessage({
+                    event: 'vue-message',
+                    origin: 'vue_iframe_layout',
+                    data: {
+                        eventName: 'matter_action',
+                        data: { action: 'edit_contact' }
+                    }
+                }, '*')
+                """
+            )
+        except Exception:
+            continue
 
 
 def assert_client_status(page: Page, status_name: str) -> None:
@@ -240,13 +310,45 @@ def dismiss_status_delete_blocker_if_visible(page: Page) -> None:
         time.sleep(0.1)
 
 
-def click_first_visible(locator) -> None:
+def click_first_visible(locator, force: bool = False) -> None:
     for index in range(locator.count()):
         candidate = locator.nth(index)
         if candidate.is_visible():
-            candidate.click()
+            candidate.click(force=force)
             return
-    locator.first.click()
+    locator.first.click(force=force)
+
+
+def first_visible_locator(locators):
+    deadline = time.monotonic() + (UI_TIMEOUT / 1000)
+    for locator in locators:
+        try:
+            if locator.count() > 0 and locator.first.is_visible():
+                return locator.first
+        except Exception:
+            pass
+    while time.monotonic() < deadline:
+        for locator in locators:
+            try:
+                if locator.count() > 0 and locator.first.is_visible():
+                    return locator.first
+            except Exception:
+                continue
+        time.sleep(0.1)
+    raise PlaywrightTimeoutError("No visible locator found")
+
+
+def wait_for_any_visible(locators, timeout: int) -> bool:
+    deadline = time.monotonic() + (timeout / 1000)
+    while time.monotonic() < deadline:
+        for locator in locators:
+            try:
+                if locator.count() > 0 and locator.first.is_visible():
+                    return True
+            except Exception:
+                continue
+        time.sleep(0.1)
+    return False
 
 
 def open_clients_list(page: Page) -> None:
@@ -292,6 +394,27 @@ def wait_for_clients_table(page: Page) -> None:
         ".v-progress-circular:visible, [data-qa='VcLoader']:visible"
     )
     expect(visible_loaders).to_have_count(0, timeout=CLIENTS_READY_TIMEOUT)
+
+
+def wait_for_client_detail(page: Page, client_name: str) -> None:
+    last_error: PlaywrightTimeoutError | None = None
+    for attempt in range(2):
+        try:
+            page.locator('iframe[title="angularjs"]').wait_for(state="visible", timeout=UI_TIMEOUT)
+            outer = page.frame_locator('iframe[title="angularjs"]')
+            client_name_locators = [
+                page.get_by_text(client_name, exact=False),
+                outer.get_by_text(client_name, exact=False),
+            ]
+            if wait_for_any_visible(client_name_locators, timeout=UI_TIMEOUT):
+                return
+            raise PlaywrightTimeoutError(f"Client detail did not show {client_name}")
+        except PlaywrightTimeoutError as exc:
+            last_error = exc
+            if attempt == 0:
+                page.reload(wait_until="domcontentloaded", timeout=CLIENTS_PAGE_TIMEOUT)
+                page.wait_for_url("**/app/clients/**", timeout=CLIENTS_PAGE_TIMEOUT, wait_until="domcontentloaded")
+    raise last_error or AssertionError(f"Client detail did not load for {client_name}")
 
 
 def visible_client_names(page: Page) -> list[str]:

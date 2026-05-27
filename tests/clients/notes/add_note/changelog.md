@@ -4,6 +4,21 @@ History of fixes and changes to the Add Note test.
 
 ---
 
+## 2026-05-26 - Stabilized Independent Notes Stress
+
+**Error**: `ValueError: No created_matter_id in context - create_matter test must run first` when running `clients/notes` as an independent stress target.
+
+**Root Cause**: The notes subcategory relied on the parent `clients` execution order to create a matter before note tests ran.
+
+**Fix Applied**:
+1. Added `clients/notes/_setup` to create the required matter via API for isolated subcategory runs.
+2. Reused the same context keys consumed by add, edit, and delete note tests.
+3. Capped touched note waits and direct navigation at 5000ms.
+
+**Scope / Quality**: The add, edit, and delete note UI assertions remain intact; only the prerequisite matter setup was moved from parent UI dependency to API setup for independent stability validation.
+
+---
+
 ## 2026-04-06 - Healed (Session Recovery)
 
 **Error**: `TimeoutError: Timeout 15000ms exceeded` waiting for `#vue_wizard_iframe` to be visible.

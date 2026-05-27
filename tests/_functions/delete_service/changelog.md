@@ -1,5 +1,22 @@
 # Delete Service Function - Changelog
 
+## 2026-05-27 - Stabilized ID-Based Service Teardown
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/appointments` 10-iteration stress failed in teardown while navigating Settings → Services; screenshot showed the Settings loader still spinning.
+
+**Root Cause**: Service teardown depended on the Settings landing page, service editor toolbar, and virtualized Services list even when the created service ID was already known.
+
+**Fix Applied**:
+1. If `created_service_id` exists, delete via the same backend route used by Restangular: `DELETE /v2/settings/services/{id}`.
+2. Keep the old UI path only as a fallback for callers without a service ID.
+3. Cap touched API/UI waits/navigation at 5000ms.
+
+**Scope / Quality**: This is teardown cleanup, not the service deletion behavior test. The dedicated scheduling/services delete flow still covers UI deletion; teardown now removes generated setup data by ID without weakening appointment assertions.
+
+---
+
 ## 2026-01-31 - Healed (Services list endless scroll — scroll to find service before click)
 
 **Phase**: test.py, script.md

@@ -224,16 +224,18 @@ minutes_option.click()
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `iframe.get_by_role("spinbutton", name="Service price (ILS) *")` | Role-based with currency | None |
+| `iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))` | Role-based and currency-agnostic | Requires regex import |
+| `iframe.get_by_role("spinbutton", name="Service price (ILS) *")` | Role-based with currency | Fails on non-ILS accounts |
 | `iframe.locator('input[type="number"]').last()` | Position-based | Fragile |
 | `iframe.get_by_label("Service price")` | Label-based | Partial match |
 
-**CHOSEN**: `iframe.get_by_role("spinbutton", name="Service price (ILS) *")` - Verified unique match in MCP
+**CHOSEN**: `iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))` - Matches the same price field regardless of account currency
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-price_field = iframe.get_by_role("spinbutton", name="Service price (ILS) *")
-price_field.click()
+price_field = iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))
+price_field.wait_for(state="visible", timeout=5000)
+price_field.click(timeout=5000)
 price_field.fill("35")  # fill is OK for number spinbutton
 ```
 
@@ -290,7 +292,7 @@ expect(iframe.get_by_role("spinbutton", name="Max attendees icon-q-mark-s *")).t
 expect(iframe.get_by_role("listbox", name="Minutes :")).to_contain_text("30 Minutes")
 
 # Verify price
-expect(iframe.get_by_role("spinbutton", name="Service price (ILS) *")).to_have_value("35")
+expect(iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))).to_have_value("35")
 ```
 
 - **How verified**: Re-checked fields after save in MCP, all values persisted

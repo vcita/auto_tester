@@ -1,5 +1,17 @@
 # Events Teardown - Changelog
 
+## 2026-05-27 - Use Captured Service ID for Cleanup
+
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: Events teardown used the old service-name UI cleanup path even after the shared delete function gained ID-based API cleanup.
+
+**Fix Applied**: Pass `event_group_service_id` into `created_service_id` before calling `fn_delete_service`.
+
+**Scope / Quality**: Teardown cleanup is faster and avoids Settings/Services loader flakes; event behavior coverage is unchanged.
+
+---
+
 ## 2026-01-27 - Healed (Error page after delete_client navigation - root cause: not on dashboard)
 **Phase**: test.py, script.md
 **Author**: Cursor AI (heal)

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-05-27 - Stabilize Full Clients Sequencing
+**Phase**: Test
+**Author**: Cursor AI
+**Reason**: Full `clients` stress exposed flakiness when the custom status scenario opened an API-created client after earlier subcategories and when the CRM filter table briefly showed stale unfiltered rows.
+**Changes**:
+- Validate direct client-detail navigation across the available page and Angular frame contexts.
+- Open the contact edit dialog through the same `matter_action` message emitted by the Vuetage edit control, with rendered edit-button clicks retained as fallback.
+- Select the rendered Angular Material Status dropdown/options instead of relying only on the older `f-client-field` wrapper selector.
+- Retry the filtered table assertion with a capped reload while preserving the exact expected-client assertion.
+
 ## 2026-05-26 - Stabilize Clients Page Readiness
 **Phase**: Test
 **Author**: Cursor AI

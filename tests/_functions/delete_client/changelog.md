@@ -1,5 +1,24 @@
 # Delete Client Function - Changelog
 
+## 2026-05-27 - Stabilized ID-Based Teardown Navigation
+
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/appointments` stress had a teardown-only failure while waiting for the clients list toolbar.
+
+**Root Cause**: Appointments teardown already had `created_client_id`, but the shared delete helper still navigated through the clients list and waited for the list Filters button. One run remained on a spinning clients list and timed out.
+
+**Fix Applied**:
+1. When a client ID is available, open `/app/clients/{id}` directly with a 5000ms navigation timeout.
+2. Keep the existing UI delete flow from the client detail page.
+3. Preserve the older list-search path for callers that only provide a client name.
+
+**Scope / Quality**:
+- Cleanup still deletes through the UI and confirms the deletion dialog.
+- No functional test assertions were removed; the change only avoids a flaky teardown list search when the stable client ID is known.
+
+---
+
 ## 2026-01-31 - Healed (Confirm dialog: use iframe, not page — page.get_by_role("dialog") timed out)
 
 **Phase**: test.py, script.md

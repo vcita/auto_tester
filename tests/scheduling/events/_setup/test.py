@@ -10,6 +10,7 @@ from playwright.sync_api import Page, expect
 
 from tests._functions.login.test import fn_login
 from tests._functions.create_client.test import fn_create_client
+from tests.scheduling.appointments.appointment_helpers import UI_TIMEOUT, open_calendar_page
 
 
 def _scroll_services_list_to_end(page: Page) -> None:
@@ -81,6 +82,35 @@ def _scroll_services_list_to_end(page: Page) -> None:
         page.wait_for_timeout(300)  # Brief settle after scroll (allowed)
 
 
+def open_services_page(page: Page):
+    app_base = page.url.split("/app/")[0]
+    last_error = None
+    for attempt in range(2):
+        try:
+            page.goto(
+                f"{app_base}/app/settings/services",
+                wait_until="domcontentloaded",
+                timeout=UI_TIMEOUT,
+            )
+            page.wait_for_url(
+                "**/app/settings/services**",
+                timeout=UI_TIMEOUT,
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=UI_TIMEOUT)
+            iframe = page.frame_locator('iframe[title="angularjs"]')
+            iframe.get_by_role("heading", name="Settings / Services").wait_for(
+                state="visible",
+                timeout=UI_TIMEOUT,
+            )
+            return iframe
+        except Exception as exc:
+            last_error = exc
+            if attempt == 0:
+                page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
+    raise last_error or AssertionError("Services page did not become ready")
+
+
 def setup_events(page: Page, context: dict) -> None:
     """
     Setup for events tests.
@@ -114,9 +144,8 @@ def setup_events(page: Page, context: dict) -> None:
             )
         fn_login(page, context, username=username, password=password)
 
-    # Parent (Scheduling) setup leaves us on Settings > Services; ensure iframe is ready
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
-    iframe = page.frame_locator('iframe[title="angularjs"]')
+    # Full scheduling runs may arrive here after appointments teardown, so reset to Services explicitly.
+    iframe = open_services_page(page)
 
     # Generate unique group event name
     group_event_name = f"Event Test Workshop {timestamp}"
@@ -135,7 +164,7 @@ def setup_events(page: Page, context: dict) -> None:
     group_event_option.click()
     # Wait for dialog to appear
     dialog = iframe.get_by_role("dialog")
-    dialog.wait_for(state="visible", timeout=10000)
+    dialog.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 3: Fill Service Name
     print(f"  Setup Step 3: Entering service name: {group_event_name}")
@@ -176,7 +205,11 @@ def setup_events(page: Page, context: dict) -> None:
     create_dialog = iframe.get_by_role("dialog", name=re.compile(r"Service info", re.IGNORECASE))
     create_btn = iframe.get_by_role("button", name="Create")
     create_btn.click()
-    create_dialog.wait_for(state="hidden", timeout=15000)
+    create_dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
+    service_id_match = re.search(r"/services/([a-z0-9]+)", page.url)
+    if service_id_match:
+        context["event_group_service_id"] = service_id_match.group(1)
+        context["created_service_id"] = service_id_match.group(1)
 
     # Step 8: Handle Event Times Dialog (Conditional)
     print("  Setup Step 8: Checking for event times dialog...")
@@ -194,11 +227,11 @@ def setup_events(page: Page, context: dict) -> None:
     # Use UI navigation (Settings → back to Services) so the list refreshes; same pattern as create_group_event.
     print("  Setup Step 8b: Refreshing Services list (navigate away and back)...")
     page.get_by_text("Settings", exact=True).click()
-    page.wait_for_url("**/app/settings**", timeout=10000)
-    page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=5000)
+    page.wait_for_url("**/app/settings**", timeout=UI_TIMEOUT)
+    page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=UI_TIMEOUT)
     iframe.get_by_role("button", name="Define the services your").click()
-    page.wait_for_url("**/app/settings/services**", timeout=10000)
-    iframe.get_by_role("heading", name="Settings / Services").wait_for(state="visible", timeout=10000)
+    page.wait_for_url("**/app/settings/services**", timeout=UI_TIMEOUT)
+    iframe.get_by_role("heading", name="Settings / Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     page.wait_for_timeout(500)  # Brief settle after navigation (allowed)
 
     # Scroll the services list to the end so every item is loaded, then find the new service.
@@ -207,16 +240,25 @@ def setup_events(page: Page, context: dict) -> None:
 
     # Validate service actually appears on Services page (so Schedule Event can find it in dropdown)
     try:
-        iframe.get_by_text(group_event_name).first.wait_for(state="visible", timeout=20000)
+        service_row = iframe.get_by_text(group_event_name).first
+        service_row.wait_for(state="visible", timeout=UI_TIMEOUT)
     except Exception as e:
         raise AssertionError(
             f"Setup could not confirm group event service was created: '{group_event_name}' not found on Services page. "
             "Create dialog closed but service may not have been saved. Check run video/screenshot."
         ) from e
 
+    service_row.click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
+    service_id_match = re.search(r"/services/([a-z0-9]+)", page.url)
+    if service_id_match:
+        context["event_group_service_id"] = service_id_match.group(1)
+        context["created_service_id"] = service_id_match.group(1)
+
     # Step 9: Save Group Event Service Name
     print("  Setup Step 9: Saving group event service name...")
     context["event_group_service_name"] = group_event_name
+    context["created_service_name"] = group_event_name
     print(f"    Group event service created: {group_event_name}")
     
     # Step 10: Create Test Client
@@ -236,9 +278,7 @@ def setup_events(page: Page, context: dict) -> None:
     
     # Step 11: Navigate to Calendar
     print("  Setup Step 11: Navigating to Calendar...")
-    calendar_menu = page.get_by_text("Calendar", exact=True)
-    calendar_menu.click()
-    page.wait_for_url("**/app/calendar**", timeout=10000)
+    open_calendar_page(page)
     
     # Verify we're on the calendar page
     expect(page).to_have_url(re.compile(r".*app/calendar.*"))

@@ -15,43 +15,32 @@
 
 ## Actions
 
-### Step 1: Navigate to Settings – HEALED 2026-01-31
+### Step 1: Delete by ID for Teardown – HEALED 2026-05-27
 
-- **Action**: Click
-- **Target**: Settings menu item in sidebar. When called from teardown after calendar tests, browser is on calendar page; navigate to dashboard first so sidebar is in a known state, then click Settings.
+- **Action**: API cleanup when `created_service_id` exists; otherwise fall back to Settings → Services list UI deletion.
 
 **LOCATOR DECISION:**
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `page.get_by_text('Settings')` | Simple | Can match multiple; no wait → timeout when sidebar not ready |
-| Navigate to dashboard first when on calendar, then `page.get_by_text("Settings", exact=True)` | Reliable from calendar; same pattern as events _teardown | One extra step when on calendar |
+| `DELETE /v2/settings/services/{created_service_id}` | Avoids Settings loader/editor/list in teardown and uses the backend route Restangular calls | Requires service ID and auto-account token |
+| Settings → Services list | Works when only service name is known | Can hit Settings loader, editor toolbar, or endless-scroll list |
 
-**CHOSEN**: When URL contains `/app/calendar`, navigate to dashboard first (Dashboard link, wait visible, click, wait_for_url dashboard). Then `page.get_by_text("Settings", exact=True)` with wait_for(state="visible", timeout=30000), scroll_into_view_if_needed(), then click.
+**CHOSEN**: Use the `/v2/settings/services/{id}` API when `created_service_id` exists. If it is unavailable, retain the Settings → Services UI fallback. All waits/API calls are capped at 5000ms.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.wait_for_load_state("domcontentloaded")
-if "/app/calendar" in page.url:
-    print("  Step 1a: On calendar - navigating to dashboard first...")
-    dashboard_link = page.get_by_text("Dashboard", exact=True)
-    dashboard_link.wait_for(state="visible", timeout=30000)
-    dashboard_link.scroll_into_view_if_needed()
-    page.wait_for_timeout(200)  # Brief settle (allowed)
-    dashboard_link.click()
-    page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
-    page.wait_for_load_state("domcontentloaded")
-# Sidebar is in main document.
-settings_link = page.get_by_text("Settings", exact=True)
-settings_link.wait_for(state="visible", timeout=30000)
-settings_link.scroll_into_view_if_needed()
-page.wait_for_timeout(200)  # Brief settle (allowed)
-settings_link.click()
-page.wait_for_url("**/app/settings**", timeout=30000)
+service_id = context.get("created_service_id")
+if service_id:
+    requests.delete(
+        f"{_resolve_api_base_url(context)}/v2/settings/services/{service_id}",
+        headers=_account_headers(context),
+        timeout=5,
+    )
 ```
 
-- **How verified**: From calendar, going to dashboard first ensures sidebar is visible; then Settings click works. Same pattern as events _teardown.
-- **Wait for**: If on calendar: dashboard URL; then Settings visible and URL contains "/app/settings"
+- **How verified**: Focused appointments stress passed after switching to `/v2/settings/services/{id}`.
+- **Wait for**: API response within 5 seconds.
 
 ### Step 2: Click Services button
 
@@ -60,10 +49,10 @@ page.wait_for_url("**/app/settings**", timeout=30000)
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
 iframe = page.frame_locator('iframe[title="angularjs"]')
-iframe.get_by_role('button', name='Define the services your').click()
-page.wait_for_url("**/app/settings/services", timeout=10000)
+iframe.get_by_role('button', name='Define the services your').click(timeout=5000)
+page.wait_for_url("**/app/settings/services", timeout=5000)
 ```
 
 - **How verified**: Clicked in MCP, navigated to Services page
@@ -80,12 +69,12 @@ page.wait_for_url("**/app/settings/services", timeout=10000)
 | `iframe.get_by_role('button').filter(has_text=name)` | Dynamic, matches by name | Service may be below fold — must scroll first |
 | Scroll then same locator | Same as delete_service category test; finds service | Requires scroll loop |
 
-**CHOSEN**: Wait for "My Services", scroll loop (up to 10 times) until service button is found or end of list (same pattern as tests/scheduling/services/delete_service/test.py). Then `iframe.get_by_role('button').filter(has_text=name)` with wait 30s and click.
+**CHOSEN**: Skip this list step when direct service ID navigation succeeded. Otherwise wait for "My Services", scroll loop (up to 10 times) until service button is found or end of list (same pattern as tests/scheduling/services/delete_service/test.py). Then `iframe.get_by_role('button').filter(has_text=name)` with a 5000ms wait and click.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 # HEALED 2026-01-31: Services list uses endless scroll - scroll to find service (same as delete_service category test).
-iframe.get_by_text("My Services").wait_for(state="visible", timeout=15000)
+iframe.get_by_text("My Services").wait_for(state="visible", timeout=5000)
 max_scrolls = 10
 previous_last_text = ""
 no_change_count = 0
@@ -99,9 +88,9 @@ for scroll_attempt in range(max_scrolls):
     # ... scroll last_service.scroll_into_view_if_needed(); page.wait_for_timeout(300)
     # (or Add 1 on 1 Appointment if no services match)
 service_in_list = iframe.get_by_role("button").filter(has_text=name)
-service_in_list.wait_for(state="visible", timeout=30000)
-service_in_list.click()
-page.wait_for_url("**/app/settings/services/**", timeout=10000)
+service_in_list.wait_for(state="visible", timeout=5000)
+service_in_list.click(timeout=5000)
+page.wait_for_url("**/app/settings/services/**", timeout=5000)
 ```
 
 - **How verified**: MCP: Services list shows many services; new appointment test service is below fold. delete_service category test scrolls to find service; same pattern applied to fn_delete_service.
@@ -116,16 +105,34 @@ page.wait_for_url("**/app/settings/services/**", timeout=10000)
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `iframe.get_by_role('button', name='Delete')` | Unique, semantic | None |
+| `iframe.get_by_role('button', name='Delete')` | Semantic | Can miss the Angular button on direct service-detail navigation |
+| Scoped button/text fallbacks for `Delete` | Handles Angular/VcButton markup while staying on the service detail page | More than one fallback |
 
-**CHOSEN**: `iframe.get_by_role('button', name='Delete')` - Unique button.
+**CHOSEN**: Require the service name to be visible, try scoped `button`, `[role="button"]`, and exact text fallbacks, then require the confirmation dialog to appear. If the service detail page is still on the skeleton loader, reload once and retry with the same 5000ms caps.
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-delete_btn = iframe.get_by_role('button', name='Delete')
-delete_btn.click()
 dialog = iframe.get_by_role('dialog')
-dialog.wait_for(state='visible', timeout=5000)
+for attempt in range(2):
+    if attempt == 1:
+        page.reload(wait_until="domcontentloaded", timeout=5000)
+        page.wait_for_url("**/app/settings/services/**", timeout=5000)
+        page.wait_for_selector('iframe[title="angularjs"]', timeout=5000)
+        iframe = page.frame_locator('iframe[title="angularjs"]')
+    iframe.get_by_text(name).first.wait_for(state='visible', timeout=5000)
+    delete_candidates = [
+        iframe.locator('button').filter(has_text='Delete').first,
+        iframe.locator('[role="button"]').filter(has_text='Delete').first,
+        iframe.get_by_text('Delete', exact=True).first,
+        page.get_by_text('Delete', exact=True).first,
+    ]
+    for delete_btn in delete_candidates:
+        if delete_btn.count() == 0:
+            continue
+        delete_btn.wait_for(state='visible', timeout=5000)
+        delete_btn.evaluate("element => element.click()")
+        dialog.wait_for(state='visible', timeout=5000)
+        break
 ```
 
 - **How verified**: Clicked in MCP, confirmation dialog appeared
@@ -148,8 +155,8 @@ dialog.wait_for(state='visible', timeout=5000)
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 ok_btn = iframe.get_by_role('button', name='Ok')
-ok_btn.click()
-page.wait_for_url("**/app/settings/services", timeout=10000)
+ok_btn.click(timeout=5000)
+page.wait_for_url("**/app/settings/services", timeout=5000)
 ```
 
 - **How verified**: Clicked in MCP, redirected to Services list
@@ -163,7 +170,7 @@ page.wait_for_url("**/app/settings/services", timeout=10000)
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
 services_heading = iframe.get_by_role('heading', name='Settings / Services')
-services_heading.wait_for(state='visible', timeout=10000)
+services_heading.wait_for(state='visible', timeout=5000)
 
 # Verify service is no longer in the list
 service_in_list = iframe.get_by_role('button').filter(has_text=name)

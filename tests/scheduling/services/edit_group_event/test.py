@@ -7,6 +7,8 @@
 import re
 from playwright.sync_api import Page, expect
 
+UI_TIMEOUT = 5_000
+
 
 def test_edit_group_event(page: Page, context: dict) -> None:
     """
@@ -43,14 +45,14 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     if "/app/settings/services" not in page.url:
         raise ValueError(f"Expected to be on Services page, but URL is {page.url}")
     
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     
     # Step 2: Find and click on group event
     print("  Step 2: Opening group event for editing...")
     # HEALED: Services list uses endless scroll - must scroll to find group event
     # Wait for "My Services" text to confirm the list section has loaded
-    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Scroll multiple times until group event is found or end of list reached
     import re
@@ -103,98 +105,102 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
     # get_by_text() correctly finds the group event button even when it contains additional text
     group_event_in_list = iframe.get_by_text(group_event_name)
-    group_event_in_list.wait_for(state="visible", timeout=10000)
-    group_event_in_list.click()
+    group_event_in_list.wait_for(state="visible", timeout=UI_TIMEOUT)
+    group_event_in_list.click(timeout=UI_TIMEOUT)
     
     # Step 3: Wait for edit page to load
-    page.wait_for_url("**/app/settings/services/**")
+    page.wait_for_url("**/app/settings/services/**", timeout=UI_TIMEOUT)
     name_field = iframe.get_by_role("textbox", name="Service name *")
-    name_field.wait_for(state="visible", timeout=10000)
+    name_field.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 4: Change Max Attendees from 10 to 15 (fill is OK for number spinbutton)
     print("  Step 3: Changing max attendees to 15...")
     max_attendees_field = iframe.get_by_role("spinbutton", name="Max attendees icon-q-mark-s *")
-    max_attendees_field.click()
+    max_attendees_field.wait_for(state="visible", timeout=UI_TIMEOUT)
+    max_attendees_field.click(timeout=UI_TIMEOUT)
     max_attendees_field.fill("15")  # fill is OK for number spinbutton
     
     # Step 5: Change Duration Minutes from 0 to 30
     print("  Step 4: Setting duration to 1 hour 30 minutes...")
     # Click Minutes dropdown
     minutes_dropdown = iframe.get_by_role("listbox", name="Minutes :")
-    minutes_dropdown.click()
+    minutes_dropdown.click(timeout=UI_TIMEOUT)
     # Wait for options to appear
     minutes_option = iframe.get_by_role("option", name="30 Minutes")
-    minutes_option.wait_for(state="visible", timeout=5000)
-    minutes_option.click()
+    minutes_option.wait_for(state="visible", timeout=UI_TIMEOUT)
+    minutes_option.click(timeout=UI_TIMEOUT)
     
     # Step 6: Change Price from 25 to 35 (fill is OK for number spinbutton)
     print("  Step 5: Changing price to 35...")
-    price_field = iframe.get_by_role("spinbutton", name="Service price (ILS) *")
-    price_field.click()
+    price_field = iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))
+    price_field.wait_for(state="visible", timeout=UI_TIMEOUT)
+    price_field.click(timeout=UI_TIMEOUT)
     price_field.fill("35")  # fill is OK for number spinbutton
     
     # Step 7: Save Changes
     print("  Step 6: Saving changes...")
     save_btn = iframe.get_by_role("button", name="Save")
-    save_btn.click()
+    save_btn.click(timeout=UI_TIMEOUT)
     
     # Wait for save to complete - the page refreshes
     name_field = iframe.get_by_role("textbox", name="Service name *")
-    name_field.wait_for(state="visible", timeout=10000)
+    name_field.wait_for(state="visible", timeout=UI_TIMEOUT)
     page.wait_for_timeout(500)  # Brief settle after save (allowed)
     
     # Step 8: Verify Changes by Re-checking Field Values
     print("  Step 7: Verifying changes were saved...")
     expect(iframe.get_by_role("spinbutton", name="Max attendees icon-q-mark-s *")).to_have_value("15")
     expect(iframe.get_by_role("listbox", name="Minutes :")).to_contain_text("30 Minutes")
-    expect(iframe.get_by_role("spinbutton", name="Service price (ILS) *")).to_have_value("35")
+    expect(
+        iframe.get_by_role("spinbutton", name=re.compile(r"Service price", re.IGNORECASE))
+    ).to_have_value("35", timeout=UI_TIMEOUT)
     
     # Step 9: Navigate Back to Services List
     print("  Step 8: Navigating back to services list...")
     settings_menu = page.get_by_text("Settings", exact=True)
-    settings_menu.click()
-    page.wait_for_url("**/app/settings", timeout=10000)
+    settings_menu.click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings", timeout=UI_TIMEOUT)
     
     # Re-acquire iframe reference after navigation
     angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=10000)
+    angular_iframe.wait_for(state="visible", timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     
     # Click Services button
     services_btn = iframe.get_by_role("button", name="Define the services your")
-    services_btn.click()
-    page.wait_for_url("**/app/settings/services", timeout=10000)
+    services_btn.click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings/services", timeout=UI_TIMEOUT)
     
     # Wait for services page to load
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
-    services_heading.wait_for(state="visible", timeout=15000)
+    services_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # HEALED 2026-01-27: Replaced page.reload() with UI navigation to comply with navigation rules.
     # After navigating back, navigate away and back to Services to refresh the list.
     # Navigate to Settings main page
-    page.get_by_text("Settings", exact=True).click()
-    page.wait_for_url("**/app/settings", timeout=10000)
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.get_by_text("Settings", exact=True).click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings", timeout=UI_TIMEOUT)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     iframe = page.frame_locator('iframe[title="angularjs"]')
     # Navigate back to Services
     services_button = iframe.get_by_role("button", name="Define the services your")
-    services_button.wait_for(state="visible", timeout=10000)
-    services_button.click()
-    page.wait_for_url("**/app/settings/services", timeout=10000)
+    services_button.wait_for(state="visible", timeout=UI_TIMEOUT)
+    services_button.click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/settings/services", timeout=UI_TIMEOUT)
     
     # Wait for Services heading to confirm page loaded
     services_heading = iframe.get_by_role("heading", name="Settings / Services")
-    services_heading.wait_for(state="visible", timeout=10000)
+    services_heading.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Wait for "My Services" text to confirm list section loaded
-    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Step 10: Verify Changes in Services List
     print("  Step 9: Verifying changes in services list...")
     # HEALED: After navigating back, the list may need scrolling to find the group event
     # No arbitrary wait - we wait for "My Services" above, then scroll to find the event
     # Wait for "My Services" text to confirm the list section has loaded
-    iframe.get_by_text("My Services").wait_for(state="visible", timeout=10000)
+    iframe.get_by_text("My Services").wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # Scroll multiple times until group event is found or end of list reached
     max_scrolls = 10
@@ -245,7 +251,7 @@ def test_edit_group_event(page: Page, context: dict) -> None:
     # Find the group event in the list (all items should be loaded)
     # HEALED: Use get_by_text() instead of filter(has_text=...) - filter pattern doesn't work
     group_event_in_list = iframe.get_by_text(group_event_name)
-    group_event_in_list.wait_for(state="visible", timeout=10000)
+    group_event_in_list.wait_for(state="visible", timeout=UI_TIMEOUT)
     
     # HEALED: The services list view does NOT display max attendees in the button text
     # The list only shows the service name, not detailed information like attendee count

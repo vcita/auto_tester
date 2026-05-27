@@ -6,6 +6,8 @@
 import re
 from playwright.sync_api import Page, expect
 
+from tests.scheduling.appointments.appointment_helpers import UI_TIMEOUT
+
 
 def test_edit_event(page: Page, context: dict) -> None:
     """
@@ -28,7 +30,7 @@ def test_edit_event(page: Page, context: dict) -> None:
     
     # Step 2: Click Edit Button
     print("  Step 2: Clicking Edit button...")
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     # Find Edit button - loop through buttons to find one with "Edit" text
     all_buttons = outer_iframe.get_by_role('button')
@@ -48,7 +50,7 @@ def test_edit_event(page: Page, context: dict) -> None:
     edit_btn.click()
     # Wait for edit dialog to appear
     dialog = outer_iframe.get_by_role('dialog')
-    dialog.wait_for(state='visible', timeout=10000)
+    dialog.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 3: Modify Event Details (Max Attendance)
     print("  Step 3: Modifying max attendance to 12...")
@@ -58,17 +60,25 @@ def test_edit_event(page: Page, context: dict) -> None:
     max_attendance_field.fill('12')  # fill is OK for number spinbutton
     page.wait_for_timeout(500)  # Brief settle after spinbutton (allowed)
 
+    where_field = outer_iframe.get_by_role('textbox', name='Where').first
+    if where_field.count() > 0:
+        where_field.click(timeout=UI_TIMEOUT)
+        where_field.press_sequentially('123 Test Street', delay=30)
+        page.wait_for_timeout(300)  # Brief settle for address input (allowed)
+        page.keyboard.press('Tab')
+        page.wait_for_timeout(500)  # Brief settle for autocomplete to dismiss (allowed)
+
     # Step 4: Click Save
     print("  Step 4: Clicking Save...")
     save_btn = outer_iframe.get_by_role('button', name='Save')
-    save_btn.click()
+    save_btn.click(timeout=UI_TIMEOUT)
     # Wait for dialog to close
-    dialog.wait_for(state='hidden', timeout=10000)
+    dialog.wait_for(state='hidden', timeout=UI_TIMEOUT)
 
     # Step 5: Verify Changes are Reflected
     print("  Step 5: Verifying changes are reflected...")
     registered_text = outer_iframe.get_by_text(re.compile(r'\d+\s*/\s*12(\s+Registered)?', re.IGNORECASE))
-    registered_text.wait_for(state='visible', timeout=10000)
+    registered_text.wait_for(state='visible', timeout=UI_TIMEOUT)
     expect(registered_text).to_be_visible()
     
     print(f"  [OK] Event edited successfully")

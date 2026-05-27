@@ -9,6 +9,7 @@ import time
 from playwright.sync_api import Page, expect
 
 from tests._functions.login.test import fn_login
+from tests.clients.notes.note_helpers import UI_TIMEOUT, navigate_to_matter_page
 
 
 def _ensure_on_matter_page(page: Page, context: dict, matter_id: str) -> None:
@@ -27,11 +28,7 @@ def _ensure_on_matter_page(page: Page, context: dict, matter_id: str) -> None:
             password=context.get("password"),
         )
 
-    app_base = page.url.split("/app/")[0]
-    matter_url = f"{app_base}/app/clients/{matter_id}"
-    print(f"  [>] Navigating to matter page: {matter_url}")
-    page.goto(matter_url, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    navigate_to_matter_page(page, context, matter_id)
 
 
 def test_add_note(page: Page, context: dict):
@@ -62,7 +59,7 @@ def test_add_note(page: Page, context: dict):
     # Step 2: Wait for angular iframe
     print("  Step 2: Waiting for angular iframe...")
     angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=15000)
+    angular_iframe.wait_for(state="visible", timeout=UI_TIMEOUT)
 
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
@@ -73,7 +70,7 @@ def test_add_note(page: Page, context: dict):
     notes_tab.click()
 
     add_note_button = outer_iframe.get_by_role("button", name="Add note")
-    add_note_button.wait_for(state="visible", timeout=10000)
+    add_note_button.wait_for(state="visible", timeout=UI_TIMEOUT)
 
     # Step 4: Click Add note button
     print("  Step 4: Clicking Add note button...")
@@ -84,24 +81,24 @@ def test_add_note(page: Page, context: dict):
     if "/login" in page.url:
         print("  [!] Session lost after clicking Add note - recovering...")
         _ensure_on_matter_page(page, context, matter_id)
-        angular_iframe.wait_for(state="visible", timeout=15000)
+        angular_iframe.wait_for(state="visible", timeout=UI_TIMEOUT)
         notes_tab = inner_iframe.get_by_role("tab", name="Notes")
         notes_tab.click()
         add_note_button = outer_iframe.get_by_role("button", name="Add note")
-        add_note_button.wait_for(state="visible", timeout=10000)
+        add_note_button.wait_for(state="visible", timeout=UI_TIMEOUT)
         add_note_button.click()
         page.wait_for_timeout(1000)
 
     # Step 5: Enter note content in wizard iframe
     print("  Step 5: Entering note content...")
     wizard_iframe_locator = outer_iframe.locator('#vue_wizard_iframe')
-    wizard_iframe_locator.wait_for(state="visible", timeout=15000)
+    wizard_iframe_locator.wait_for(state="visible", timeout=UI_TIMEOUT)
 
     wizard_iframe = outer_iframe.frame_locator('#vue_wizard_iframe')
 
     page.wait_for_timeout(500)
     save_button = wizard_iframe.get_by_role("button", name="Save")
-    save_button.wait_for(state="visible", timeout=15000)
+    save_button.wait_for(state="visible", timeout=UI_TIMEOUT)
 
     note_area = wizard_iframe.locator('div[contenteditable="true"]').or_(
         wizard_iframe.get_by_text("Add your note here")
@@ -115,12 +112,12 @@ def test_add_note(page: Page, context: dict):
     print("  Step 6: Saving note...")
     save_button.click()
     # Wait for the wizard iframe to close (more reliable than the button inside it)
-    wizard_iframe_locator.wait_for(state="hidden", timeout=30000)
+    wizard_iframe_locator.wait_for(state="hidden", timeout=UI_TIMEOUT)
 
     # Step 7: Verify note appears in list
     print("  Step 7: Verifying note was created...")
     note_item = inner_iframe.get_by_role("listitem").filter(has_text=note_content[:30])
-    note_item.wait_for(state="visible", timeout=10000)
+    note_item.wait_for(state="visible", timeout=UI_TIMEOUT)
 
     context["created_note_content"] = note_content
     context["created_note_timestamp"] = timestamp

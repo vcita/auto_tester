@@ -57,6 +57,8 @@ def teardown_events(page: Page, context: dict) -> None:
     if service_name:
         print(f"  Teardown Step 2: Deleting group event service: {service_name}...")
         context["created_service_name"] = service_name
+        if context.get("event_group_service_id"):
+            context["created_service_id"] = context["event_group_service_id"]
         fn_delete_service(page, context)
         print(f"    Service deleted: {service_name}")
         page.wait_for_load_state("domcontentloaded")
@@ -90,6 +92,7 @@ def teardown_events(page: Page, context: dict) -> None:
     
     # Clear context variables
     context.pop("event_group_service_name", None)
+    context.pop("event_group_service_id", None)
     context.pop("event_client_id", None)
     context.pop("event_client_name", None)
     context.pop("event_client_email", None)

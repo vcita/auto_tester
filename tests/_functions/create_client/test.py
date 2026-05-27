@@ -65,7 +65,7 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
         page.wait_for_timeout(500)
         for frame in page.frames:
             try:
-                if frame.locator('text=First Name').count() > 0:
+                if frame.get_by_role("textbox", name="First Name *").count() > 0:
                     form_frame = frame
                     break
             except:
@@ -78,7 +78,7 @@ def fn_create_client(page: Page, context: dict, **params) -> None:
         raise Exception("Could not find form frame with 'First Name' field")
     
     print("  Step 5: Waiting for form content (First Name field)...")
-    form_frame.locator('text=First Name').wait_for(timeout=15000)
+    form_frame.get_by_role("textbox", name="First Name *").wait_for(timeout=5000)
     
     # Step 6: Fill First Name (Required)
     print(f"  Step 6: Filling contact information...")

@@ -24,7 +24,8 @@ description: Stabilize auto_tester E2E categories and subcategories by investiga
 7. Run lints for edited files.
 8. Rerun the same focused scope without `--headless` unless the user asks otherwise.
 9. Update health files only from real runner output.
-10. After any stress test completes, verify all status artifacts before reporting done:
+10. If the stabilized scope is migrated from automation-js, update the migration coverage tracker with the new status, runtime, and stability evidence.
+11. After any stress test completes, verify all status artifacts before reporting done:
    - Check `git diff` for every related `_category.yaml` and `_health.json`.
    - Confirm the parent category and every tested subcategory have the expected `stability` block.
    - Do not rely only on the runner's final summary; full-category runs may stamp the parent category without stamping each subcategory file.

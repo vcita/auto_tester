@@ -31,7 +31,7 @@ BUSINESSES_PATH = "/platform/v1/businesses"
 ADMIN_USERS_PATH = "/admin/users/"
 PLATINUM_PACKAGE_SUBSCRIPTION_ID = 14
 REQUEST_TIMEOUT = 30
-MAX_RETRIES = 1
+MAX_RETRIES = 2
 RETRY_BACKOFF = 2
 
 AUTOMATION_FEATURE_FLAGS = [
@@ -354,6 +354,9 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
     if status in (400, 409):
         raise AccountCreationError(f"HTTP {status} for {category_name}: {detail}")
 
+    if status == 403:
+        raise AccountCreationError(f"HTTP {status} transient forbidden for {category_name}: {detail}")
+
     if status >= 500:
         raise AccountCreationError(f"HTTP {status} server error for {category_name}: {detail}")
 
@@ -361,4 +364,5 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
 
 
 def _is_retryable_create_error(exc: AccountCreationError) -> bool:
-    return "server error" in str(exc).lower()
+    error = str(exc).lower()
+    return "server error" in error or "transient forbidden" in error

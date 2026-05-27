@@ -1,7 +1,7 @@
 # Create And Filter Custom Status - Detailed Script
 
 > **Status**: Migrated from automation-js mapping
-> **Last Updated**: 2026-05-24
+> **Last Updated**: 2026-05-27
 > **Source**: `automation-js/features/steps/client-custom-status.feature`
 
 ## Initial State
@@ -48,8 +48,8 @@ second_client = {
 
 ### Step 4: Assign Status From Client Card
 - Open the first client from the CRM list.
-- Open the contact edit dialog.
-- Change Status to `status_name`.
+- Open the contact edit dialog from the loaded client detail page, using the rendered edit control or its emitted `matter_action` message.
+- Change Status to `status_name` through the visible Angular Material Status dropdown.
 - Save.
 - Verify the client card displays `status_name`.
 

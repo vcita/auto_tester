@@ -142,18 +142,16 @@ tomorrow_day = tomorrow.day
 
 start_date_btn = inner_iframe.get_by_role('button', name='Start date:').first()
 start_date_btn.click()
-# Wait for date picker by waiting for tomorrow's day button to appear (picker open)
-tomorrow_date_btn = inner_iframe.get_by_role('button', name=str(tomorrow_day))
-if tomorrow_date_btn.count() == 0:
-    tomorrow_date_btn = page.get_by_role('button', name=str(tomorrow_day))
-tomorrow_date_btn.first.wait_for(state='visible', timeout=8000)
-day_btn = tomorrow_date_btn.nth(tomorrow_date_btn.count() - 1)
+# Wait for date picker by waiting for tomorrow's visible day button to appear (picker open)
+tomorrow_date_btn = inner_iframe.locator("button:visible").filter(has_text=str(tomorrow_day))
+tomorrow_date_btn.last.wait_for(state='visible', timeout=5000)
+day_btn = tomorrow_date_btn.last
 day_btn.click()
-day_btn.wait_for(state='hidden', timeout=5000)
+page.wait_for_timeout(300)  # Brief settle after date selection (allowed)
 ```
 
-- **How verified**: Healed: get_by_role('menu').first matched allDayEventsContainer; wait for day button visible then hidden.
-- **Wait for**: Date picker opens (day button visible), then closes (day button hidden after click).
+- **How verified**: Healed: get_by_role('menu').first matched allDayEventsContainer; full scheduling stress then showed the day button hidden wait could target the wrong element.
+- **Wait for**: Date picker opens (visible day button), then a short settle after click. The event is still verified through Event List after creation.
 - **Fallback locators**: `inner_iframe.get_by_text(str(tomorrow_day))`
 
 ### Step 6: Verify End Date is Set (Auto-updated)

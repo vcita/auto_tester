@@ -1,5 +1,39 @@
 # Schedule Event Changelog
 
+## 2026-05-27 - Stabilize Date Picker Selection
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: Full `scheduling` stress captured the New Event date picker still open after selecting the start date.
+
+**Root Cause**: The day selector could match the wrong visible button outside the active picker, then wait for that button to become hidden.
+
+**Fix Applied**:
+1. Scope the day selection to visible buttons inside the New Event iframe.
+2. Use the last visible matching day button from the active month grid.
+3. Verify the Start date button text updates instead of waiting for a generic day button to hide.
+
+**Scope / Quality**: The event is still scheduled for tomorrow and verified in Event List; only the date picker readiness check changed.
+
+---
+
+## 2026-05-27 - Stabilized Event Creation Dialog
+
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/events` stress reached the New Event dialog but Create Event stayed blocked by a required Address field.
+
+**Root Cause**: The selected "My business address" location can require the Address textbox before event creation submits.
+
+**Fix Applied**:
+1. Fill the Address field when it is present before clicking Create Event.
+2. Reuse the hardened Calendar helper if the test is not already on Calendar.
+3. Cap touched waits/navigation at 5000ms.
+
+**Scope / Quality**: The test still creates a real group event instance, verifies it in Event List, and stores the scheduled time for downstream event tests.
+
+---
+
 ## 2026-01-27 - Healed (Event List menu item hidden when submenu collapsed)
 **Phase**: test.py
 **Author**: Cursor AI (heal)

@@ -5,6 +5,10 @@
 
 from playwright.sync_api import Page, expect
 
+from tests.scheduling.appointments.appointment_helpers import UI_TIMEOUT, open_calendar_page
+
+RESCHEDULE_TIME = "9:30am"
+
 
 def test_reschedule_appointment(page: Page, context: dict) -> None:
     """
@@ -30,82 +34,80 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     # Step 1: Verify on Calendar Page
     print("  Step 1: Verifying on Calendar page...")
     if "/app/calendar" not in page.url:
-        calendar_menu = page.get_by_text("Calendar", exact=True)
-        calendar_menu.click()
-        page.wait_for_url("**/app/calendar**", timeout=10000)
+        open_calendar_page(page)
     
     # Step 2: Wait for Calendar to Load
     print("  Step 2: Waiting for Calendar to load...")
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator('#vue_iframe_layout')
     # Wait for calendar to load by waiting for appointment to be visible
     appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
-    appointment.wait_for(state='visible', timeout=10000)
+    appointment.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 3: Click on Appointment in Calendar
     print(f"  Step 3: Clicking on appointment for client: {client_name}...")
     appointment = inner_iframe.get_by_role('menuitem').filter(has_text=client_name)
-    appointment.wait_for(state='visible', timeout=10000)
+    appointment.wait_for(state='visible', timeout=UI_TIMEOUT)
     appointment.click()
     
     # Step 4: Wait for Appointment Details Page
     print("  Step 4: Waiting for appointment details page...")
-    page.wait_for_url("**/app/appointments/**", timeout=10000)
+    page.wait_for_url("**/app/appointments/**", timeout=UI_TIMEOUT)
     heading = outer_iframe.get_by_role('heading', name='Appointment').first
-    heading.wait_for(state='visible', timeout=10000)
+    heading.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 5: Get Current Time from Heading
     print("  Step 5: Reading current appointment time...")
     time_heading = outer_iframe.get_by_role('heading', level=2).first
-    time_heading.wait_for(state='visible', timeout=5000)
+    time_heading.wait_for(state='visible', timeout=UI_TIMEOUT)
     original_time = time_heading.text_content()
     print(f"       Original time: {original_time}")
     
     # Step 6: Click Reschedule Button
     print("  Step 6: Clicking Reschedule button...")
     reschedule_btn = outer_iframe.get_by_role('button', name='Reschedule').first
-    reschedule_btn.wait_for(state='visible', timeout=5000)
+    reschedule_btn.wait_for(state='visible', timeout=UI_TIMEOUT)
     reschedule_btn.click()
     # Step 7: Wait for Reschedule Dialog (meaningful event)
     print("  Step 7: Waiting for reschedule dialog...")
     dialog = outer_iframe.get_by_role('dialog')
-    dialog.wait_for(state='visible', timeout=30000)
+    dialog.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 8: Open Start Time Dropdown
     print("  Step 8: Opening time dropdown...")
     # Click on the select button to open the time dropdown
     # VERIFIED: The second "select" button (nth(1)) opens the time picker
-    outer_iframe.get_by_role('button', name='select').nth(1).click()
+    outer_iframe.get_by_role('button', name='select').nth(1).click(timeout=UI_TIMEOUT)
     # Wait for dropdown to open (event-based: time option visible)
-    new_time_option = outer_iframe.get_by_text('10:00am', exact=True)
-    new_time_option.wait_for(state='visible', timeout=10000)
+    new_time_option = outer_iframe.locator("li.k-item:visible").filter(has_text=RESCHEDULE_TIME).first
+    new_time_option.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Step 9: Select New Time
     print("  Step 9: Selecting new time...")
-    # VERIFIED: The dropdown contains option elements with time text like "8:00pm"
+    # VERIFIED: The dropdown contains visible option elements with time text like "9:30am"
     new_time_option.click()
     page.wait_for_timeout(300)  # Brief settle after selection (allowed)
     
     # Step 10: Click Submit Button
     print("  Step 10: Submitting reschedule...")
     submit_btn = outer_iframe.get_by_role('button', name='Submit')
-    submit_btn.click()
+    submit_btn.click(timeout=UI_TIMEOUT)
     # Wait for reschedule to complete by checking time heading updated or "Rescheduled from" appears
     # Step 11: Verify Time Changed (Actual Data Verification)
     print("  Step 11: Verifying time was changed...")
     # Verify the time has changed by checking the h2 heading
     time_heading = outer_iframe.get_by_role('heading', level=2).first
-    time_heading.wait_for(state='visible', timeout=10000)
+    time_heading.wait_for(state='visible', timeout=UI_TIMEOUT)
     # Also wait for "Rescheduled from" to confirm reschedule completed
     rescheduled_from = outer_iframe.get_by_text('Rescheduled from')
-    rescheduled_from.wait_for(state='visible', timeout=10000)
+    rescheduled_from.wait_for(state='visible', timeout=UI_TIMEOUT)
     new_time = time_heading.text_content()
     print(f"       New time: {new_time}")
     
     # Also verify "Rescheduled from" section appears
     rescheduled_from = outer_iframe.get_by_text('Rescheduled from')
-    rescheduled_from.wait_for(state='visible', timeout=5000)
+    rescheduled_from.wait_for(state='visible', timeout=UI_TIMEOUT)
     
     # Verify time actually changed
     if original_time == new_time:
@@ -114,8 +116,8 @@ def test_reschedule_appointment(page: Page, context: dict) -> None:
     # Step 12: Return to Calendar
     print("  Step 12: Returning to calendar...")
     back_btn = page.get_by_text('Back')
-    back_btn.click()
-    page.wait_for_url("**/app/calendar**", timeout=10000)
+    back_btn.click(timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/calendar**", timeout=UI_TIMEOUT)
     
     print(f"  [OK] Successfully rescheduled appointment")
     print(f"       Client: {client_name}")

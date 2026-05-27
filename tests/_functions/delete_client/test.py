@@ -8,6 +8,9 @@ from typing import Callable, Optional
 
 from playwright.sync_api import Page, expect
 
+UI_TIMEOUT = 5_000
+
+
 def _check_for_error_page(page: Page) -> tuple[bool, str]:
     """
     Check if the page has navigated to an error page.
@@ -18,18 +21,18 @@ def _check_for_error_page(page: Page) -> tuple[bool, str]:
         page_text = page.locator("body").text_content() or ""
         url = page.url
         title = page.title
-        
+
         # Check for error indicators
         has_error_text = "This page is unavailable" in page_text or "page is unavailable" in page_text.lower()
         has_return_homepage = "Return to homepage" in page_text or "return to homepage" in page_text.lower()
         is_error_url = "/error" in url.lower() or "unavailable" in url.lower()
-        
+
         # Additional context
         body_snippet = page_text[:200] if page_text else "(empty)"
-        
+
         if has_error_text or has_return_homepage or is_error_url:
             return True, f"ERROR PAGE - URL: {url}, Title: {title}, Error text: {has_error_text}, Return link: {has_return_homepage}, Error URL: {is_error_url}, Body snippet: {body_snippet}"
-        
+
         return False, f"OK - URL: {url}, Title: {title}, Body snippet: {body_snippet[:100]}"
     except Exception as e:
         return False, f"Check failed: {e}"
@@ -74,51 +77,61 @@ def fn_delete_client(
         else:
             print(f"  {msg}")
     
-    # Step 1: Navigate to matter list (Properties/Clients/Patients - sidebar label varies by vertical)
-    # Entity-agnostic: use same sidebar position as delete_matter (.menu-items-group > div:nth-child(4))
-    _pause("Step 1a: Ensure on dashboard (navigate via sidebar if needed)")
-    # Ensure we're on dashboard first. Use UI only (no page.goto to internal URLs).
-    if "/app/dashboard" not in page.url:
-        page.wait_for_load_state("domcontentloaded")
-        dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
-        dashboard_link.wait_for(state="visible", timeout=30000)
-        dashboard_link.scroll_into_view_if_needed()
-        page.wait_for_timeout(200)  # Brief settle (allowed)
-        dashboard_link.click()
-        page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)
-    
-    _pause("Step 1b: Click matter list in sidebar (4th menu item)")
-    # HEALED 2026-01-31: Longer timeout for sidebar when arriving from dashboard (e.g. after appointments teardown).
-    matter_list_nav = page.locator(".menu-items-group > div:nth-child(4)")
-    matter_list_nav.wait_for(state="visible", timeout=30000)
-    matter_list_nav.click()
-    _pause("Step 1c: Wait for clients URL")
-    page.wait_for_url("**/app/clients", timeout=10000)
-    
-    # Wait for list toolbar so list searchbox is present (list searchbox has no/missing aria-label on Properties)
-    _pause("Step 1d: Wait for list toolbar (Filters)")
-    page.get_by_role("button", name="Filters").wait_for(state="visible", timeout=30000)
-    
-    _pause("Step 2a: Click search field")
-    # Step 2: Search for Client (list filter searchbox is 2nd searchbox; 1st is global header "Search")
-    # HEALED 2026-01-31: List searchbox has no "Search by name, email, or phone number" on Properties page
-    search_field = page.get_by_role("searchbox").nth(1)
-    search_field.click()
-    page.wait_for_timeout(100)
-    _pause("Step 2b: Type client name in search")
-    search_field.press_sequentially(name, delay=30)
-    page.wait_for_timeout(1000)  # Allow search results to update
-    
-    _pause("Step 3a: Click client row to open detail page")
-    # Step 3: Click on Client in List
-    client_row = page.get_by_role('row').filter(has_text=name)
-    client_row.wait_for(state='visible', timeout=5000)
-    client_row.click()
-    _pause("Step 3b: Wait for client detail URL")
-    page.wait_for_url("**/app/clients/**", timeout=10000)
-    
+    if client_id:
+        _pause("Step 1a: Open client detail page directly by ID")
+        app_base = page.url.split("/app/")[0]
+        page.goto(
+            f"{app_base}/app/clients/{client_id}",
+            wait_until="domcontentloaded",
+            timeout=UI_TIMEOUT,
+        )
+        page.wait_for_url("**/app/clients/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    else:
+        # Step 1: Navigate to matter list (Properties/Clients/Patients - sidebar label varies by vertical)
+        # Entity-agnostic: use same sidebar position as delete_matter (.menu-items-group > div:nth-child(4))
+        _pause("Step 1a: Ensure on dashboard (navigate via sidebar if needed)")
+        # Ensure we're on dashboard first. Use UI only (no page.goto to internal URLs).
+        if "/app/dashboard" not in page.url:
+            page.wait_for_load_state("domcontentloaded")
+            dashboard_link = page.locator("body").get_by_text("Dashboard", exact=True)
+            dashboard_link.wait_for(state="visible", timeout=30000)
+            dashboard_link.scroll_into_view_if_needed()
+            page.wait_for_timeout(200)  # Brief settle (allowed)
+            dashboard_link.click()
+            page.wait_for_url("**/app/dashboard**", timeout=30000, wait_until="domcontentloaded")
+            page.wait_for_load_state("domcontentloaded")
+            page.wait_for_selector('iframe[title="angularjs"]', timeout=30000)
+
+        _pause("Step 1b: Click matter list in sidebar (4th menu item)")
+        # HEALED 2026-01-31: Longer timeout for sidebar when arriving from dashboard (e.g. after appointments teardown).
+        matter_list_nav = page.locator(".menu-items-group > div:nth-child(4)")
+        matter_list_nav.wait_for(state="visible", timeout=30000)
+        matter_list_nav.click()
+        _pause("Step 1c: Wait for clients URL")
+        page.wait_for_url("**/app/clients", timeout=10000)
+
+        # Wait for list toolbar so list searchbox is present (list searchbox has no/missing aria-label on Properties)
+        _pause("Step 1d: Wait for list toolbar (Filters)")
+        page.get_by_role("button", name="Filters").wait_for(state="visible", timeout=30000)
+
+        _pause("Step 2a: Click search field")
+        # Step 2: Search for Client (list filter searchbox is 2nd searchbox; 1st is global header "Search")
+        # HEALED 2026-01-31: List searchbox has no "Search by name, email, or phone number" on Properties page
+        search_field = page.get_by_role("searchbox").nth(1)
+        search_field.click()
+        page.wait_for_timeout(100)
+        _pause("Step 2b: Type client name in search")
+        search_field.press_sequentially(name, delay=30)
+        page.wait_for_timeout(1000)  # Allow search results to update
+
+        _pause("Step 3a: Click client row to open detail page")
+        # Step 3: Click on Client in List
+        client_row = page.get_by_role('row').filter(has_text=name)
+        client_row.wait_for(state='visible', timeout=5000)
+        client_row.click()
+        _pause("Step 3b: Wait for client detail URL")
+        page.wait_for_url("**/app/clients/**", timeout=10000)
+
     _pause("Step 4a: Wait for iframe, then click More button")
     # Step 4: Click More Dropdown (detail page: menu stays inside iframe, unlike list-page delete_matter)
     page.wait_for_selector('iframe[title="angularjs"]', timeout=10000)

@@ -1,5 +1,17 @@
 # Remove Attendee Changelog
 
+## 2026-05-27 - Submit Inner-Frame Confirmation
+**Phase**: test.py
+**Author**: Cursor AI (stabilization)
+**Reason**: Full `scheduling` stress showed Cancel registration could open its confirmation dialog inside the Vuetage iframe, leaving the attendee active when only outer-frame/page Submit buttons were checked.
+
+**Changes**:
+- Try the inner-frame `Submit` button first, then retain the outer-frame/page fallbacks.
+- Fail immediately if no confirmation action is submitted instead of continuing to the removed-attendee assertion.
+- Preserve the existing count-zero and canceled-indicator verification.
+
+---
+
 ## 2026-01-24 - Initial Build
 **Phase**: All files
 **Author**: Cursor AI (exploration)

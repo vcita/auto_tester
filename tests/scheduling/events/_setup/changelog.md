@@ -1,5 +1,39 @@
 # Events Setup Changelog
 
+## 2026-05-27 - Reset Services Page For Full Scheduling Runs
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: Full `scheduling` stress always reached `Events/_setup` after appointments teardown, leaving the browser on a deleted client detail page instead of Settings > Services.
+
+**Root Cause**: Events setup assumed the parent Scheduling setup was the immediately previous step. In full category sequencing, Appointments runs before Events and changes the current route.
+
+**Fix Applied**:
+1. Added a direct Services-page reset at the start of Events setup.
+2. Verified the Angular iframe and `Settings / Services` heading before opening the New Service menu.
+3. Kept all navigation and readiness waits capped at 5000ms, with one reload retry.
+
+**Scope / Quality**: Events setup still creates a real group event service and client before navigating to Calendar; only the starting route assumption changed.
+
+---
+
+## 2026-05-27 - Stabilized Calendar Navigation and Service ID Capture
+
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: `scheduling/events` stress stayed on the created client detail page after setup because clicking the parent Calendar menu only expanded the submenu.
+
+**Root Cause**: Events setup duplicated Calendar navigation instead of using the hardened Calendar helper. Teardown also lacked the group service ID, so it could not use ID-based cleanup.
+
+**Fix Applied**:
+1. Reused `open_calendar_page` for Calendar View navigation.
+2. Captured `event_group_service_id` / `created_service_id` from the service detail URL during setup.
+3. Capped touched waits/navigation at 5000ms.
+
+**Scope / Quality**: Setup still creates a real group event service and test client; the scheduled event flow and assertions are unchanged.
+
+---
+
 ## 2026-01-26 - Navigate away and back to Services so new service appears (known UI issue)
 **Phase**: test.py, script.md, steps.md
 **Reason**: Heal request – service not found on Services page after create. User confirmed: new service does not show in the list until you navigate away from Services and back (known product behavior).
