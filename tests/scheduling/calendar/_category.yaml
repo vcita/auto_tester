@@ -1,0 +1,61 @@
+name: Calendar
+description: Tests for scheduling and verifying items directly from the business Calendar
+  surface
+tests:
+- id: monthly_display
+  name: Monthly Display
+  status: active
+  priority: high
+  description: Schedule appointments and a recurring event from Month view and verify
+    Calendar state persistence
+- id: weekly_display
+  name: Weekly Display
+  status: active
+  priority: high
+  description: Schedule appointments and a recurring event from Week view and verify
+    30-minute display
+- id: three_day_display
+  name: Three Day Display
+  status: active
+  priority: high
+  description: Verify 3 Days calendar scheduling, service colors, and refresh persistence
+- id: daily_display
+  name: Daily Display
+  status: active
+  priority: high
+  description: Verify Day calendar scheduling, staff colors, all-day event behavior,
+    and refresh persistence
+- id: agenda_view
+  name: Agenda View
+  status: active
+  priority: high
+  description: Verify Agenda view with API-created staff, appointments, and event
+- id: block_time
+  name: Block Time
+  status: active
+  priority: high
+  description: Create, drag, filter, and edit blocked time from Calendar
+- id: display_multiple_staff
+  name: Display Multiple Staff
+  status: active
+  priority: high
+  description: Verify Calendar staff filtering and switched staff visibility
+- id: print_calendar
+  name: Print Calendar
+  status: active
+  priority: medium
+  description: Print Month view and verify Calendar View download
+status: active
+priority: high
+tags:
+- scheduling
+- calendar
+- tempo
+- migration
+owner: QA Team
+created_at: 2026-05-27
+stability:
+  status: unstable
+  last_stress_test: '2026-05-28'
+  pass_rate: 70.0%
+  iterations: 10

@@ -7,6 +7,8 @@ from playwright.sync_api import Page, expect
 
 from tests._functions.login.test import fn_login
 
+SETUP_TIMEOUT = 5_000
+
 
 def setup_scheduling(page: Page, context: dict) -> None:
     """
@@ -32,25 +34,25 @@ def setup_scheduling(page: Page, context: dict) -> None:
     
     # Step 2: Navigate to Settings
     print("  Step 2: Navigating to Settings...")
-    page.get_by_text('Settings').click()
-    page.wait_for_url("**/app/settings**", timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
+    page.get_by_text('Settings').click(timeout=SETUP_TIMEOUT)
+    page.wait_for_url("**/app/settings**", timeout=SETUP_TIMEOUT)
     
     # Step 3: Navigate to Services
     print("  Step 3: Navigating to Services...")
     # Wait for iframe to load
     angular_iframe = page.locator('iframe[title="angularjs"]')
-    angular_iframe.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when iframe appears
+    angular_iframe.wait_for(state="visible", timeout=SETUP_TIMEOUT)
     
     # Get iframe and click Services
     iframe = page.frame_locator('iframe[title="angularjs"]')
     services_button = iframe.get_by_role("button", name="Define the services your")
-    services_button.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when button appears
-    services_button.click()
-    page.wait_for_url("**/app/settings/services**", timeout=30000)  # Long timeout for slow systems, continues immediately when URL matches
+    services_button.wait_for(state="visible", timeout=SETUP_TIMEOUT)
+    services_button.click(timeout=SETUP_TIMEOUT)
+    page.wait_for_url("**/app/settings/services**", timeout=SETUP_TIMEOUT)
     
     # Step 4: Verify Services page loaded
     print("  Step 4: Verifying Services page loaded...")
     heading = iframe.get_by_role("heading", name="Settings / Services")
-    heading.wait_for(state="visible", timeout=30000)  # Long timeout for slow systems, continues immediately when heading appears
+    heading.wait_for(state="visible", timeout=SETUP_TIMEOUT)
     
     print(f"  Scheduling setup complete - on Services page")
