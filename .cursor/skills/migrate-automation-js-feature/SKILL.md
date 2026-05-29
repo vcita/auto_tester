@@ -39,7 +39,10 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - `PYENV_VERSION=3.11.9 python -m py_compile <edited .py files>`
    - `PYENV_VERSION=3.11.9 python main.py list --category <category>`
    - Focused run: `PYENV_VERSION=3.11.9 python main.py run --category <category/subcategory> --env integration --headless`
-   - Stability run when browser validation passes: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`
+   - Run the migrated scope successfully 3 times with fresh runner state before stress testing.
+   - **Hard gate before stress_test**: after those 3 successful runs, re-check `migration_mapping.md`, `steps.md`, `script.md`, and `test.py` against the legacy `.feature`, step definitions, page objects, API helpers, and assertions.
+   - Do not start `stress_test` until scope at least matches the legacy test and quality is at least as strong as the legacy test: no removed user-facing assertions, no lost setup/edge-case coverage, no UI action replaced by API when the UI action is in scope, and no weaker selector/wait strategy than the old flow.
+   - Stability run only after the hard gate passes: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`
 8. After a successful migration, run the original and migrated tests and report the comparison.
    - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
@@ -69,6 +72,7 @@ The migration is complete only when all three checks pass:
 
 - **High Quality**: phase files are synchronized, helpers are reused or extracted, Python compiles, lints are clean, and changes are logged.
 - **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation was checked against the local `migration_mapping.md`; the mapping file itself stays out of the PR.
+- **Pre-Stress Legacy Gate Passed**: after 3 successful migrated runs and before any stress test, scope and quality were re-verified against the legacy test and confirmed to be at least equivalent.
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.

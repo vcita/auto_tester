@@ -27,6 +27,12 @@ AUTO_EMAIL_PATTERN = re.compile(r"^auto\..+\.\d+@vcita\.com$")
 
 DEFAULT_PASSWORD = "vcita123"
 COUNTRY = "United States"
+# Pin the business timezone to match the browser context (runner uses
+# timezone_id='America/New_York'). Without this the directory defaults new US
+# businesses to Central Time, creating a 1h Central-vs-Eastern gap that drifts
+# every calendar time assertion. Aligning both ends makes rendered times
+# deterministic.
+DEFAULT_TIME_ZONE = "Eastern Time (US & Canada)"
 BUSINESSES_PATH = "/platform/v1/businesses"
 ADMIN_USERS_PATH = "/admin/users/"
 PLATINUM_PACKAGE_SUBSCRIPTION_ID = 14
@@ -95,6 +101,7 @@ def create_account(
         "password": DEFAULT_PASSWORD,
         "directory_id": directory_id,
         "country_name": country_name,
+        "time_zone": DEFAULT_TIME_ZONE,
         "package_subscription_id": PLATINUM_PACKAGE_SUBSCRIPTION_ID,
     }
     payload = {"generate_api_token": True, "options": json.dumps(options)}
@@ -109,7 +116,9 @@ def create_account(
             _handle_create_error(resp, category_name)
             data = resp.json()
             AccountLedger().record_created(email)
-            return _normalize_created_account(data, email, business_name)
+            account = _normalize_created_account(data, email, business_name)
+            _ensure_business_timezone(api_base_url, admin_token, account.get("pivot_uid"))
+            return account
         except FatalTokenError:
             raise
         except AccountCreationError as exc:
@@ -182,6 +191,31 @@ def update_account_country(
             f"Failed to update country for {pivot_uid} to {country_name}: "
             f"HTTP {response.status_code} {response.text[:300]}"
         )
+
+
+def _ensure_business_timezone(
+    api_base_url: str, admin_token: str, pivot_uid: Optional[str]
+) -> None:
+    """Force the business timezone to match the pinned browser timezone.
+
+    Best-effort: the create call already passes ``time_zone`` in options, but some
+    directories ignore it and fall back to Central. This authoritative update keeps
+    rendered calendar times deterministic. Failures are logged, not fatal.
+    """
+    if not pivot_uid:
+        return
+    url = f"{api_base_url.rstrip('/')}/platform/v1/businesses/{pivot_uid}"
+    headers = {"Authorization": f"Admin {admin_token}"}
+    payload = {"business": {"business": {"time_zone": DEFAULT_TIME_ZONE}}}
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+        if not response.ok:
+            logger.warning(
+                "Failed to set timezone for %s: HTTP %d %s",
+                pivot_uid, response.status_code, response.text[:200],
+            )
+    except Exception as exc:
+        logger.warning("Failed to set timezone for %s: %s", pivot_uid, exc)
 
 
 def delete_account(

@@ -11,6 +11,7 @@ execution_order:
   - services
   - appointments
   - events
+  - calendar
 tests: []
 
 # Category metadata

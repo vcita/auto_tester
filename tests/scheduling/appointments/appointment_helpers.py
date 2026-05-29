@@ -16,6 +16,11 @@ def open_calendar_page(page: Page) -> None:
         return
 
     _open_calendar_via_menu(page)
+    if _calendar_new_button_is_visible(page):
+        return
+
+    _goto_dashboard_page(page)
+    _goto_calendar_page(page)
     _wait_for_calendar_new_button(page)
 
 
@@ -36,6 +41,11 @@ def _open_calendar_via_menu(page: Page) -> None:
 def _goto_calendar_page(page: Page) -> None:
     page.goto(f"{_app_base_url(page)}/app/calendar", wait_until="domcontentloaded", timeout=UI_TIMEOUT)
     page.wait_for_url("**/app/calendar**", timeout=UI_TIMEOUT)
+
+
+def _goto_dashboard_page(page: Page) -> None:
+    page.goto(f"{_app_base_url(page)}/app/dashboard", wait_until="domcontentloaded", timeout=UI_TIMEOUT)
+    page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT)
 
 
 def _reload_calendar_page(page: Page) -> None:
