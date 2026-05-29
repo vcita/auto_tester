@@ -1,7 +1,13 @@
 from playwright.sync_api import Page
 
 from tests.scheduling.calendar.calendar_api import create_v2_staff, service_refs, unique_email
-from tests.scheduling.calendar.calendar_helpers import assert_calendar_items, schedule_appointment_from_calendar, select_staff_filter
+from tests.scheduling.calendar.calendar_helpers import (
+    assert_calendar_items,
+    assert_calendar_items_absent,
+    schedule_appointment_from_calendar,
+    select_staff_filter,
+    switch_logged_in_staff,
+)
 
 
 def test_display_multiple_staff(page: Page, context: dict) -> None:
@@ -27,9 +33,11 @@ def test_display_multiple_staff(page: Page, context: dict) -> None:
 
     select_staff_filter(page, "Auto Staff1")
     assert_calendar_items(page, "next", "Month", [{"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "3:30am"}])
+    assert_calendar_items_absent(page, "next", "Month", [{"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "7am"}])
 
     select_staff_filter(page, "Auto Staff2")
     assert_calendar_items(page, "next", "Month", [{"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "7am"}])
+    assert_calendar_items_absent(page, "next", "Month", [{"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "3:30am"}])
 
     select_staff_filter(page, "all")
     assert_calendar_items(
@@ -41,6 +49,8 @@ def test_display_multiple_staff(page: Page, context: dict) -> None:
             {"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "8am"},
         ],
     )
+    switch_logged_in_staff(page, context, staff2)
+    assert_calendar_items(page, "next", "Month", [{"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "7am"}])
 
 def _get_or_create_staff(context: dict, name: str, role: str, services: list[dict]) -> dict:
     for staff in context.get("calendar_staff", []):

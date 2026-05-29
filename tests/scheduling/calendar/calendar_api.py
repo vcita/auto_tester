@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import os
 import time
 
 import requests
@@ -51,6 +52,20 @@ def create_v2_staff(context: dict, name: str, email: str, role: str, services: l
     staff.setdefault("display_name", name)
     staff.setdefault("email", email)
     return staff
+
+
+def get_sso_token(context: dict, staff: dict) -> str:
+    staff_uid = staff.get("id") or staff.get("uid")
+    if not staff_uid:
+        raise ValueError(f"Staff UID is missing for {staff}")
+    response = account_request(
+        context,
+        "GET",
+        f"/v1/partners/sso/token?staff_uid={staff_uid}",
+        base_url=resolve_partner_base_url(context),
+        headers=partner_headers(),
+    )
+    return response.get("sso_token") or response.get("token") or response.get("data", {}).get("sso_token")
 
 
 def create_service(
@@ -147,6 +162,13 @@ def end_primary_staff_sessions(context: dict) -> None:
     )
 
 
+def staff_uid(staff: dict) -> str:
+    uid = staff.get("id") or staff.get("uid")
+    if not uid:
+        raise ValueError(f"Staff UID is missing for {staff}")
+    return uid
+
+
 def get_staff_uid(context: dict, staff_name: str | None = None) -> str:
     if not staff_name:
         return get_first_staff_uid(context)
@@ -172,16 +194,39 @@ def resolve_api_datetime(context: dict, date_key: str, time_key: str, is_event: 
 
 
 def account_request(context: dict, method: str, path: str, **kwargs) -> dict:
-    response = requests.request(
-        method,
-        f"{resolve_api_base_url(context)}{path}",
-        headers=account_headers(context),
-        timeout=REQUEST_TIMEOUT,
-        **kwargs,
-    )
+    base_url = kwargs.pop("base_url", resolve_api_base_url(context))
+    headers = kwargs.pop("headers", account_headers(context))
+    retry_allowed = method.upper() in {"GET", "HEAD", "OPTIONS"}
+    for attempt in range(2):
+        try:
+            response = requests.request(
+                method,
+                f"{base_url}{path}",
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
+                **kwargs,
+            )
+            break
+        except (requests.ReadTimeout, requests.ConnectionError):
+            if attempt == 1 or not retry_allowed:
+                raise
+            time.sleep(0.2)
     if not response.ok:
         raise requests.HTTPError(f"{response.status_code} {response.reason}: {response.text[:500]}", response=response)
     return response.json() if response.text else {}
+
+
+def resolve_partner_base_url(context: dict) -> str:
+    base_url = (context.get("base_url") or "").rstrip("/")
+    if "app.meet2know.com" in base_url:
+        return "https://api.meet2know.com"
+    if "app.vcita.com" in base_url:
+        return "https://api.vcita.com"
+    if "app-" in base_url and ".external.int-eks.vchost.co" in base_url:
+        return base_url.replace("https://app-", "https://vcita-", 1)
+    if base_url:
+        return base_url
+    raise ValueError("base_url is missing from context and partner base URL could not be inferred")
 
 
 def resolve_api_base_url(context: dict) -> str:
@@ -202,6 +247,13 @@ def account_headers(context: dict) -> dict:
     if not token:
         raise ValueError("auto_account api_token is missing from context")
     return {"Authorization": f"Bearer {token}"}
+
+
+def partner_headers() -> dict:
+    token = os.environ.get("VCITA_DIRECTORY_TOKEN")
+    if not token:
+        raise ValueError("VCITA_DIRECTORY_TOKEN is missing for partner SSO token request")
+    return {"Authorization": f'Token token="{token}"'}
 
 
 def get_pivot_uid(context: dict) -> str:
