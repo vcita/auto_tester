@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import os
 import time
 
 import requests
 
 REQUEST_TIMEOUT = 5
+# The runner pins the browser context and the auto-account business timezone to
+# US Eastern. Appointment start times are interpreted as UTC by the bookings API,
+# so wall-clock times are localized to this zone before conversion.
+BUSINESS_TZ = ZoneInfo("America/New_York")
 WEEKDAY_INDEX = {
     "sunday": 0,
     "monday": 1,
@@ -96,6 +101,15 @@ def create_service(
     return service
 
 
+def get_service_color_id(service: dict) -> str | None:
+    """Return the scheduler color id for a service, matching the rendered color-<id> class."""
+    color_id = service.get("color_id")
+    if color_id is None:
+        color = service.get("color")
+        color_id = color.get("id") if isinstance(color, dict) else color
+    return str(color_id) if color_id is not None else None
+
+
 def create_appointment_via_api(
     context: dict,
     service_name: str,
@@ -135,7 +149,7 @@ def create_event_via_api(
         "POST",
         "/v2/event_instances",
         json={
-            "title": service_name,
+            "title": service.get("name") or service_name,
             "event_service_id": service.get("id") or service.get("uid"),
             "interaction_type": service.get("interaction_type") or "business_location",
             "interaction_details": service.get("meeting_interaction_details") or "TLV",
@@ -183,14 +197,23 @@ def service_refs(context: dict, names: list[str]) -> list[dict]:
 
 
 def resolve_api_datetime(context: dict, date_key: str, time_key: str, is_event: bool = False) -> datetime:
+    """Resolve the datetime to send to the scheduling APIs for a desired wall-clock.
+
+    The two endpoints interpret the value differently (verified empirically):
+    - ``event_instances`` treats a timezone-less value as the business-local time to
+      display, so the wall-clock is sent as-is.
+    - ``bookings`` treats ``start_time`` as UTC, so the wall-clock is localized to the
+      pinned business timezone (US Eastern) and converted to UTC.
+
+    The previous implementation subtracted the test machine's local offset, which skewed
+    every API-created item by the machine-vs-browser timezone gap.
+    """
     target = _resolve_relative_date(date_key)
     hour, minute = [int(part) for part in time_key.split(":")]
     target = target.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    browser_offset = target.astimezone().utcoffset() or timedelta()
-    business_offset = timedelta(seconds=context.get("auto_account", {}).get("timeZoneOffset", 0))
     if is_event:
-        return target - browser_offset
-    return target - business_offset - browser_offset
+        return target
+    return target.replace(tzinfo=BUSINESS_TZ).astimezone(timezone.utc)
 
 
 def account_request(context: dict, method: str, path: str, **kwargs) -> dict:

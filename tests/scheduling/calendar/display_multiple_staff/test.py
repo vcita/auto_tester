@@ -46,7 +46,7 @@ def test_display_multiple_staff(page: Page, context: dict) -> None:
         "Month",
         [
             {"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "3:30am"},
-            {"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "8am"},
+            {"item_type": "appointment", "state": "scheduled", "item_title": client_name, "item_times": "7am"},
         ],
     )
     switch_logged_in_staff(page, context, staff2)

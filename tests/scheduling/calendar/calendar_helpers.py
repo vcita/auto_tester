@@ -8,7 +8,7 @@ from urllib.parse import quote
 from playwright.sync_api import Error as PlaywrightError, Page, TimeoutError as PlaywrightTimeoutError, expect
 
 from tests.scheduling.appointments.appointment_helpers import open_calendar_page
-from tests.scheduling.calendar.calendar_api import get_sso_token, resolve_partner_base_url, staff_uid
+from tests.scheduling.calendar.calendar_api import get_service_color_id, get_sso_token, resolve_partner_base_url, staff_uid
 
 UI_TIMEOUT = 5_000
 VIEW_OPTIONS = {
@@ -193,12 +193,51 @@ def add_blocked_time(page: Page, params: dict[str, str]) -> None:
         vue.locator(".staff-picker-button").click(timeout=UI_TIMEOUT)
         active_staff_menu = vue.locator(".menuable__content__active").last
         for staff in params["additional_staffs"].split(","):
-            _click_staff_picker_option(active_staff_menu, staff.strip())
-        vue.locator(".staff-picker-button").click(timeout=UI_TIMEOUT)
+            name = staff.strip()
+            option = vue.locator(f'[data-qa="staff-{name}"]').first
+            try:
+                option.wait_for(state="visible", timeout=5_000)
+                _ensure_staff_option_checked(option)
+            except PlaywrightTimeoutError:
+                _click_staff_picker_option(active_staff_menu, name)
+        # Close the picker via its text field (re-clicking the button can reopen it).
+        picker_close = vue.locator('[data-qa="staff-picker-tf"]').first
+        if picker_close.count():
+            picker_close.click(timeout=UI_TIMEOUT)
+        else:
+            vue.locator(".staff-picker-button").click(timeout=UI_TIMEOUT)
     submit_button = vue.locator(".submit-button").first
     submit_button.wait_for(state="visible", timeout=UI_TIMEOUT)
     submit_button.evaluate("(button) => button.click()")
     _wait_for_dialog_to_close(vue)
+
+
+def _staff_option_checked(option) -> bool:
+    return option.evaluate(
+        """(el) => {
+            const input = el.matches('input[type=checkbox]')
+                ? el
+                : el.querySelector('input[type=checkbox]');
+            if (input) return !!input.checked;
+            const aria = el.closest('[aria-checked]') || el.querySelector('[aria-checked]');
+            return aria ? aria.getAttribute('aria-checked') === 'true' : false;
+        }"""
+    )
+
+
+def _ensure_staff_option_checked(option) -> None:
+    """Toggle a staff picker option to checked, mirroring legacy enableCheckbox.
+
+    Reads the current checkbox state and JS-clicks only when unchecked, then verifies
+    so a click that lands on a non-toggling sub-node is retried.
+    """
+    for _ in range(3):
+        if _staff_option_checked(option):
+            return
+        option.evaluate("(el) => el.click()")
+        option.page.wait_for_timeout(150)
+    if not _staff_option_checked(option):
+        option.click(force=True, timeout=UI_TIMEOUT)
 
 
 def _click_staff_picker_option(active_staff_menu, staff_name: str) -> None:
@@ -482,32 +521,53 @@ def select_staff_filter(page: Page, staff_name: str) -> None:
     staff_list = vue.locator(".staff-list-container")
     staff_list.wait_for(state="visible", timeout=UI_TIMEOUT)
     if staff_name == "all":
-        staff_list.locator(".staff-item-container").evaluate_all(
-            """items => {
-                for (const item of items) {
-                    const input = item.querySelector('input[type="checkbox"]');
-                    const label = item.querySelector('label');
-                    if (input && label && !input.checked) label.click();
-                }
-            }"""
-        )
+        # The "Show all" control selects every staff in the Vue model (including staff
+        # created via API after load), unlike per-item clicks which silently fail to
+        # register for freshly rendered rows, leaving them visually checked but unselected.
+        select_all = vue.locator('[data-qa="staff-item-all"]')
+        select_all.wait_for(state="visible", timeout=UI_TIMEOUT)
+        checkbox = select_all.locator('input[type="checkbox"]').first
+        for _ in range(3):
+            if checkbox.is_checked():
+                break
+            select_all.locator("label").first.click(timeout=UI_TIMEOUT)
+            wait_for_calendar_idle(vue)
         wait_for_calendar_idle(vue)
         return
 
-    staff_list.locator(".staff-item-container").evaluate_all(
-        """items => {
-            for (const item of items) {
-                const input = item.querySelector('input[type="checkbox"]');
-                const label = item.querySelector('label');
-                if (input && label && input.checked) label.click();
-            }
-        }"""
-    )
-    try:
-        vue.locator(f'[data-qa="staff-item-{staff_name}"] label').click(timeout=5_000)
-    except PlaywrightTimeoutError:
-        staff_list.locator(".staff-item-container").filter(has_text=staff_name).first.locator("label").click(timeout=UI_TIMEOUT)
+    # Isolate a single staff: select all first (atomic), then uncheck every other
+    # staff. Deselecting down from "all" avoids the scheduler store resetting an empty
+    # selection back to the logged-in staff, and verifying each toggle handles the
+    # unreliable per-item clicks on staff rendered after load.
+    select_all = vue.locator('[data-qa="staff-item-all"]')
+    select_all.wait_for(state="visible", timeout=UI_TIMEOUT)
+    all_checkbox = select_all.locator('input[type="checkbox"]').first
+    if not all_checkbox.is_checked():
+        select_all.locator("label").first.click(timeout=UI_TIMEOUT)
+        wait_for_calendar_idle(vue)
+
+    containers = staff_list.locator(".staff-item-container")
+    target_qa = f"staff-item-{staff_name}"
+    for index in range(containers.count()):
+        container = containers.nth(index)
+        if (container.get_attribute("data-qa") or "") == target_qa:
+            continue
+        _set_staff_checkbox(vue, container, checked=False)
+
+    target = vue.locator(f'[data-qa="{target_qa}"]')
+    if target.count() == 0:
+        target = staff_list.locator(".staff-item-container").filter(has_text=staff_name).first
+    _set_staff_checkbox(vue, target, checked=True)
     wait_for_calendar_idle(vue)
+
+
+def _set_staff_checkbox(vue, container, checked: bool) -> None:
+    checkbox = container.locator('input[type="checkbox"]').first
+    for _ in range(3):
+        if checkbox.is_checked() == checked:
+            return
+        container.locator("label").first.click(timeout=UI_TIMEOUT)
+        wait_for_calendar_idle(vue)
 
 
 def assert_calendar_items(page: Page, direction: str, display: str, expected: list[dict[str, str]], exact: bool = False) -> None:
@@ -566,6 +626,61 @@ def assert_calendar_items_absent(page: Page, direction: str, display: str, unexp
     for unexpected_item in unexpected:
         if _find_matching_item(items, unexpected_item, set()) is not None:
             raise AssertionError(f"Unexpected calendar item was visible.\nUnexpected: {unexpected_item}\nActual: {items}")
+
+
+def assert_slot_color_mode(page: Page, context: dict, direction: str, display: str, items: list[dict[str, str]], mode: str) -> None:
+    """Verify the slot-color setting is applied to rendered items.
+
+    The scheduler renders each item with a ``color-<id>`` class sourced from the
+    service color (service mode) or the staff color (staff mode). Mirrors the legacy
+    assertion: in service mode each item must match its own service ``color_id`` (so a
+    palette collision between two services still passes), and in staff mode every item
+    shares the single staff color.
+    """
+    _, vue = navigate_calendar(page, display, direction)
+    _scroll_scheduler_to_expected_items(vue, display, items)
+    expected_colors = _expected_slot_colors(context, items, mode)
+    last_colors: list[str] = []
+    deadline = datetime.now().timestamp() + (UI_TIMEOUT / 1000)
+    while datetime.now().timestamp() < deadline:
+        last_colors = _collect_item_colors(parse_calendar_items(vue, display), items)
+        if last_colors and all(last_colors) and _colors_match_expected(last_colors, expected_colors, mode):
+            return
+        page.wait_for_timeout(500)
+    raise AssertionError(
+        f"Slot colors did not reflect '{mode}' mode.\nExpected: {expected_colors}\nActual: {last_colors}\nItems: {items}"
+    )
+
+
+def _expected_slot_colors(context: dict, items: list[dict[str, str]], mode: str) -> list[str | None]:
+    if mode == "staff":
+        return [None] * len(items)
+    return [_service_color_id_for_subtitle(context, item.get("item_subtitle", "")) for item in items]
+
+
+def _service_color_id_for_subtitle(context: dict, item_subtitle: str) -> str | None:
+    for service in context.get("calendar_services", {}).values():
+        if service.get("name") == item_subtitle:
+            return get_service_color_id(service)
+    return None
+
+
+def _colors_match_expected(actual: list[str], expected: list[str | None], mode: str) -> bool:
+    if mode == "staff":
+        return len(set(actual)) == 1
+    return all(exp is None or act == exp for act, exp in zip(actual, expected))
+
+
+def _collect_item_colors(actual: list[dict[str, str]], expected: list[dict[str, str]]) -> list[str]:
+    used_indexes: set[int] = set()
+    colors: list[str] = []
+    for expected_item in expected:
+        match_index = _find_matching_item(actual, expected_item, used_indexes)
+        if match_index is None:
+            return []
+        used_indexes.add(match_index)
+        colors.append(str(actual[match_index].get("color", "")))
+    return colors
 
 
 def assert_current_display_state(page: Page, expected_display_type: str, expected_display_time: str) -> None:
@@ -632,14 +747,43 @@ def navigate_calendar(page: Page, display: str, direction: str | None = None):
     open_calendar_page(page)
     angular, vue = get_calendar_frames(page)
     wait_for_calendar_idle(vue)
-    vue.locator('[data-qa="today-button"], [data-qa="nav-today"]').click(timeout=UI_TIMEOUT)
+    _click_calendar_today(vue)
     _select_view(vue, display)
     if direction in ("next", "previous"):
         button = "next-button" if direction == "next" else "prev-button"
         nav_alias = "next" if direction == "next" else "prev"
-        vue.locator(f'[data-qa="{button}"], [data-qa="nav-{nav_alias}"]').click(timeout=UI_TIMEOUT)
+        _click_calendar_nav(vue, f'[data-qa="{button}"], [data-qa="nav-{nav_alias}"]')
     wait_for_calendar_idle(vue)
     return angular, vue
+
+
+def _click_calendar_today(vue) -> None:
+    """Click the 'today' button, tolerating it being disabled when already on today.
+
+    The scheduler disables the today control whenever the visible range already covers
+    the current date, so a blind click waits the full timeout for an element that never
+    becomes actionable. Skip the click in that case and fall back to a JS click.
+    """
+    today = vue.locator('[data-qa="today-button"], [data-qa="nav-today"]').first
+    try:
+        today.wait_for(state="visible", timeout=2_000)
+    except PlaywrightTimeoutError:
+        return
+    if not today.is_enabled():
+        return
+    try:
+        today.click(timeout=2_000)
+    except PlaywrightTimeoutError:
+        today.evaluate("(el) => el.click()")
+
+
+def _click_calendar_nav(vue, selector: str) -> None:
+    locator = vue.locator(selector).first
+    try:
+        locator.wait_for(state="visible", timeout=UI_TIMEOUT)
+        locator.click(timeout=2_000)
+    except PlaywrightTimeoutError:
+        locator.evaluate("(el) => el.click()")
 
 
 def get_calendar_frames(page: Page):
@@ -1080,7 +1224,17 @@ def _close_active_dialog(vue, dialog) -> None:
         return
     except PlaywrightTimeoutError:
         pass
-    dialog.locator(".v-icon, .icon-close_new").last.click(force=True, timeout=UI_TIMEOUT)
+    # Best-effort last resort: a raw click here must never hard-fail with a 5s
+    # timeout, otherwise a confirmation modal (past-time / unavailable-staff) that
+    # replaced the close icon leaks an uncaught TimeoutError into the next step.
+    close_icon = dialog.locator(".v-icon, .icon-close_new").last
+    try:
+        if close_icon.count():
+            close_icon.click(force=True, timeout=1_000)
+    except PlaywrightTimeoutError:
+        pass
+    if dialog.is_visible():
+        vue.locator("body").press("Escape")
 
 
 def _click_dialog_close_control(vue) -> bool:

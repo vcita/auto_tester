@@ -58,4 +58,4 @@ stability:
   status: stable
   last_stress_test: '2026-05-29'
   pass_rate: 100.0%
-  iterations: 10
+  iterations: 20

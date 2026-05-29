@@ -3,6 +3,7 @@ from playwright.sync_api import Page
 from tests.scheduling.calendar.calendar_helpers import (
     assert_calendar_items,
     assert_current_display_state,
+    assert_slot_color_mode,
     schedule_appointment_from_calendar,
     schedule_event_from_calendar,
     set_content_display,
@@ -27,15 +28,12 @@ def test_daily_display(page: Page, context: dict) -> None:
         {"service_name": "event1", "display": "Day", "navigate_to": "previous", "timeslot": "all_day", "recurrence": "3 Month", "ends": "After:4"},
     )
 
-    assert_calendar_items(
-        page,
-        "previous",
-        "Day",
-        [
-            {"item_type": "event", "state": "completed", "item_subtitle": event_name, "attendance": "0/2", "item_times": "12 - 1am"},
-            {"item_type": "appointment", "state": "completed", "item_title": client_name, "item_subtitle": context["calendar_services"]["service2"]["name"], "item_times": "3 - 4:30am"},
-        ],
-    )
+    expected_items = [
+        {"item_type": "event", "state": "completed", "item_subtitle": event_name, "attendance": "0/2", "item_times": "12 - 1am"},
+        {"item_type": "appointment", "state": "completed", "item_title": client_name, "item_subtitle": context["calendar_services"]["service2"]["name"], "item_times": "3 - 4:30am"},
+    ]
+    assert_calendar_items(page, "previous", "Day", expected_items)
+    assert_slot_color_mode(page, context, "previous", "Day", expected_items, "staff")
 
     page.reload(wait_until="domcontentloaded")
     assert_current_display_state(page, "singleDay", "-1")
