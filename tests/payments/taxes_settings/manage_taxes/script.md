@@ -11,7 +11,8 @@
 - Name input: `input[data-qa="tax-name"]`; rate input: `input[data-qa="tax-rate"]` (scoped per row).
 - Add: `.add-tax`. Delete: `[data-qa="tax-delete"]` then confirm `[data-qa="tax-menu-actions-0"]`.
 - Save (in the angular page, outside the vue iframe): `button[data-qa="action-button-payments_settings-save"]`,
-  then wait for the success snackbar.
+  then wait for the persisting response (`.../payments/v1/tax_bulk` for create/edit/delete,
+  `.../v2/settings` for the tax-mode change) to return 2xx.
 - Tax mode radios: `[data-qa="radio-include"]` / `[data-qa="radio-exclude"]`; selected mode read from
   `.v-item--active .label-container` `data-qa` (`radio-{mode}`).
 
@@ -25,7 +26,7 @@
   resolve its `tax-name` and `tax-rate` input element handles up front (handles survive the
   row's data-qa mutation), set the name then the rate, and wait for the row
   `line-tax-{name}-{rate}` to materialize.
-- Click Save and wait for the success toast.
+- Click Save and wait for the `tax_bulk` save response (2xx).
 
 ### Step 3: Verify list == [taylor swift 1-13, taylor swift 2-13.13131]
 - Read all `line-tax-*` row `data-qa` values (excluding the empty placeholder row) and assert exact match.
@@ -53,6 +54,7 @@
 - The selected tax mode is `include`.
 
 ## Waits / Stability
-- Explicit condition waits replace fixed sleeps: row data-qa materialization after typing, success toast
-  after save, and a short poll (up to 5s) when asserting the list to absorb reactive re-render.
+- Explicit condition waits replace fixed sleeps: row data-qa materialization after typing, the 2xx
+  save response after each Save, and a short poll (up to 5s) when asserting the list to absorb reactive
+  re-render. `edit_tax` retries if the post-save Vue re-render detaches a resolved row handle.
 - data-qa selectors throughout; no PGW or feature flag required.

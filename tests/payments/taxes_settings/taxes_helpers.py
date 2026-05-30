@@ -8,19 +8,34 @@ so all create/edit/delete/list assertions key off those.
 import re
 import time
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import (
+    Error as PlaywrightError,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 UI_TIMEOUT = 15000
 PAGE_TIMEOUT = 20000
-TOAST_TIMEOUT = 8000
+SAVE_SETTLE_TIMEOUT = 10000
 LIST_SETTLE_SECONDS = 5
+EDIT_RETRIES = 3
+EDIT_RETRY_PAUSE_SECONDS = 0.3
 
 SAVE_BUTTON = 'button[data-qa="action-button-payments_settings-save"]'
 ADD_TAX_BUTTON = ".add-tax"
 NEW_ROW = 'div[data-qa="line-tax-undefined-undefined"]'
 TAX_NAME_INPUT = 'input[data-qa="tax-name"]'
 TAX_RATE_INPUT = 'input[data-qa="tax-rate"]'
-SUCCESS_TOAST = '.v-snack--active .success, [data-qa="success-toast"], md-toast.announce'
+
+# Endpoints the Save button persists to. Tax create/edit/delete hit `tax_bulk`; the
+# tax-mode change hits `/v2/settings`. Each save waits for its own endpoint so an
+# unrelated settings request cannot satisfy the wait early.
+TAX_BULK_ENDPOINT = "tax_bulk"
+SETTINGS_ENDPOINT = "/v2/settings"
+
+# Playwright raises a generic Error (no typed exception) when an element handle's node
+# has been replaced; this substring identifies that case.
+DETACHED_NODE_HINT = "not attached"
 
 
 def _angular_scope(page: Page):
@@ -96,11 +111,26 @@ def add_tax(scope, name: str, rate: str) -> None:
 
 
 def edit_tax(scope, current_name: str, current_rate: str, name: str, rate: str) -> None:
-    row = _row(scope, current_name, current_rate)
-    name_input = _resolve_handle(row.locator(TAX_NAME_INPUT))
-    rate_input = _resolve_handle(row.locator(TAX_RATE_INPUT))
-    _set_value(name_input, name)
-    _set_value(rate_input, rate)
+    # The preceding save triggers a Vue re-render that swaps the row node, which can detach
+    # a freshly resolved handle. Both input handles are resolved up front (before any value
+    # is changed) so the rate write survives the row's data-qa mutation from the name write,
+    # and the whole resolve-and-apply is retried if the re-render detaches the node.
+    last_error: Exception | None = None
+    for _ in range(EDIT_RETRIES):
+        try:
+            row = _row(scope, current_name, current_rate)
+            name_input = _resolve_handle(row.locator(TAX_NAME_INPUT))
+            rate_input = _resolve_handle(row.locator(TAX_RATE_INPUT))
+            _set_value(name_input, name)
+            _set_value(rate_input, rate)
+            break
+        except PlaywrightError as error:
+            if DETACHED_NODE_HINT not in str(error):
+                raise
+            last_error = error
+            time.sleep(EDIT_RETRY_PAUSE_SECONDS)
+    else:
+        raise AssertionError(f"Tax row kept detaching during edit: {last_error}")
     _row(scope, name, rate).wait_for(state="visible", timeout=UI_TIMEOUT)
 
 
@@ -110,23 +140,23 @@ def delete_tax(scope, name: str, rate: str) -> None:
     _row(scope, name, rate).wait_for(state="hidden", timeout=UI_TIMEOUT)
 
 
-def save_changes(page: Page) -> None:
+def save_changes(page: Page, endpoint: str = TAX_BULK_ENDPOINT) -> None:
+    # Confirm the save by waiting for the server to acknowledge the persisting request to
+    # `endpoint`. Waiting for the 2xx response is both fast and a true save confirmation
+    # (the page is never reloaded, so DOM alone would not prove persistence).
     save_button = _angular_scope(page).locator(SAVE_BUTTON)
     save_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    save_button.click()
-    _wait_for_save_toast(page)
+    with page.expect_response(
+        lambda response: _is_save_response(response, endpoint),
+        timeout=SAVE_SETTLE_TIMEOUT,
+    ):
+        save_button.click()
 
 
-def _wait_for_save_toast(page: Page) -> None:
-    toast = _angular_scope(page).locator(SUCCESS_TOAST)
-    try:
-        toast.first.wait_for(state="visible", timeout=TOAST_TIMEOUT)
-    except PlaywrightTimeoutError:
-        return
-    try:
-        toast.first.wait_for(state="hidden", timeout=TOAST_TIMEOUT)
-    except PlaywrightTimeoutError:
-        pass
+def _is_save_response(response, endpoint: str) -> bool:
+    if response.request.method in ("GET", "OPTIONS"):
+        return False
+    return endpoint in response.url and response.ok
 
 
 def list_taxes(scope) -> list:
@@ -151,7 +181,7 @@ def set_tax_mode(page: Page, scope, mode: str) -> None:
     radio = scope.locator(f'[data-qa="radio-{mode}"]')
     radio.wait_for(state="visible", timeout=UI_TIMEOUT)
     radio.click()
-    save_changes(page)
+    save_changes(page, endpoint=SETTINGS_ENDPOINT)
 
 
 def assert_tax_mode(page: Page, mode: str) -> None:

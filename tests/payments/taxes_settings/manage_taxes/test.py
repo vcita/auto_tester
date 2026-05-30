@@ -39,21 +39,21 @@ def test_manage_taxes(page: Page, context: dict) -> None:
     assert_taxes(page, [_row_qa(*TAX_ONE), _row_qa(*TAX_TWO)])
 
     print("  Step 4: Edit the first tax...")
-    edit_tax(open_taxes_settings(page), *TAX_ONE, *TAX_ONE_EDITED)
+    edit_tax(scope, *TAX_ONE, *TAX_ONE_EDITED)
     save_changes(page)
 
     print("  Step 5: Verify the edited tax is listed...")
     assert_taxes(page, [_row_qa(*TAX_ONE_EDITED), _row_qa(*TAX_TWO)])
 
     print("  Step 6: Delete the edited tax...")
-    delete_tax(open_taxes_settings(page), *TAX_ONE_EDITED)
+    delete_tax(scope, *TAX_ONE_EDITED)
     save_changes(page)
 
     print("  Step 7: Verify only the second tax remains...")
     assert_taxes(page, [_row_qa(*TAX_TWO)])
 
     print("  Step 8: Change tax mode to include...")
-    set_tax_mode(page, open_taxes_settings(page), "include")
+    set_tax_mode(page, scope, "include")
 
     print("  Step 9: Verify tax mode is include...")
     assert_tax_mode(page, "include")
