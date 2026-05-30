@@ -63,6 +63,7 @@ runs_index/
 
 # Local migration planning artifacts
 **/migration_mapping.md
+/plan.md
 
 # Keep the directory structure
 !tests/.gitkeep

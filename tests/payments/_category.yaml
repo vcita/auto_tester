@@ -6,6 +6,7 @@ execution_order:
 - invoices
 - record_payments
 - refunds_credits
+- tips_settings
 tests: []
 status: active
 priority: high

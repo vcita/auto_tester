@@ -1,0 +1,32 @@
+name: Tips Disabled Without Gateway
+description: With tips_settings enabled but gateway_platform denied and no payment
+  provider connected, the tips tab shows the connect-provider alert (disabled). Migrated
+  from automation-js features/salsa/payments-settings/tips_settings.feature (scenario
+  1).
+account_profile:
+  type: isolated
+  slug: tipsdis
+  cleanup: always
+tests:
+- id: verify_disabled
+  name: Tips Disabled Without Gateway
+  status: active
+  priority: medium
+  description: Open the tips tab with no payment provider and assert it is disabled
+  tags:
+  - payments
+  - settings
+  - tips
+status: active
+priority: medium
+tags:
+- payments
+- settings
+- tips
+owner: QA Team
+created_at: 2026-05-30
+stability:
+  status: stable
+  last_stress_test: '2026-05-30'
+  pass_rate: 100.0%
+  iterations: 10

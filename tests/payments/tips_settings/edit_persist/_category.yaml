@@ -1,0 +1,32 @@
+name: Tips Edit Persist
+description: With tips_settings enabled and a mock payment gateway connected, tips
+  set via API persist and render in the tips tab preview. Migrated from automation-js
+  features/salsa/payments-settings/tips_settings.feature (scenario 2).
+account_profile:
+  type: isolated
+  slug: tipsedit
+  cleanup: always
+tests:
+- id: verify_persist
+  name: Tips Edit Persist
+  status: active
+  priority: medium
+  description: Set tips via API, reload, and verify the tips tab is enabled with the
+    expected preview amounts
+  tags:
+  - payments
+  - settings
+  - tips
+status: active
+priority: medium
+tags:
+- payments
+- settings
+- tips
+owner: QA Team
+created_at: 2026-05-30
+stability:
+  status: stable
+  last_stress_test: '2026-05-30'
+  pass_rate: 100.0%
+  iterations: 10
