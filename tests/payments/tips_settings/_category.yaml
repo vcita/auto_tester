@@ -1,0 +1,16 @@
+name: Tips Settings
+description: Tips settings tab behavior. Migrated from automation-js features/salsa/payments-settings/tips_settings.feature
+  (2 scenarios). Each scenario uses its own isolated account because gateway feature
+  flags are mutually exclusive (deny gateway vs connect mock gateway).
+execution_order:
+- disabled_no_gateway
+- edit_persist
+tests: []
+status: active
+priority: medium
+tags:
+- payments
+- settings
+- tips
+owner: QA Team
+created_at: 2026-05-30
