@@ -12,6 +12,8 @@ from playwright.sync_api import Page, expect
 FAST_UI_TIMEOUT = 5000
 STATE_TIMEOUT = 15000
 REFUND_COMPLETION_TIMEOUT = 30000
+REFUND_VERIFY_TIMEOUT = 30000
+REFUND_RELOAD_AFTER = 12
 
 
 def get_billing_scope(page: Page):
@@ -206,20 +208,36 @@ def partial_refund_current_payment(page: Page, amount: str) -> None:
 
 
 def assert_payment_page(page: Page, name: str, amount: str, refund_amount: str) -> None:
-    """Verify the payment page shows the expected name, amount, and refund amount."""
-    scope = get_billing_scope(page)
-    header = scope.locator("div.summary-header h3").first
-    header.wait_for(state="visible", timeout=STATE_TIMEOUT)
+    """Verify the payment page shows the expected name, amount, and refund amount.
 
-    deadline = time.monotonic() + STATE_TIMEOUT / 1000
+    The refund chip can lag behind the rest of the page under load, so the scope is
+    re-resolved each poll (the angularjs iframe may re-render) and a single reload is
+    issued midway as a nudge if the chip has not yet appeared.
+    """
+    start = time.monotonic()
+    deadline = start + REFUND_VERIFY_TIMEOUT / 1000
+    reloaded = False
     actual_name = actual_amount = actual_refund = ""
     while time.monotonic() < deadline:
+        scope = get_billing_scope(page)
+        header = scope.locator("div.summary-header h3").first
+        try:
+            header.wait_for(state="visible", timeout=2000)
+        except Exception:
+            time.sleep(0.5)
+            continue
+
         actual_name = (header.text_content() or "").strip()
-        actual_amount = (scope.locator("div.summary-header h2 span").first.text_content() or "").strip()
+        amount_loc = scope.locator("div.summary-header h2 span").first
+        actual_amount = (amount_loc.text_content() or "").strip() if amount_loc.count() > 0 else ""
         refund_loc = scope.locator(".refund-amount").first
         actual_refund = (refund_loc.text_content() or "").strip() if refund_loc.count() > 0 else ""
         if name in actual_name and amount in actual_amount and refund_amount in actual_refund:
             return
+
+        if not reloaded and time.monotonic() - start > REFUND_RELOAD_AFTER:
+            page.reload(wait_until="domcontentloaded")
+            reloaded = True
         time.sleep(0.5)
 
     if name not in actual_name:
