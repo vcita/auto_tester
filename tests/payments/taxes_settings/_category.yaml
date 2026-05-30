@@ -1,0 +1,33 @@
+name: Taxes Settings
+description: Create, edit, delete tax rates and toggle the tax mode in Billing & Invoicing
+  settings. Migrated from automation-js features/salsa/payments-settings/taxes-settings.feature.
+account_profile:
+  type: isolated
+  slug: taxset
+  cleanup: always
+execution_order:
+- manage_taxes
+tests:
+- id: manage_taxes
+  name: Manage Taxes
+  status: active
+  priority: high
+  description: Create two taxes, edit one, delete one, and switch the tax mode to
+    include, verifying the taxes list and selected mode after each change
+  tags:
+  - payments
+  - settings
+  - taxes
+status: active
+priority: high
+tags:
+- payments
+- settings
+- taxes
+owner: QA Team
+created_at: 2026-05-30
+stability:
+  status: stable
+  last_stress_test: '2026-05-30'
+  pass_rate: 100.0%
+  iterations: 10

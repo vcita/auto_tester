@@ -3,6 +3,7 @@ description: Tests for invoices, record payments, refunds/credits, and payment s
   (no PGW)
 execution_order:
 - settings
+- taxes_settings
 - invoices
 - record_payments
 - refunds_credits
