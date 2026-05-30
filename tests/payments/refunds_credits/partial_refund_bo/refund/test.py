@@ -22,6 +22,8 @@ def _click_text_in_any_frame(page: Page, text: str, timeout: int = DIALOG_TIMEOU
     deadline = time.monotonic() + timeout / 1000
     while time.monotonic() < deadline:
         for frame in page.frames:
+            # A frame may detach mid-iteration as the dialog re-renders; ignore it
+            # and let the next poll re-scan the live frame tree.
             try:
                 locator = frame.get_by_text(text, exact=False).first
                 if locator.count() > 0 and locator.is_visible():
@@ -71,6 +73,7 @@ def _record_frame(page: Page, timeout: int = DIALOG_TIMEOUT):
     deadline = time.monotonic() + timeout / 1000
     while time.monotonic() < deadline:
         for frame in page.frames:
+            # Detached/cross-origin frames raise on query; skip and re-scan next poll.
             try:
                 if frame.get_by_text("Service, package or product", exact=False).count() > 0:
                     return frame

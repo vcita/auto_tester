@@ -31,6 +31,8 @@ def first_visible(locators, timeout: int = FAST_UI_TIMEOUT):
         for locator in locators:
             for index in range(locator.count()):
                 candidate = locator.nth(index)
+                # A candidate can detach between count() and is_visible() while the
+                # SPA re-renders; skip it and let the next poll re-resolve.
                 try:
                     if candidate.is_visible():
                         return candidate
@@ -43,6 +45,8 @@ def first_visible(locators, timeout: int = FAST_UI_TIMEOUT):
 def page_text(page: Page) -> str:
     parts = [page.evaluate("() => document.body.innerText")]
     for frame in page.frames:
+        # Detached or cross-origin frames raise on evaluate; their text is not
+        # needed for our billing assertions, so skip them.
         try:
             parts.append(frame.evaluate("() => document.body.innerText"))
         except Exception:
@@ -168,11 +172,17 @@ def _set_refund_amount(amount_input, amount: str) -> None:
         amount_input.press("Tab", timeout=FAST_UI_TIMEOUT)
 
 
-def _wait_for_refund_completion(page: Page) -> None:
+def _wait_for_refund_to_settle(page: Page) -> None:
+    """Best-effort wait for the refund UI to update.
+
+    Returns once refund text is visible or the timeout elapses; it never raises.
+    `assert_payment_page` is the authoritative gate for the refund outcome.
+    """
     deadline = time.monotonic() + REFUND_COMPLETION_TIMEOUT / 1000
     while time.monotonic() < deadline:
-        text = page_text(page).lower()
-        if "refund" in text and ("-$" in page_text(page) or "marked as refunded" in text):
+        text = page_text(page)
+        lowered = text.lower()
+        if "refund" in lowered and ("-$" in text or "marked as refunded" in lowered):
             return
         time.sleep(0.5)
 
@@ -192,7 +202,7 @@ def partial_refund_current_payment(page: Page, amount: str) -> None:
         raise AssertionError("Refund confirm button did not appear")
     expect(submit).to_be_enabled(timeout=STATE_TIMEOUT)
     submit.click(timeout=FAST_UI_TIMEOUT)
-    _wait_for_refund_completion(page)
+    _wait_for_refund_to_settle(page)
 
 
 def assert_payment_page(page: Page, name: str, amount: str, refund_amount: str) -> None:

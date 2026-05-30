@@ -4,7 +4,7 @@ Handles optional point_of_sale denial (before login), login, and client creation
 """
 
 import os
-import time
+import uuid
 
 import requests
 from playwright.sync_api import Page
@@ -52,14 +52,14 @@ def create_client(context: dict) -> None:
     if not token:
         raise ValueError("auto_account api_token is missing from context")
 
-    timestamp = int(time.time())
+    unique_suffix = uuid.uuid4().hex[:10]
     response = requests.post(
         f"{context['api_base_url'].rstrip('/')}/platform/v1/clients",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "first_name": CLIENT_FIRST_NAME,
             "last_name": CLIENT_LAST_NAME,
-            "email": f"test+{timestamp}@vmeetme.com",
+            "email": f"test+{unique_suffix}@vmeetme.com",
             "source_name": "automation",
         },
         timeout=REQUEST_TIMEOUT,
