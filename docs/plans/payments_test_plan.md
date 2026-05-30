@@ -3,17 +3,17 @@
 ## Research Summary
 
 Notes:
-- This plan targets the Payments module with record payments only.
-- Online payments and payment gateway connection are explicitly out of scope for this stage.
+- This plan targets the Payments module, including record payments and flows that require a connected **mock** payment gateway.
+- Connecting a mock payment gateway (via the legacy `configureMockPaymentGateway` flow) is in scope. Real/processor-specific gateways (Stripe, PayPal, etc.) remain out of scope.
 - This summary should be validated against the product UI and vcita support docs before implementation.
 
 Discovered/assumed feature areas:
 - Invoices: create, edit, send, cancel/void, mark as unpaid, view status and history.
 - Record payments: full payment, partial payment, and multiple payments against one invoice.
-- Refunds and credits: record a refund or credit note against a recorded payment (if supported without PGW).
-- Settings: taxes, invoice numbering, default terms, payment reminders, receipt settings.
-- Client invoice access: view invoices and download (no online payment).
-- Integrations: excluded for now due to no PGW connection.
+- Refunds and credits: record a refund or credit note against a recorded payment.
+- Settings: taxes, invoice numbering, default terms, payment reminders, receipt settings, tips settings (mock gateway).
+- Client invoice access: view invoices and download.
+- Gateway-dependent flows: tests may connect a mock payment gateway when the scenario requires one (e.g. tips settings, card on file, offset fees, online checkout).
 
 ## Category Structure
 
@@ -59,12 +59,14 @@ External dependencies:
 - Email delivery for invoice sending (can be validated by UI status only).
 - Client portal access (requires a client user or portal access link).
 
+In scope (gateway):
+- Connecting a mock payment gateway via the legacy `configureMockPaymentGateway` flow when a scenario requires a connected gateway.
+
 Out of scope for this stage:
-- Payment gateway setup and online payment collection.
-- Processor-specific flows (Stripe, PayPal, etc).
+- Real/processor-specific gateways and live payment collection (Stripe, PayPal, etc).
 
 Risk notes:
-- Refund/credit workflows may require PGW for online payments; if so, record-only flows should be used or the tests should be deferred.
+- Mock-gateway flows can touch client portal checkout and cross-window navigation; isolate these tests and prefer condition waits over fixed sleeps.
 
 ## Test List and Priorities
 
@@ -88,7 +90,8 @@ Settings (medium):
 - `set_tax_rates` - Add tax and apply to invoices.
 - `set_invoice_numbering` - Configure numbering and verify on new invoice.
 - `set_payment_terms` - Set default terms and verify on new invoice.
-- `set_receipts` - Configure receipt settings (if available without PGW).
+- `set_receipts` - Configure receipt settings.
+- `set_tips` - Configure tips settings (connects a mock payment gateway).
 
 Client Access (low/medium):
 - `view_download_invoice` - Client can view and download invoice in a single flow.
@@ -97,4 +100,4 @@ Client Access (low/medium):
 
 - Implement and run one test at a time in execution order.
 - Tests should validate data in the UI, not toast messages.
-- For any flow that appears to require a connected gateway, pause and mark the test as blocked until scope expands.
+- Flows that require a connected gateway should connect the mock gateway via the legacy `configureMockPaymentGateway` flow. Only pause/block when a flow requires a real processor (Stripe, PayPal, etc).
