@@ -165,7 +165,7 @@ def _confirm_refund_issued(page: Page) -> None:
     """Wait for the server-acknowledged refund toast (the readiness signal).
 
     Best-effort within the 5s cap: the toast is transient, so its absence is not
-    fatal. `assert_payment_page` reloads and verifies the refund chip as the gate.
+    fatal. `assert_payment_page` verifies the refund chip as the authoritative gate.
     """
     first_visible(
         [
