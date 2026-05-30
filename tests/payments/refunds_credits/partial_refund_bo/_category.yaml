@@ -1,0 +1,30 @@
+name: Back-office Partial Refund
+description: Record a custom-item payment via Quick Actions (legacy dialog, point_of_sale
+  denied), refund a partial amount, and verify the payment page. Migrated from automation-js
+  features/salsa/partial-refund.feature (scenario 1, @gate).
+account_profile:
+  type: isolated
+  slug: prefbo
+  cleanup: always
+tests:
+- id: refund
+  name: Back-office Partial Refund
+  status: active
+  priority: high
+  description: Record a custom-item payment via Quick Actions, refund a partial amount,
+    and verify the payment page amount and refund amount
+  tags:
+  - payments
+  - refunds
+status: active
+priority: high
+tags:
+- payments
+- refunds
+owner: QA Team
+created_at: 2026-05-29
+stability:
+  status: stable
+  last_stress_test: '2026-05-30'
+  pass_rate: 100.0%
+  iterations: 10

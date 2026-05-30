@@ -4,6 +4,12 @@
 name: Refunds and Credits
 description: Tests for recording refunds and credit notes for invoices
 
+execution_order:
+  - record_refund
+  - issue_credit_note
+  - partial_refund_pos
+  - partial_refund_bo
+
 tests:
   - id: record_refund
     name: Record Refund
