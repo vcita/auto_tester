@@ -38,6 +38,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 7. Validate before calling the migration done.
    - `PYENV_VERSION=3.11.9 python -m py_compile <edited .py files>`
    - `PYENV_VERSION=3.11.9 python main.py list --category <category>`
+   - Reference deeply nested isolated subcategories by their full path (e.g. `payments/tips_settings/edit_persist`), not just the leaf name. Confirm the exact path with `python main.py list` before running.
    - Focused run: `PYENV_VERSION=3.11.9 python main.py run --category <category/subcategory> --env integration --headless`
    - Run the migrated scope successfully 3 times with fresh runner state before stress testing.
    - **Hard gate before stress_test**: after those 3 successful runs, re-check `migration_mapping.md`, `steps.md`, `script.md`, and `test.py` against the legacy `.feature`, step definitions, page objects, API helpers, and assertions.
@@ -80,6 +81,7 @@ The migration is complete only when all three checks pass:
 ## Translation Rules
 
 - Preserve legacy API setup when the original test used API setup, but verify user-visible behavior through the UI.
+- Verify that legacy API setup still persists on the current backend. A legacy endpoint can return `200` but silently drop fields, so confirm the write with an independent read-back (GET) and prefer the endpoint the current product UI actually calls instead of blindly reusing the legacy route.
 - Prefer API setup for prerequisites that are not the feature under test.
 - Do not replace a legacy UI action with an API call when that UI action is part of the scenario scope, assertion path, or reusable function objective.
 - If an API shortcut is considered for speed or stability, first prove the removed UI path is outside the migrated scope and document that decision in `script.md` and `changelog.md`.
@@ -91,6 +93,7 @@ The migration is complete only when all three checks pass:
 
 ## Migration Patterns Proven By The PoC
 
+- A legacy write endpoint may silently no-op on the current backend: `PUT /v2/settings` returned `200` but dropped `tips`, while the POV reads and writes tips via `POST /platform/v1/payment/settings`. Confirm persistence with an independent GET read-back and use the endpoint the current FE calls.
 - Legacy Gherkin tables become explicit expected lists in `test.py`.
 - Legacy `scenarioContext` values become `context[...]` keys.
 - Legacy `POST /platform/v1/clients` setup maps to an auto_tester helper using `context["auto_account"].api_token`.

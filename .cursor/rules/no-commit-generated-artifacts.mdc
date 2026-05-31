@@ -1,0 +1,35 @@
+---
+description: Do not commit generated test-run artifacts (health snapshots, reports, run history)
+alwaysApply: true
+---
+
+# Do Not Commit Generated Test-Run Artifacts
+
+Several files are produced or mutated by running the agent (`main.py run`,
+`main.py list`, `main.py health`, `main.py stress_test`). Do not sweep this
+incidental churn into a feature commit.
+
+## `_health.json` snapshots
+
+- `tests/**/_health.json` files are tracked, but they are regenerated on most
+  runs. A local run will frequently leave `tests/<category>/_health.json` shown
+  as modified even when you changed nothing meaningful.
+- Do NOT stage `_health.json` changes that are just run-generated churn. Only
+  commit a `_health.json` update when you deliberately refreshed the snapshot
+  and reviewed the diff (see commit `89d7666`, "drop stale payments health
+  snapshot", where unintended snapshot churn was reverted in review).
+- Before committing, discard incidental churn:
+  `git checkout -- tests/<category>/_health.json`
+
+## Output directories (never committed)
+
+- `reports/` — stress/focused run logs. Git-ignored; never stage it.
+- `**/_runs/*` and `runs_index/` — per-category run history. Git-ignored.
+
+## When committing test work
+
+- Stage explicit paths (the source, `steps.md`, `script.md`, `test.py`,
+  `changelog.md`, `_category.yaml`). Avoid `git add -A`, which pulls in
+  `_health.json` churn and stray output.
+- `migration_mapping.md` and root `plan.md` are local planning artifacts and are
+  git-ignored; keep them out of commits.
