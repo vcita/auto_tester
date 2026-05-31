@@ -119,6 +119,15 @@ Use this Migration Coverage table structure:
 
 For partial feature-file migrations, keep the same feature path but write the migrated scenario name(s) in `Scope covered`; do not increment `Migrated feature files` until every scenario in that feature file is migrated.
 
+## PR Link Format
+
+Write the `PR` cell consistently with the existing rows:
+
+- Merged or open PR: `[PR #<number>](https://github.com/vcita/auto_tester/pull/<number>)`
+- No PR yet, branch pushed: `[branch <branch-name>](https://github.com/vcita/auto_tester/tree/<branch-name>) (PR TBD)`
+
+Replace the branch placeholder with the `PR #<number>` link as soon as the PR is opened. Find the number with `gh pr view <branch-or-number>` or `gh pr list --head <branch>`. Use the same `PR #<number>` template for the `Latest` Summary field when this is the newest migration.
+
 ## Final Response
 
 After updating Confluence, report:

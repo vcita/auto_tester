@@ -57,6 +57,9 @@ playwright-report/
 !**/_runs/.gitkeep
 runs_index/
 
+# Test run output (stress/focused logs)
+/reports/
+
 # Cursor requests (keep structure, ignore content)
 .cursor/heal_requests/*.md
 .cursor/bug_reports/*.md
