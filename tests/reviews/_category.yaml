@@ -1,0 +1,12 @@
+name: Reviews
+description: Reviews settings and client-portal review flows. Migrated from automation-js
+  features/tempo/reviews.feature.
+execution_order:
+- invite_to_review
+tests: []
+status: active
+priority: high
+tags:
+- reviews
+owner: QA Team
+created_at: 2026-06-01

@@ -1,0 +1,32 @@
+name: Invite to Review
+description: Leave a default review and a Facebook-platform review from the client
+  portal, and verify both the submitted page and the conversation review bubble. Migrated
+  from automation-js features/tempo/reviews.feature (scenario 1).
+account_profile:
+  type: isolated
+  slug: reviews_invite
+  cleanup: always
+execution_order:
+- default_then_facebook_review
+tests:
+- id: default_then_facebook_review
+  name: Default then Facebook Review
+  status: active
+  priority: high
+  description: A client leaves a default review (asserts the "Thanks for your review!"
+    submitted page and the conversation review bubble), then the business configures
+    the Facebook review platform and the client leaves another review (asserts the
+    Facebook social submitted button and the conversation review bubble).
+  tags:
+  - reviews
+status: active
+priority: high
+tags:
+- reviews
+owner: QA Team
+created_at: 2026-06-01
+stability:
+  status: stable
+  last_stress_test: '2026-06-01'
+  pass_rate: 100.0%
+  iterations: 3
