@@ -1,0 +1,33 @@
+name: Convenience Fee Flat
+description: Enable a $1 flat convenience fee, pay the appointment via client-portal
+  checkout, and verify the fee badge, summary fee row, success total, and Back Office
+  payment. Migrated from automation-js features/salsa/offset-fees.feature (scenario
+  2).
+account_profile:
+  type: isolated
+  slug: offcflt
+  cleanup: always
+  country_name: United States
+tests:
+- id: convenience_fee_flat
+  name: Convenience Fee Flat
+  status: active
+  priority: high
+  description: Configure a $1 flat convenience fee and verify it at checkout ($101
+    total) and on the Back Office payment page
+  tags:
+  - payments
+  - offset-fees
+  - client-portal
+status: active
+priority: high
+tags:
+- payments
+- offset-fees
+owner: QA Team
+created_at: 2026-06-01
+stability:
+  status: stable
+  last_stress_test: '2026-06-01'
+  pass_rate: 100.0%
+  iterations: 10

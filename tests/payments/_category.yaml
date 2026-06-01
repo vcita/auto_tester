@@ -9,6 +9,7 @@ execution_order:
 - record_payments
 - refunds_credits
 - tips_settings
+- offset_fees
 tests: []
 status: active
 priority: high
