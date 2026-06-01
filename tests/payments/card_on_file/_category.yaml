@@ -1,0 +1,33 @@
+name: Card on File
+description: Send a "save card on file" request to a client and verify the request
+  appears on the client's payment methods and the client receives the confirmation
+  email. Migrated from automation-js features/salsa/card-on-file.feature.
+account_profile:
+  type: isolated
+  slug: card_on_file
+  cleanup: always
+execution_order:
+- send_card_on_file_request
+tests:
+- id: send_card_on_file_request
+  name: Send Card on File Request
+  status: active
+  priority: high
+  description: With a mock gateway connected, send a card-on-file request to the client
+    and verify the client card shows "Card request sent on <date>" and the client
+    receives the "Confirm your preferred payment method" email.
+  tags:
+  - payments
+  - card_on_file
+status: active
+priority: high
+tags:
+- payments
+- card_on_file
+owner: QA Team
+created_at: 2026-06-01
+stability:
+  status: stable
+  last_stress_test: '2026-06-01'
+  pass_rate: 100.0%
+  iterations: 5
