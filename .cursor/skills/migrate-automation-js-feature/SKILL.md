@@ -67,6 +67,15 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - If an assertion is intentionally removed as redundant or out of scope, document why behavior coverage is still preserved.
    - Re-run the migration comparison after those changes.
 
+## Reduce Waits And Duration (Without Scope Or Quality Loss)
+
+On every migration and stabilization change, actively reduce per-test waits and total run duration — but never buy speed with scope or quality:
+
+- Cut avoidable work first: fixed sleeps, redundant navigation/reloads, repeated logins, and UI setup that can be API setup for prerequisites outside the tested behavior.
+- Replace fixed sleeps with explicit condition waits tied to a real readiness signal, capped at the project wait policy.
+- Keep every legacy assertion, setup path, edge case, and in-scope UI action. Do not drop coverage, weaken selectors, or convert an in-scope UI action to an API shortcut just to go faster.
+- If a speedup would reduce scope or quality, do not make it; report the trade-off instead.
+
 ## Definition Of Done
 
 The migration is complete only when all three checks pass:
@@ -77,6 +86,7 @@ The migration is complete only when all three checks pass:
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.
+- **Faster Without Loss**: total runtime was reduced where possible by removing avoidable waits and work, with no scope or quality reduction.
 
 ## Translation Rules
 

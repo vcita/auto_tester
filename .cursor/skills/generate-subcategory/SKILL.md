@@ -166,6 +166,14 @@ Clean up resources created during <subcategory> tests.
 | Test ID in YAML | same as folder name | `create_invoice` |
 | Display name | Title Case | `Create Invoice` |
 
+## Reduce Waits And Duration (Without Scope Or Quality Loss)
+
+Design each subcategory so the eventual test runs fast, without giving up coverage:
+
+- Prefer `Call:` reusable functions and API setup for prerequisites outside the tested behavior, so the test spends time only on the behavior it verifies.
+- Keep steps minimal and avoid redundant navigation, but never drop a verification step or an in-scope UI action to shorten the flow.
+- Leave timing/wait details to Phase 2 (`script.md`); do not encode fixed sleeps or implementation waits in `steps.md`.
+
 ## Common Mistakes to Avoid
 
 - Do NOT create `script.md` or `test.py` — those require MCP exploration (Phase 2+3)
