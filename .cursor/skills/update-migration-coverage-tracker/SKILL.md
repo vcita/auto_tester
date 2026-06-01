@@ -31,6 +31,18 @@ Do not mark a row `Migrated` from partial implementation, failed focused runs, u
 
 Use the Confluence MCP tools when available. Before calling an MCP tool, read its descriptor under the local MCP folder.
 
+## Preserve Table Layout (Critical)
+
+The Migration Coverage table is rendered with the Confluence **full-width** table layout. This layout lives in the ADF/HTML table element as `data-layout="full-width"` (ADF attr `"layout": "full-width"`). It is NOT expressible in markdown, so updating the page with `contentFormat: markdown` silently resets the table back to default width.
+
+To keep the layout across updates:
+
+- Always fetch and publish with `contentFormat: html` (not markdown).
+- Keep the Migration Coverage table tag as `<table data-layout="full-width">`. The three narrow tables (Summary, Scope Counting Rules, Status Definitions) stay plain `<table>`.
+- After publishing, re-fetch in `adf` and confirm the Migration Coverage table still shows `"layout": "full-width"` (and that the narrow tables stay `"default"`).
+
+Note: per-column widths (the ADF `colwidth` cell attribute, set by dragging column borders in the editor) are stripped by the API HTML importer and cannot be set or preserved through these tools — only the `full-width` table layout can.
+
 ## Required Data
 
 Collect these values before editing the page:
@@ -62,11 +74,12 @@ Use a structured parser or a small script for counts. Do not update totals by me
 
 ## Update Workflow
 
-1. Fetch the current Confluence page in markdown.
+1. Fetch the current Confluence page with `contentFormat: html` (not markdown — markdown drops the full-width table layout; see "Preserve Table Layout").
 2. Add or update one row in the Migration Coverage table for the migrated scope.
    - Prefer one row per legacy feature file when the full file is migrated.
    - If only selected scenarios from a feature file are migrated, make that clear in `Scope covered` and update scenario progress only.
    - If stabilizing an existing migrated scope, update the existing row instead of adding a duplicate row.
+   - Edit the HTML in place: keep `<table data-layout="full-width">` for the Migration Coverage table and insert/modify the row's `<tr>...</tr>` without touching other cells.
 3. Update Summary rows:
    - `Migration progress by feature file`
    - `Migration progress by scenario`
@@ -75,8 +88,8 @@ Use a structured parser or a small script for counts. Do not update totals by me
    - latest migrated scope, Jira, and branch when this migration is the newest one.
 4. Preserve the `Scope Counting Rules`, `Update Instructions`, and `Status Definitions` sections.
 5. Remove stale `Backfill needed` entries only after replacing them with real run evidence.
-6. Publish the complete page body, not a partial section.
-7. Fetch the page again and verify the updated rows rendered.
+6. Publish the complete page body with `contentFormat: html`, not a partial section, keeping `data-layout="full-width"` on the Migration Coverage table.
+7. Fetch the page again in `adf` and verify both the updated rows AND that the Migration Coverage table still shows `"layout": "full-width"`.
 
 ## Commands
 

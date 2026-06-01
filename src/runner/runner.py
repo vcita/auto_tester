@@ -492,6 +492,7 @@ class TestRunner:
                 context["auto_account"] = auto_account
                 context["base_url"] = self.app_base_url
                 context["api_base_url"] = self.api_base_url
+                context["directory_id"] = self.directory_id
                 context["username"] = auto_account["email"]
                 context["password"] = auto_account["password"]
                 print(f"  [auto-account] Created {auto_account['email']} for {category.name}", flush=True)
@@ -1422,6 +1423,7 @@ class TestRunner:
             isolated_context["auto_account"] = isolated_account
             isolated_context["base_url"] = self.app_base_url
             isolated_context["api_base_url"] = self.api_base_url
+            isolated_context["directory_id"] = self.directory_id
             isolated_context["username"] = isolated_account["email"]
             isolated_context["password"] = isolated_account["password"]
             print(

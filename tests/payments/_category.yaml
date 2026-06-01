@@ -10,6 +10,7 @@ execution_order:
 - refunds_credits
 - tips_settings
 - offset_fees
+- card_on_file
 tests: []
 status: active
 priority: high
