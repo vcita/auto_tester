@@ -1076,15 +1076,17 @@ def _timeslot_datetime(display: str, direction: str, timeslot: str) -> datetime 
     return target_date.replace(hour=parsed_time.hour, minute=parsed_time.minute, second=0, microsecond=0)
 
 
+def _slot_time_text(timeslot: str) -> str:
+    return timeslot.split(",", 1)[1].strip() if "," in timeslot else timeslot.strip()
+
+
 def _inclusive_slot_end_time(timeslot: str) -> str:
-    time_text = timeslot.split(",", 1)[1].strip() if "," in timeslot else timeslot.strip()
-    end_time = datetime.strptime(time_text.upper(), "%I:%M %p") + timedelta(minutes=30)
+    end_time = datetime.strptime(_slot_time_text(timeslot).upper(), "%I:%M %p") + timedelta(minutes=30)
     return end_time.strftime("%I:%M %p")
 
 
 def _slot_start_time(timeslot: str) -> str:
-    time_text = timeslot.split(",", 1)[1].strip() if "," in timeslot else timeslot.strip()
-    return datetime.strptime(time_text.upper(), "%I:%M %p").strftime("%I:%M %p")
+    return datetime.strptime(_slot_time_text(timeslot).upper(), "%I:%M %p").strftime("%I:%M %p")
 
 
 def _select_view(vue, display: str) -> None:
