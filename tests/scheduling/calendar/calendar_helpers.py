@@ -184,8 +184,14 @@ def add_blocked_time(page: Page, params: dict[str, str]) -> None:
     vue.locator('[data-qa="option-block_off_time"]').click(timeout=UI_TIMEOUT)
     dialog = vue.locator('[data-qa="did-mount"]').first
     dialog.wait_for(state="visible", timeout=UI_TIMEOUT)
+    # Set start/end explicitly: the slot drag does not reliably seed the start time
+    # (it can default to 12:00am), so the times must be applied through the dialog.
+    # Set start first, then end: changing the start preserves the block duration and
+    # shifts the end, so the end must be applied last to land on the intended value.
+    if params.get("timeslot"):
+        _select_time_with_verification(vue, "service-start-time-input", _slot_start_time(params["timeslot"]))
     if params.get("timeslot_end"):
-        _select_time(vue, "service-end-time-input", _inclusive_slot_end_time(params["timeslot_end"]))
+        _select_time_with_verification(vue, "service-end-time-input", _inclusive_slot_end_time(params["timeslot_end"]))
     if params.get("title"):
         title_input = vue.locator('.custom-title-input [data-qa="vc-text-field"]').first
         title_input.fill(params["title"])
@@ -1074,6 +1080,11 @@ def _inclusive_slot_end_time(timeslot: str) -> str:
     time_text = timeslot.split(",", 1)[1].strip() if "," in timeslot else timeslot.strip()
     end_time = datetime.strptime(time_text.upper(), "%I:%M %p") + timedelta(minutes=30)
     return end_time.strftime("%I:%M %p")
+
+
+def _slot_start_time(timeslot: str) -> str:
+    time_text = timeslot.split(",", 1)[1].strip() if "," in timeslot else timeslot.strip()
+    return datetime.strptime(time_text.upper(), "%I:%M %p").strftime("%I:%M %p")
 
 
 def _select_view(vue, display: str) -> None:
