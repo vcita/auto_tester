@@ -4,6 +4,7 @@ description: Tests for invoices, record payments, refunds/credits, and payment s
 execution_order:
 - settings
 - taxes_settings
+- coupons
 - invoices
 - record_payments
 - refunds_credits

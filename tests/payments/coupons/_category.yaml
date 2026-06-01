@@ -1,0 +1,33 @@
+name: Coupons
+description: Create fixed and percentage coupons and apply them to appointments, verifying
+  the coupons list and the resulting appointment payment requests. Migrated from automation-js
+  features/salsa/coupons.feature.
+account_profile:
+  type: isolated
+  slug: coupons
+  cleanup: always
+execution_order:
+- create_apply_coupons
+tests:
+- id: create_apply_coupons
+  name: Create and Apply Coupons
+  status: active
+  priority: high
+  description: Create a fixed ($20) and two percentage (10%, 100%) coupons, verify
+    the coupons list discounts, apply each to an appointment, and verify the payment
+    requests ($80.00/$90.00 NOT YET DUE, $0.00 PAID)
+  tags:
+  - payments
+  - coupons
+status: active
+priority: high
+tags:
+- payments
+- coupons
+owner: QA Team
+created_at: 2026-05-31
+stability:
+  status: stable
+  last_stress_test: '2026-06-01'
+  pass_rate: 100.0%
+  iterations: 10
