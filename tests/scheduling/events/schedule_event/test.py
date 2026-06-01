@@ -3,6 +3,7 @@
 # Source: tests/scheduling/events/schedule_event/script.md
 # DO NOT EDIT MANUALLY - Regenerate from script.md
 
+import re
 from datetime import datetime, timedelta
 from playwright.sync_api import Page, expect
 
@@ -89,11 +90,15 @@ def test_schedule_event(page: Page, context: dict) -> None:
     start_date_btn.click()
     # HEALED: get_by_role('menu').first matched the scheduler's allDayEventsContainer (role=menu), not the date
     # picker; waiting for it to hide never succeeded. Wait for date picker by the day button visibility instead.
-    tomorrow_date_btn = inner_iframe.locator("button:visible").filter(has_text=str(tomorrow_day))
+    # Match the day cell by EXACT text: a substring match (e.g. "2") also matches
+    # "12" and "20"-"29", so .last would select the wrong day on single-digit days.
+    tomorrow_date_btn = inner_iframe.locator("button:visible").filter(
+        has_text=re.compile(rf"^\s*{tomorrow_day}\s*$")
+    )
     if tomorrow_date_btn.count() == 0:
         raise ValueError(f"Date button for day {tomorrow_day} not found in date picker")
     tomorrow_date_btn.last.wait_for(state='visible', timeout=UI_TIMEOUT)
-    # Use the last matching button (calendar grid usually has the day in current month last)
+    # Use the last matching button (current month day renders after any adjacent-month day)
     day_btn = tomorrow_date_btn.last
     day_btn.click()
     page.wait_for_timeout(300)  # Brief settle after date selection (allowed)

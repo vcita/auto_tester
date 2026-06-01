@@ -142,8 +142,10 @@ tomorrow_day = tomorrow.day
 
 start_date_btn = inner_iframe.get_by_role('button', name='Start date:').first()
 start_date_btn.click()
-# Wait for date picker by waiting for tomorrow's visible day button to appear (picker open)
-tomorrow_date_btn = inner_iframe.locator("button:visible").filter(has_text=str(tomorrow_day))
+# Wait for date picker by waiting for tomorrow's visible day button to appear (picker open).
+# Match the day cell by EXACT text: a substring match (e.g. "2") also matches "12" and
+# "20"-"29", so .last would select the wrong day on single-digit days.
+tomorrow_date_btn = inner_iframe.locator("button:visible").filter(has_text=re.compile(rf"^\s*{tomorrow_day}\s*$"))
 tomorrow_date_btn.last.wait_for(state='visible', timeout=5000)
 day_btn = tomorrow_date_btn.last
 day_btn.click()
