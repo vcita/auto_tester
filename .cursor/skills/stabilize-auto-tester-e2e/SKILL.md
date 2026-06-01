@@ -97,6 +97,15 @@ When enforcing the 5-second wait policy:
 - If a 5-second cap exposes flakiness, investigate the readiness signal, selector, setup data, or product behavior instead of increasing the timeout.
 - After changing timeout caps, rerun the relevant stress test and update/stamp stability only from that final run.
 
+## Reduce Waits And Duration (Without Scope Or Quality Loss)
+
+Treat lower per-test waits and total runtime as a goal on every change, but never reduce scope or quality to get there:
+
+- Remove avoidable work first (fixed sleeps, redundant navigation, repeated logins, UI setup that can be API setup) before touching real UI-transition waits.
+- Keep waits as explicit condition waits on real readiness signals, capped per the wait policy in `Timing Strategy`.
+- Preserve every assertion, setup path, edge case, and in-scope UI action per the `Scope And Quality Guardrail`; do not weaken selectors or bypass the tested UI path for speed.
+- If a speedup would cost scope or quality, do not apply it; surface the trade-off in the final report.
+
 ## Infrastructure Flakes
 
 - Treat account-creation HTTP 5xx responses as transient infrastructure; retry once, then fail normally if the retry also fails.

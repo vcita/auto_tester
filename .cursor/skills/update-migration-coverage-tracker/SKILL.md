@@ -128,6 +128,14 @@ Write the `PR` cell consistently with the existing rows:
 
 Replace the branch placeholder with the `PR #<number>` link as soon as the PR is opened. Find the number with `gh pr view <branch-or-number>` or `gh pr list --head <branch>`. Use the same `PR #<number>` template for the `Latest` Summary field when this is the newest migration.
 
+## Reduce Waits And Duration (Without Scope Or Quality Loss)
+
+When recording `Duration improvement`, confirm the speedup did not come from reduced scope or weakened quality:
+
+- Only record a duration improvement when the migrated scope still covers every original assertion, setup path, and in-scope UI action.
+- If runtime dropped because coverage, selectors, or in-scope UI actions were reduced, do not present it as an improvement; note the scope/quality change instead.
+- Keep `Scope covered` and `Quality notes` consistent with the recorded duration improvement.
+
 ## Final Response
 
 After updating Confluence, report:

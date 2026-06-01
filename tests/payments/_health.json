@@ -1,6 +1,6 @@
 {
   "scope": "payments",
-  "generated_at": "2026-05-25T14:44:49.819323",
+  "generated_at": "2026-06-01T09:33:12.346016",
   "definition": {
     "stable": "latest run status == passed",
     "source_of_truth": "tests/**/_runs/*/run.json"
@@ -10,13 +10,13 @@
     "category_path": "payments",
     "last_result": "passed",
     "is_stable": true,
-    "last_run_id": "20260525_144200",
-    "last_run_at": "2026-05-25T14:44:49.614930",
+    "last_run_id": "20260601_093220",
+    "last_run_at": "2026-06-01T09:33:12.278401",
     "summary": {
-      "passed": 15,
+      "passed": 2,
       "failed": 0,
       "skipped": 0,
-      "total": 15
+      "total": 2
     }
   },
   "subcategories": [
@@ -32,6 +32,34 @@
         "failed": 0,
         "skipped": 0,
         "total": 4
+      }
+    },
+    {
+      "name": "taxes_settings",
+      "category_path": "payments/taxes_settings",
+      "last_result": "passed",
+      "is_stable": true,
+      "last_run_id": "20260531_124733",
+      "last_run_at": "2026-05-31T12:48:15.886183",
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "total": 1
+      }
+    },
+    {
+      "name": "coupons",
+      "category_path": "payments/coupons",
+      "last_result": "passed",
+      "is_stable": true,
+      "last_run_id": "20260601_093220",
+      "last_run_at": "2026-06-01T09:33:11.506864",
+      "summary": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "total": 1
       }
     },
     {
@@ -82,6 +110,8 @@
     "is_stable": true,
     "stable_subcategories": [
       "settings",
+      "taxes_settings",
+      "coupons",
       "invoices",
       "record_payments",
       "refunds_credits"

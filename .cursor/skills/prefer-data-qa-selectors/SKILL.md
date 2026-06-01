@@ -58,6 +58,14 @@ Avoid brittle selectors:
 page.locator("div > div:nth-child(3) > button").click()
 ```
 
+## Reduce Waits And Duration (Without Scope Or Quality Loss)
+
+Selector choices should help tests run faster without weakening reliability:
+
+- Stable `data-qa` selectors let you wait on a precise readiness signal instead of fixed sleeps; pair the selector with an explicit condition wait, not an arbitrary delay.
+- Do not weaken a selector or drop an in-scope UI action to shave time; stabilize the selector or wait instead.
+- Reduce duration by removing redundant navigation/reloads and avoidable UI setup, never by removing assertions or in-scope UI steps.
+
 ## Output Expectations
 
 When asked to author tests, produce selectors that:
