@@ -8,7 +8,13 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, ex
 REQUEST_TIMEOUT = 5
 UI_TIMEOUT = 5000
 PAGE_READY_TIMEOUT = 5_000
-INDEX_TIMEOUT_SECONDS = 5
+# After each dashboard reload the clients widget loads its rows asynchronously
+# (it renders skeletons first). Reading the rows before that load settles is what
+# made this test flaky. We wait for the widget to settle before reading, and the
+# search index that backs it can lag a beat behind the booking API, so we allow a
+# few quick reloads. Every individual wait stays within the 5s cap and there are
+# no fixed sleeps - each reload itself gives the index a moment to propagate.
+WIDGET_RELOAD_ATTEMPTS = 3
 RECENTLY_ACTIVE_VIEW_STORAGE_KEY = "clients-widget-selected-view"
 
 
@@ -103,11 +109,10 @@ def assert_no_recently_active_clients(page: Page) -> None:
 
 def assert_recently_active_clients(page: Page, expected_names: Iterable[str]) -> None:
     expected = list(expected_names)
-    deadline = time.monotonic() + INDEX_TIMEOUT_SECONDS
     last_actual: list[str] = []
     last_error: str | None = None
 
-    while time.monotonic() < deadline:
+    for _ in range(WIDGET_RELOAD_ATTEMPTS):
         try:
             open_dashboard(page)
             names = _visible_recently_active_names(page)
@@ -117,7 +122,6 @@ def assert_recently_active_clients(page: Page, expected_names: Iterable[str]) ->
                 return
         except PlaywrightTimeoutError as error:
             last_error = str(error).splitlines()[0]
-        time.sleep(2)
 
     suffix = f"; last readiness error: {last_error}" if last_error else ""
     raise AssertionError(f"Expected recently active clients {expected}, got {last_actual}{suffix}")
@@ -140,8 +144,29 @@ def _visible_recently_active_names(page: Page) -> list[str]:
         return [names.nth(index).inner_text().strip() for index in range(names.count())]
 
     widget = _new_dashboard_clients_widget(page)
+    _wait_for_clients_widget_loaded(page)
     items = widget.locator('[data-qa="VcClientItem"]')
     return [_client_item_name(items.nth(index).inner_text()) for index in range(items.count())]
+
+
+def _wait_for_clients_widget_loaded(page: Page) -> None:
+    """Wait until the clients widget finishes its async load before reading rows.
+
+    The widget renders skeletons while fetching; reading rows during that window
+    returns an empty list and is what made the test flaky. Settle = no skeletons
+    AND a client row or the empty state is present. Capped at UI_TIMEOUT (5s).
+    """
+    page.wait_for_function(
+        """() => {
+            const widget = document.querySelector('.clients-widget');
+            if (!widget) return false;
+            if (widget.querySelector('[data-qa="VcSkeleton"]')) return false;
+            return Boolean(
+                widget.querySelector('[data-qa="VcClientItem"], [data-qa="VcEmptyState"]')
+            );
+        }""",
+        timeout=UI_TIMEOUT,
+    )
 
 
 def _has_legacy_recently_active_container(page: Page) -> bool:

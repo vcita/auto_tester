@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-02 - Wait for clients widget to settle before reading (VCITA2-13787)
+**Phase**: Test
+**Author**: Cursor AI (stabilization)
+**Reason**: In a full-suite headless run the test failed at Step 5 with `AssertionError: Expected recently active clients ['first last'], got []`. The failure screenshot showed the client ("first last", "Last activity: Jun 02") **rendered in the widget** — so the data was present. Root cause: after each dashboard reload the clients widget loads its rows asynchronously (renders `VcSkeleton` first), and the helper read `[data-qa="VcClientItem"]` before that load settled, getting an empty list.
+**Changes**:
+- Added `_wait_for_clients_widget_loaded()`: event-based wait (capped at the 5s `UI_TIMEOUT`) until the widget settles — no `VcSkeleton` present AND a `VcClientItem` row or `VcEmptyState` rendered — before reading rows.
+- Replaced the time-based propagation poll with a bounded `WIDGET_RELOAD_ATTEMPTS = 3` reload loop. No fixed sleeps and no wait exceeds the 5s cap; each reload itself gives the search index a moment to propagate, and the loop returns as soon as the expected clients appear.
+- Assertion unchanged: still asserts exact expected names and order, still fails with a clear, data-driven message.
+**Validation**: Re-ran `clients/recently_active` headless x3; passed each time.
+
 ## 2026-05-26 - Retry Dashboard Widget Readiness
 **Phase**: Test
 **Author**: Cursor AI
