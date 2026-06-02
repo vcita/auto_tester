@@ -187,15 +187,14 @@ minutes_option.click()
 # Click "With fee" to enable pricing
 with_fee_btn = iframe.get_by_role("button", name="icon-Credit-card With fee")
 with_fee_btn.click()
-# Wait for price field to appear
-price_field = iframe.get_by_role("spinbutton", name="Service price *")
-price_field.wait_for(state="visible", timeout=5000)
-price_field.click()
-price_field.fill("50")  # fill is OK for number spinbutton
+# HEALED 2026-06-02 (VCITA2-13781): fill() alone intermittently skips the
+# input/blur events Angular's ng-model needs, leaving Create disabled. Type the
+# price and blur so validation runs.
+_enter_price(iframe, "50")  # click -> clear -> press_sequentially -> blur
 ```
 
-- **How verified**: Clicked and filled in MCP, price "50" appeared in field
-- **Wait for**: Price spinbutton field becomes visible
+- **How verified**: Typing + blur fires ng-model validation; Create reliably enables
+- **Wait for**: Price spinbutton visible; value committed via blur
 
 ---
 
@@ -209,17 +208,17 @@ price_field.fill("50")  # fill is OK for number spinbutton
 # Get reference to dialog before clicking create
 dialog = iframe.get_by_role("dialog")
 
-create_btn = iframe.get_by_role("button", name="Create")
-create_btn.click()
-
-# Wait for dialog to close (indicates creation completed)
-dialog.wait_for(state="hidden", timeout=15000)
+# HEALED 2026-06-02 (VCITA2-13781): wait for Create to be enabled before clicking
+# (Angular validates the form async). If a flaky price entry left it disabled,
+# re-type the price to force validation, then retry. Raises a clear error if the
+# dialog never closes.
+_submit_create(iframe, dialog)
 
 # No fixed delay: Step 10 navigates away and back to Services; list load is event-based there.
 ```
 
-- **How verified**: Clicked in MCP, dialog closed; Step 10 navigation refreshes list (event-based)
-- **Wait for**: Dialog closes (state="hidden"); list load is verified in Step 10/11 via "My Services" and scroll
+- **How verified**: Create reliably enabled after typed price; dialog closes after click
+- **Wait for**: Create button enabled, then dialog closes (state="hidden"); list verified in Step 10/11
 
 ---
 
