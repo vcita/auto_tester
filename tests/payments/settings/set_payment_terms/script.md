@@ -65,20 +65,17 @@ settings_scope.getByRole('radio', { name: 'Due on receipt' }).click()
 
 ### Step 4: Update Terms & conditions
 - **Action**: Replace terms text.
-- **Target**: Terms & conditions textbox
-- **LOCATOR DECISION**:
-| Option | Pros | Cons |
-| --- | --- | --- |
-| `settings_scope.get_by_role("textbox", name=re.compile("Terms & conditions"))` | Semantic | Multiple terms boxes (invoice + estimate) |
-| `settings_scope.get_by_text("Terms & conditions").locator("..")` | Contextual | More complex |
-**CHOSEN**: Target the first Terms & conditions textbox (invoice section).
-**VERIFIED PLAYWRIGHT CODE**:
-```python
-terms_box = settings_scope.getByRole('textbox', { name: /Terms & conditions/ }).first
-terms_box.click()
-terms_box.fill(payment_terms)
-```
-- **Note**: Prefer `fill()` first for reliability in this field; fallback to sequential typing only if value does not stick.
+- **Target**: Invoice Terms & conditions field (first of invoice + estimate).
+- **TWO BILLING UI VARIANTS** (account-dependent rollout; the form renders inside a
+  child-app frame that is not always the angularjs iframe, so resolve the frame by the
+  unique "Due on receipt" radio, then work inside it):
+  - **Vue UI**: accessible textbox -> `frame.get_by_role("textbox", name=/Terms & conditions/).first`
+  - **Legacy Angular UI**: md-input textareas with no accessible name; invoice terms is
+    the first `textarea.explicit-overflow` (estimate terms is second).
+- **CHOSEN**: wait for either selector to become visible inside the form frame; reload the
+  page between attempts to re-mount a stalled form.
+- **Note**: Prefer `fill()` first; fallback to sequential typing only if value does not stick.
+- **TODO(app)**: add a stable `data-qa` to the invoice terms field to drop the CSS fallback.
 
 ### Step 5: Save settings
 - **Action**: Click Save.
