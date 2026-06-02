@@ -7,6 +7,8 @@ import time
 
 import requests
 
+from tests.account_api import admin_headers
+
 REQUEST_TIMEOUT = 5
 # The runner pins the browser context and the auto-account business timezone to
 # US Eastern. Appointment start times are interpreted as UTC by the bookings API,
@@ -68,7 +70,7 @@ def get_sso_token(context: dict, staff: dict) -> str:
         "GET",
         f"/v1/partners/sso/token?staff_uid={staff_uid}",
         base_url=resolve_partner_base_url(context),
-        headers=partner_headers(),
+        headers=partner_headers(context),
     )
     return response.get("sso_token") or response.get("token") or response.get("data", {}).get("sso_token")
 
@@ -272,11 +274,44 @@ def account_headers(context: dict) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def partner_headers() -> dict:
-    token = os.environ.get("VCITA_DIRECTORY_TOKEN")
+def partner_headers(context: dict) -> dict:
+    return {"Authorization": f'Token token="{resolve_directory_token(context)}"'}
+
+
+def resolve_directory_token(context: dict) -> str:
+    """Resolve the directory token used for partner SSO calls.
+
+    Prefer an explicit ``VCITA_DIRECTORY_TOKEN`` override; otherwise generate (or
+    reuse) one at runtime from the admin token + directory id, mirroring the
+    legacy automation-js flow (``POST/GET /platform/v1/tokens``). This avoids
+    requiring a separately provisioned secret in every run environment.
+    """
+    env_token = os.environ.get("VCITA_DIRECTORY_TOKEN")
+    if env_token:
+        return env_token
+
+    directory_id = context.get("directory_id") or os.environ.get("VCITA_DIRECTORY_ID")
+    if not directory_id:
+        raise ValueError(
+            "Cannot resolve a directory token for partner SSO: set VCITA_DIRECTORY_TOKEN, "
+            "or provide a directory_id (context/VCITA_DIRECTORY_ID) plus VCITA_ADMIN_TOKEN."
+        )
+
+    headers = admin_headers()
+    existing = account_request(
+        context, "GET", "/platform/v1/tokens", params={"directory_id": directory_id}, headers=headers
+    )
+    tokens = (existing.get("data") or {}).get("tokens") or []
+    if tokens and tokens[0].get("token"):
+        return tokens[0]["token"]
+
+    created = account_request(
+        context, "POST", "/platform/v1/tokens", json={"directory_id": directory_id}, headers=headers
+    )
+    token = (created.get("data") or {}).get("token") or created.get("token")
     if not token:
-        raise ValueError("VCITA_DIRECTORY_TOKEN is missing for partner SSO token request")
-    return {"Authorization": f'Token token="{token}"'}
+        raise ValueError(f"Directory token generation returned no token: {created}")
+    return token
 
 
 def get_pivot_uid(context: dict) -> str:
