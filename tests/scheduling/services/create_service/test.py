@@ -10,6 +10,46 @@ from playwright.sync_api import Page, expect
 UI_TIMEOUT = 5000
 
 
+def _enter_price(iframe, value: str) -> None:
+    """Type the price so Angular's ng-model fires input/blur events.
+
+    fill() sets the value but can skip the events Material needs to validate the
+    form, intermittently leaving the Create button disabled.
+    """
+    price_field = iframe.get_by_role("spinbutton", name="Service price *")
+    price_field.wait_for(state="visible", timeout=UI_TIMEOUT)
+    price_field.click()
+    price_field.fill("")
+    price_field.press_sequentially(value, delay=50)
+    price_field.blur()
+
+
+def _submit_create(iframe, dialog) -> None:
+    """Click Create once the form validates; re-enter price if validation lags.
+
+    The Create button stays disabled until Angular validates the form. A flaky
+    price entry can leave it disabled, so re-type the price to force validation
+    before retrying the click.
+    """
+    create_btn = iframe.get_by_role("button", name="Create")
+    for _ in range(3):
+        try:
+            expect(create_btn).to_be_enabled(timeout=4000)
+        except AssertionError:
+            _enter_price(iframe, "50")
+            continue
+        create_btn.click()
+        try:
+            dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
+            return
+        except Exception:
+            _enter_price(iframe, "50")
+    raise AssertionError(
+        "Create Service dialog did not close - the Create button stayed disabled "
+        "after filling all fields (price/currency validation did not pass)."
+    )
+
+
 def test_create_service(page: Page, context: dict) -> None:
     """
     Create a new 1-on-1 service with name, duration, and price.
@@ -149,23 +189,13 @@ def test_create_service(page: Page, context: dict) -> None:
     print("  Step 8: Setting price to 50...")
     with_fee_btn = iframe.get_by_role("button", name="icon-Credit-card With fee")
     with_fee_btn.click()
-    price_field = iframe.get_by_role("spinbutton", name="Service price *")
-    price_field.wait_for(state="visible", timeout=5000)
-    price_field.click()
-    price_field.fill("50")  # fill is OK for number spinbutton
+    _enter_price(iframe, "50")
     
     # Step 9: Click Create
     print("  Step 9: Clicking Create...")
     # Get reference to dialog before clicking create
     dialog = iframe.get_by_role("dialog")
-    create_btn = iframe.get_by_role("button", name="Create")
-    create_btn.click()
-    # Wait for dialog to close (indicates creation completed)
-    dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
-    
-    # HEALED 2026-01-27: Wait for dialog to close (indicates creation completed) instead of arbitrary timeout
-    # The dialog closing is the event that indicates the service was saved
-    dialog.wait_for(state="hidden", timeout=UI_TIMEOUT)
+    _submit_create(iframe, dialog)
     
     # Step 10: Refresh Services List (Navigate away and back via UI)
     print("  Step 10: Refreshing services list...")

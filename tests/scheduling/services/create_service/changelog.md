@@ -1,5 +1,22 @@
 # Create Service - Changelog
 
+## 2026-06-02 - Fix flaky Create button (disabled at submit) (VCITA2-13781)
+**Phase**: test.py, script.md
+**Author**: Cursor AI (stabilization)
+**Reason**: In a full-suite headless run, Create Service failed at Step 9 with `TimeoutError: 5000ms` on `dialog.wait_for(state="hidden")`. The screenshot showed the New Service dialog fully filled (name, Face-to-face, 0h/30m, price 50) but the **CREATE button greyed out/disabled**, so the click was a no-op and the dialog never closed. Because the category stops on first failure, this flake cascaded and skipped the other 26 Scheduling tests. It passed on a clean re-run, confirming a race rather than a regression.
+
+**Root Cause**:
+`price_field.fill("50")` sets the value but intermittently does not dispatch the `input`/`blur` events Angular's `ng-model` relies on to validate the form. Without validation firing, Material keeps the Create button disabled.
+
+**Changes**:
+- Added `_enter_price()`: click → clear → `press_sequentially` → `blur` so ng-model fires and validation runs.
+- Added `_submit_create()`: `expect(create_btn).to_be_enabled()` before clicking, with a 3-attempt recovery loop that re-enters the price if the button stays disabled or the dialog fails to close. Raises a clear assertion error if creation never completes.
+- Step 8 now calls `_enter_price`; Step 9 now calls `_submit_create`.
+
+**Validation**: Re-ran `scheduling` headless; Create Service and the full category passed (33/33).
+
+---
+
 ## 2026-05-27 - Cap Service Return Navigation
 **Phase**: test.py
 **Author**: Cursor AI (stabilization)
