@@ -6,31 +6,88 @@
 import re
 import time
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
+
+SELECT_CLIENT_PATTERN = re.compile(r"^Select (Client|Property)$", re.I)
+EMAIL_PATTERN = re.compile(r"@")
+
+
+def _open_client_picker(page: Page):
+    select_client = page.get_by_role("button", name=SELECT_CLIENT_PATTERN)
+    select_client.wait_for(state="visible", timeout=30000)
+    select_client.click()
+    dialog = page.frame_locator('iframe[title="angularjs"]').get_by_role("dialog")
+    dialog.wait_for(state="visible", timeout=30000)
+    return dialog
+
+
+def _open_all_clients(dialog) -> None:
+    """Switch the picker from 'Recently Active' to the full 'All Clients' list."""
+    all_clients = dialog.get_by_text(re.compile(r"^\s*all clients\s*$", re.I)).first
+    if all_clients.count() > 0:
+        all_clients.click()
+
+
+def _search_picker(page: Page, dialog, client_name: str) -> None:
+    """Type the client name into the picker search box to surface the matching row."""
+    search = dialog.get_by_role("textbox").first
+    if search.count() == 0:
+        return
+    search.click()
+    search.fill(client_name)
+    page.wait_for_timeout(1200)
+
+
+def _pick_client_row(dialog, client_name: str | None):
+    """Return the client row to click.
+
+    The picker renders Angular Material `md-list-item[role=listitem]` rows. The
+    first row is a "New Client" action (no email), so we target the named row or
+    the first real client row (one containing an email), never "New Client".
+    """
+    rows = dialog.get_by_role("listitem")
+    if client_name:
+        named = rows.filter(has_text=client_name).first
+        if named.count() > 0:
+            return named
+    real_client = rows.filter(has_text=EMAIL_PATTERN).first
+    return real_client if real_client.count() > 0 else None
 
 
 def _select_checkout_client(page: Page, context: dict) -> None:
-    select_client = page.get_by_role(
-        "button", name=re.compile(r"^Select (Client|Property)$", re.I)
-    )
-    select_client.wait_for(state="visible", timeout=30000)
-    select_client.click()
+    """Select a client and confirm the selection actually registered.
 
-    iframe = page.frame_locator('iframe[title="angularjs"]')
-    dialog = iframe.get_by_role("dialog")
-    dialog.wait_for(state="visible", timeout=30000)
-
+    The previous `get_by_text(client_name).first` clicked a non-selectable text
+    node, dismissing the picker without choosing a client and leaving Checkout
+    disabled so the later click timed out (30s). We now click an actual client
+    row and verify Checkout becomes enabled, retrying (searching on later
+    attempts for not-yet-listed clients) before failing with a clear message.
+    """
     client_name = context.get("created_client_name") or context.get("invoice_client_search_term")
-    if client_name:
-        client = dialog.get_by_text(client_name, exact=False).first
-        if client.count() > 0:
-            client.click()
-            dialog.wait_for(state="hidden", timeout=30000)
-            return
+    checkout_button = page.get_by_role("button", name="Checkout")
 
-    recently_active_list = dialog.get_by_role("list").nth(1)
-    recently_active_list.get_by_role("listitem").first.click()
-    dialog.wait_for(state="hidden", timeout=30000)
+    for attempt in range(3):
+        dialog = _open_client_picker(page)
+        target = _pick_client_row(dialog, client_name)
+        if target is None:
+            _open_all_clients(dialog)
+            if client_name:
+                _search_picker(page, dialog, client_name)
+            target = _pick_client_row(dialog, client_name)
+        if target is not None:
+            target.click()
+            try:
+                expect(checkout_button).to_be_enabled(timeout=8000)
+                return
+            except AssertionError:
+                pass
+        if dialog.is_visible():
+            page.keyboard.press("Escape")
+
+    raise AssertionError(
+        "Client selection did not register in the Checkout client picker - "
+        "Checkout stayed disabled after choosing a client."
+    )
 
 
 def _open_checkout(page: Page) -> None:

@@ -4,6 +4,22 @@ All changes to steps.md, script.md, and test.py are logged here.
 
 ---
 
+## 2026-06-02 - Fix flaky client selection (VCITA2-13776)
+
+**Phase**: Test (test.py, script.md)
+**Author**: Cursor AI
+**Reason**: `Record Full Payment` failed with a 30s TimeoutError on "Click Checkout". The May client-by-name selector (`get_by_text(client_name).first`) clicked a non-selectable text node, dismissing the picker without choosing a client, so Checkout stayed disabled.
+
+**Changes**:
+
+- Select an actual client **row** (`md-list-item[role=listitem]`), targeting the named row or the first real client (one with an email), never the "New Client" action row.
+- When the client is not in "Recently Active" (e.g. a freshly created client), switch to the **"ALL CLIENTS"** view and **search** by name.
+- **Verify the Checkout button becomes enabled** after selection (reliable signal), retrying the picker up to 3 times.
+- On failure, raise an explicit message instead of a blind 30s click timeout.
+- Picker structure confirmed via CDP: rows are Angular Material `md-list-item[role=listitem]`; `get_by_role("list")` does not match.
+
+**Test run**: `payments/record_payments` subcategory PASSED 5/5 (headless), Record Full Payment 11.5s.
+
 ## 2026-05-19 - Stabilize Workflow Navigation
 
 **Phase**: Test

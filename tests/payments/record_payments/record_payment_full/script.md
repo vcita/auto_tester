@@ -101,29 +101,62 @@ add_button.click()
 
 | Option | Pros | Cons |
 |--------|------|------|
+| `dialog.get_by_text(client_name, exact=False).first` | Targets the setup client by name | Can match a non-selectable text node, dismissing the picker without selecting (regression that left Checkout disabled) |
+| `dialog.get_by_role("listitem").filter(has_text=client_name).first` | Clicks the actual client row | Requires the row to be visible (filter search first) |
 | `dialog.get_by_role("list").nth(1).get_by_role("listitem").first` | Positional in recently active list | Fragile if list order changes |
-| `dialog.get_by_role("button", name=re.compile(...))` | Name-based | Client name varies |
 
-**CHOSEN**: `dialog.get_by_role("list").nth(1).get_by_role("listitem").first` - Selects first recently active client regardless of name.
+**CHOSEN**: Click an actual client **row** (`md-list-item[role=listitem]`), then **verify the Checkout button becomes enabled**. The picker opens on "Recently Active"; when the desired client is not there (e.g. a freshly created client that is not yet recently active), switch to the **"ALL CLIENTS"** view and **search** by name. Never click the first row, which is the "New Client" action. Retry up to 3 times; if Checkout never enables, fail with an explicit message instead of a blind 30s click timeout.
+
+**Picker structure (verified via CDP on the angularjs iframe)**:
+- Rows are Angular Material `md-list-item[role=listitem]`; `get_by_role("list")` does NOT match (no `role=list`).
+- First row = "New Client" action (no email). Real clients contain an email.
+- "Recently Active" can be empty for a brand-new client; "ALL CLIENTS" + search surfaces it (search box appears after switching).
 
 **VERIFIED PLAYWRIGHT CODE**:
 ```python
-select_property = page.get_by_role("button", name="Select Property")
-select_property.wait_for(state="visible", timeout=30000)
-select_property.click()
+SELECT_CLIENT_PATTERN = re.compile(r"^Select (Client|Property)$", re.I)
+EMAIL_PATTERN = re.compile(r"@")
 
-iframe = page.frame_locator('iframe[title="angularjs"]')
-dialog = iframe.get_by_role("dialog")
-dialog.wait_for(state="visible", timeout=30000)
+def _open_client_picker(page):
+    page.get_by_role("button", name=SELECT_CLIENT_PATTERN).click()
+    dialog = page.frame_locator('iframe[title="angularjs"]').get_by_role("dialog")
+    dialog.wait_for(state="visible", timeout=30000)
+    return dialog
 
-recently_active_list = dialog.get_by_role("list").nth(1)
-first_client = recently_active_list.get_by_role("listitem").first
-first_client.click()
+def _pick_client_row(dialog, client_name):
+    rows = dialog.get_by_role("listitem")
+    if client_name:
+        named = rows.filter(has_text=client_name).first
+        if named.count() > 0:
+            return named
+    real = rows.filter(has_text=EMAIL_PATTERN).first   # real clients have an email; skip "New Client"
+    return real if real.count() > 0 else None
+
+client_name = context.get("created_client_name") or context.get("invoice_client_search_term")
+checkout_button = page.get_by_role("button", name="Checkout")
+for _ in range(3):
+    dialog = _open_client_picker(page)
+    target = _pick_client_row(dialog, client_name)
+    if target is None:                                  # not recently active -> All Clients + search
+        dialog.get_by_text(re.compile(r"^\s*all clients\s*$", re.I)).first.click()
+        if client_name:
+            search = dialog.get_by_role("textbox").first
+            if search.count():
+                search.fill(client_name); page.wait_for_timeout(1200)
+        target = _pick_client_row(dialog, client_name)
+    if target is not None:
+        target.click()
+        try:
+            expect(checkout_button).to_be_enabled(timeout=8000); break
+        except AssertionError:
+            pass
+    if dialog.is_visible():
+        page.keyboard.press("Escape")
 ```
 
-- **How verified**: Clicked "Select Property", dialog opened in iframe, selected "Itzik Levy" from Recently Active section
-- **Wait for**: Dialog opens with client list, then closes after selection; client name appears in checkout panel
-- **Fallback locators**: `iframe.get_by_text("Recently Active").locator("..").get_by_role("listitem").first`
+- **Root cause**: the previous `get_by_text(client_name).first` clicked a non-selectable text node that closed the picker without choosing a client, leaving Checkout disabled so Step 4's click timed out (30s).
+- **Wait for**: Checkout button becomes enabled (the reliable signal that a client + item are selected).
+- **Fallback**: "ALL CLIENTS" view + name search, then the first real client row.
 
 ### Step 4: Click Checkout
 
