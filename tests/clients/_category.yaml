@@ -13,6 +13,7 @@ execution_order:
   - notes
   - recently_active
   - reassign_primary_staff
+  - collaborators
   - custom_status
   - crm_filters
   - delete_matter

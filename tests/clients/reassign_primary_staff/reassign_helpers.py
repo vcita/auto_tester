@@ -16,6 +16,7 @@ from tests.account_api import (
     account_request,
     admin_headers,
     create_appointment_via_api,
+    create_platform_staff_via_api,
     create_service_via_api,
     first_staff_uid,
     pivot_uid,
@@ -38,15 +39,6 @@ REQUEST_TIMEOUT = 5
 # cadence, not a wait-for-action sleep.
 EMAIL_POLL_BUDGET_SECONDS = 90
 EMAIL_POLL_INTERVAL_SECONDS = 3
-
-
-def create_platform_staff_via_api(context: dict, name: str, email: str, role: str = "user") -> dict:
-    return account_request(
-        context,
-        "POST",
-        f"/platform/v1/businesses/{pivot_uid(context)}/staffs",
-        json={"staff": {"display_name": name, "email": email, "role": role.lower()}},
-    )
 
 
 def create_client_via_api(context: dict, first_name: str, last_name: str, email: str) -> dict:

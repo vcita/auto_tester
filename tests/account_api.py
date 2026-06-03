@@ -188,10 +188,13 @@ def first_staff_uid(context: dict) -> str:
     return context["account_first_staff_uid"]
 
 
-def create_service_via_api(context: dict, service_name: str) -> dict:
+def create_service_via_api(
+    context: dict, service_name: str, staff_uids: list[str] | None = None
+) -> dict:
+    uids = staff_uids or [first_staff_uid(context)]
     payload = {
         "category": {"uid": last_category_uid(context)},
-        "staff_data": [{"uid": first_staff_uid(context), "enabled": True}],
+        "staff_data": [{"uid": uid, "enabled": True} for uid in uids],
         "name": service_name,
         "service_type": "appointment",
         "currency": "USD",
@@ -229,3 +232,31 @@ def create_appointment_via_api(
     response = account_request(context, "POST", "/business/scheduling/v1/bookings", json=payload)
     data = response.get("data") or response
     return data.get("booking") or data
+
+
+def create_platform_staff_via_api(context: dict, name: str, email: str, role: str = "user") -> dict:
+    """Create a Platform staff member and resolve its uid via the staff list.
+
+    POST /platform/v1/businesses/{pivot}/staffs {staff:{display_name,email,role}}, then
+    GET the staff list (shape ``data.staff``, same as ``first_staff_uid``) and match by
+    display_name/email. Resolving via the list avoids depending on the create response
+    body shape and mirrors the legacy ``get_staff`` lookup.
+    """
+    account_request(
+        context,
+        "POST",
+        f"/platform/v1/businesses/{pivot_uid(context)}/staffs",
+        json={"staff": {"display_name": name, "email": email, "role": role.lower()}},
+    )
+    response = account_request(
+        context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}/staffs?status=all"
+    )
+    staffs = response.get("data", {}).get("staff", []) if isinstance(response, dict) else []
+    for staff in staffs:
+        if staff.get("display_name") == name or staff.get("email") == email:
+            return {
+                "uid": staff.get("id") or staff.get("uid"),
+                "name": staff.get("display_name") or name,
+                "email": staff.get("email") or email,
+            }
+    raise ValueError(f"Created staff {name!r} ({email}) not found in staff list: {response}")

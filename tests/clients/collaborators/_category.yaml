@@ -1,0 +1,38 @@
+name: Matter Collaborators
+description: Add and remove additional staff (collaborators) on a matter, and verify
+  the upcoming-appointments warning when removing a collaborator who has future appointments.
+account_profile:
+  type: isolated
+  slug: collaborators
+  cleanup: always
+execution_order:
+- manage_collaborators
+tests:
+- id: manage_collaborators
+  name: Add/Remove Matter Collaborators
+  status: active
+  priority: high
+  description: Add Staff B then Staff C as matter collaborators, remove Staff B, then
+    remove Staff C and verify the upcoming-appointments warning naming the client
+    and Staff C.
+  tags:
+  - clients
+  - matters
+  - staff
+  - collaborators
+  - migration
+status: active
+priority: high
+tags:
+- clients
+- matters
+- staff
+- collaborators
+- migration
+owner: QA Team
+created_at: 2026-06-03
+stability:
+  status: stable
+  last_stress_test: '2026-06-04'
+  pass_rate: 100.0%
+  iterations: 10
