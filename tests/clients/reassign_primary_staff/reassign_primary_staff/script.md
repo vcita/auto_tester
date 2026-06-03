@@ -13,7 +13,12 @@ Source: `steps.md`. Legacy: `client.js` `reassignMatterPrimaryStaff` + `getAssig
 
 ## API setup (no UI; isolated auto-account)
 
-Mirrors `recently_active_helpers.py`. On `context["auto_account"]` (api_token + pivot_uid):
+Shared account primitives live in `tests/account_api.py` (`account_request`, `first_staff_uid`,
+`create_service_via_api`, `create_appointment_via_api`); reassign-specific helpers (Platform staff,
+client, directory token, email poll) live in `reassign_helpers.py`. On `context["auto_account"]`
+(api_token + pivot_uid):
+0. `first_staff_uid` → resolve and cache the **account owner** staff uid BEFORE Staff B exists, so the
+   owner-assigned seeding below is deterministic regardless of staff-list ordering.
 1. `create_platform_staff_via_api` → POST `/platform/v1/businesses/{pivot}/staffs`
    `{staff:{display_name, email, role}}` → Staff B.
 2. `create_client_via_api` → POST `/platform/v1/clients` → client `first last` (capture id).
@@ -68,6 +73,8 @@ can propagate asynchronously.
 
 ## Waits / risks
 
-- No fixed sleeps. Email + booking propagation use explicit condition polls with per-attempt caps.
-- Confirm the email endpoint shape and the change-staff dialog frame/selectors via browser MCP on the
-  first live run (open items in `migration_mapping.md`).
+- No fixed action-completion sleeps. UI waits are explicit state conditions capped at 5s.
+- Booking propagation re-check loop is capped at 2 retries (3 attempts), per the project retry policy.
+- The async email poll uses a fixed ~3s poll cadence within a bounded ~90s budget (documented
+  exception to the 5s element cap — this is a poll interval, not a wait-for-action sleep).
+- Dialog frame/selectors and the email endpoint shape were confirmed on integration (validated runs).

@@ -1,11 +1,14 @@
 import time
-from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-import requests
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, expect
 
-REQUEST_TIMEOUT = 5
+from tests.account_api import (
+    account_request,
+    create_appointment_via_api,
+    create_service_via_api,
+)
+
 UI_TIMEOUT = 5000
 PAGE_READY_TIMEOUT = 5_000
 # After each dashboard reload the clients widget loads its rows asynchronously
@@ -19,7 +22,7 @@ RECENTLY_ACTIVE_VIEW_STORAGE_KEY = "clients-widget-selected-view"
 
 
 def create_client_via_api(context: dict, client: dict) -> dict:
-    response = _account_request(
+    response = account_request(
         context,
         "POST",
         "/platform/v1/clients",
@@ -38,50 +41,6 @@ def create_client_via_api(context: dict, client: dict) -> dict:
         "name": f"{first_name} {last_name}".strip(),
         "email": created_client.get("email") or client["email"],
     }
-
-
-def create_service_via_api(context: dict, service_name: str) -> dict:
-    category_uid = _get_last_category_uid(context)
-    staff_uid = _get_first_staff_uid(context)
-    payload = {
-        "category": {"uid": category_uid},
-        "staff_data": [{"uid": staff_uid, "enabled": True}],
-        "name": service_name,
-        "service_type": "appointment",
-        "currency": "USD",
-        "duration": 60,
-        "interaction_type": "business_location",
-        "meeting_interaction_details": "TLV",
-        "charge_type": "free",
-        "display": "true",
-        "max_attendance": 2,
-    }
-
-    response = _account_request(context, "POST", "/v2/settings/services", json=payload)
-    service = response.get("data") or response
-    service_id = service.get("id") or service.get("uid")
-    if not service_id:
-        raise ValueError(f"Service API response did not include an id: {response}")
-
-    return {"id": service_id, "name": service.get("name") or service_name}
-
-
-def create_appointment_via_api(context: dict, service: dict, client: dict) -> dict:
-    payload = {
-        "business_id": _get_pivot_uid(context),
-        "staff_id": _get_first_staff_uid(context),
-        "start_time": _future_start_time(),
-        "service_id": service["id"],
-        "client_id": client["id"],
-    }
-    response = _account_request(
-        context,
-        "POST",
-        "/business/scheduling/v1/bookings",
-        json=payload,
-    )
-    data = response.get("data") or response
-    return data.get("booking") or data
 
 
 def prepare_recently_active_clients_view(page: Page, context: dict) -> None:
@@ -219,7 +178,7 @@ def _client_item_name(item_text: str) -> str:
 
 
 def _get_recently_active_view(context: dict) -> dict:
-    response = _account_request(context, "GET", "/business/search/v1/views")
+    response = account_request(context, "GET", "/business/search/v1/views")
     views = response.get("data") or response
     for view in views:
         name = (view.get("name") or "").lower()
@@ -228,91 +187,6 @@ def _get_recently_active_view(context: dict) -> dict:
 
     available_views = [view.get("name") for view in views]
     raise AssertionError(f"Recently active clients view was not found. Available views: {available_views}")
-
-
-def _account_request(context: dict, method: str, path: str, **kwargs) -> dict:
-    response = requests.request(
-        method,
-        f"{_resolve_api_base_url(context)}{path}",
-        headers=_account_headers(context),
-        timeout=REQUEST_TIMEOUT,
-        **kwargs,
-    )
-    if not response.ok:
-        raise requests.HTTPError(
-            f"{response.status_code} {response.reason} for {path}: {response.text[:500]}",
-            response=response,
-        )
-    return response.json()
-
-
-def _resolve_api_base_url(context: dict) -> str:
-    api_base_url = context.get("api_base_url")
-    if api_base_url:
-        return api_base_url.rstrip("/")
-
-    base_url = (context.get("base_url") or "").rstrip("/")
-    if "meet2know.com" in base_url:
-        return "https://api2.meet2know.com"
-    if "vcita.com" in base_url:
-        return "https://api.vcita.biz"
-    if "app-" in base_url and ".external.int-eks.vchost.co" in base_url:
-        return base_url.replace("https://app-", "https://core-", 1)
-
-    raise ValueError("api_base_url is missing from context and could not be inferred")
-
-
-def _account_headers(context: dict) -> dict:
-    auto_account = context.get("auto_account") or {}
-    token = auto_account.get("api_token") or auto_account.get("auth_token")
-    if not token:
-        raise ValueError("auto_account api_token is missing from context")
-    return {"Authorization": f"Bearer {token}"}
-
-
-def _get_pivot_uid(context: dict) -> str:
-    auto_account = context.get("auto_account") or {}
-    pivot_uid = auto_account.get("pivot_uid") or auto_account.get("business_id")
-    if not pivot_uid:
-        raise ValueError("auto_account pivot_uid is missing from context")
-    return pivot_uid
-
-
-def _get_last_category_uid(context: dict) -> str:
-    response = _account_request(
-        context,
-        "GET",
-        f"/platform/v1/categories?business_id={_get_pivot_uid(context)}",
-    )
-    categories = response.get("data", {}).get("categories", [])
-    if not categories:
-        raise ValueError("No service categories returned for auto account")
-    return categories[-1]["id"]
-
-
-def _get_first_staff_uid(context: dict) -> str:
-    cached_staff_uid = context.get("recently_active_staff_uid")
-    if cached_staff_uid:
-        return cached_staff_uid
-
-    response = _account_request(
-        context,
-        "GET",
-        f"/platform/v1/businesses/{_get_pivot_uid(context)}/staffs?status=all",
-    )
-    staffs = response.get("data", {}).get("staff", [])
-    if not staffs:
-        raise ValueError("No staff returned for auto account")
-
-    staff_uid = staffs[0].get("id") or staffs[0].get("uid")
-    context["recently_active_staff_uid"] = staff_uid
-    return staff_uid
-
-
-def _future_start_time() -> str:
-    start_time = datetime.now(timezone.utc) + timedelta(days=30)
-    start_time = start_time.replace(minute=0, second=0, microsecond=0)
-    return start_time.isoformat().replace("+00:00", "Z")
 
 
 def _app_base_url(page: Page) -> str:

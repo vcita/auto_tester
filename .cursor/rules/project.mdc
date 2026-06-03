@@ -97,6 +97,7 @@ Plus `changelog.md` that logs all changes.
 These principles apply across all phases; phase rules reference them. Details on how they apply to steps/script/code are in the respective phase files.
 
 - **No retries for actions**: Wait for a condition that indicates readiness, then perform the action once. No retry loops. See phase1 (don’t describe retries), phase2 (document wait-then-act), phase3 § No Retries for Actions.
+- **Max 2 retries for read re-checks**: Actions still run once. Only when re-reading a result that propagates asynchronously (e.g. a list/widget/index that lags the API) may you reload-and-re-check, and that loop is capped at **2 retries (3 attempts total)**. If it still isn't ready, the test fails — investigate the selector, state signal, or propagation rather than adding more attempts. See phase3 § No Retries for Actions.
 - **Single detection per step (no fallbacks)**: One condition per step to detect readiness or success. If not found, the test fails. No try/except fallbacks or alternate locators for the same condition. See phase3 § No Fallbacks for Detection.
 - **Timeout means failure**: If a wait times out, the test must fail and stop. Never catch a timeout and continue. See phase3 § No Fallbacks for Detection / Timeout Means Failure.
 - **No sleeps unless last resort**: Do not add fixed waits/sleeps for action completion. Wait for a specific UI state, URL, element state, or product outcome instead. If a sleep is unavoidable, keep it minimal and document why no state-based wait exists.

@@ -12,12 +12,15 @@ from tests.clients.reassign_primary_staff.reassign_helpers import (
     create_client_via_api,
     create_platform_staff_via_api,
     create_service_via_api,
+    first_staff_uid,
     get_business_email_by_subject,
 )
 
 UI_TIMEOUT = 5000
-PAGE_READY_TIMEOUT = 15000
-ASSIGN_PROPAGATION_ATTEMPTS = 6
+PAGE_READY_TIMEOUT = 5000
+# Re-check loop for async reassignment propagation: 1 attempt + 2 retries (project
+# policy: actions run once; read re-checks are capped at 2 retries).
+ASSIGN_PROPAGATION_ATTEMPTS = 3
 
 STAFF_B_NAME = "Staff B"
 SERVICE_NAME = "test_service"
@@ -36,6 +39,12 @@ def test_reassign_primary_staff(page: Page, context: dict) -> None:
     assignment_subject = f"{CLIENT_FIRST} {CLIENT_LAST} was assigned to you"
 
     # ---- API setup (isolated auto-account) ----
+    # Resolve the account owner BEFORE creating Staff B. first_staff_uid caches the
+    # result, so the service and the seeded appointment stay owner-assigned no matter
+    # how the staff list is ordered once a second staff exists - the UI reassign is
+    # then a genuine change.
+    owner_staff_uid = first_staff_uid(context)
+
     print("  Step 1: Creating Staff B via Platform API...")
     create_platform_staff_via_api(context, STAFF_B_NAME, staff_email, role="user")
 
@@ -47,7 +56,7 @@ def test_reassign_primary_staff(page: Page, context: dict) -> None:
     service = create_service_via_api(context, SERVICE_NAME)
 
     print("  Step 4: Scheduling appointment (assigned to owner) via API...")
-    create_appointment_via_api(context, service, client)
+    create_appointment_via_api(context, service, client, staff_uid=owner_staff_uid)
 
     # ---- UI: reassign matter primary staff ----
     print(f"  Step 5: Opening matter page for {client['name']}...")
@@ -78,7 +87,7 @@ def _open_matter(page: Page, client_id: str) -> None:
     app_base = page.url.split("/app/")[0] if "/app/" in page.url else None
     if not app_base:
         raise ValueError(f"Cannot infer app base URL from current page URL: {page.url}")
-    page.goto(f"{app_base}/app/clients/{client_id}", wait_until="domcontentloaded", timeout=30000)
+    page.goto(f"{app_base}/app/clients/{client_id}", wait_until="domcontentloaded", timeout=PAGE_READY_TIMEOUT)
     expect(page).to_have_url(re.compile(rf"/app/clients/{re.escape(client_id)}"), timeout=PAGE_READY_TIMEOUT)
     page.locator('iframe[title="angularjs"]').wait_for(state="visible", timeout=PAGE_READY_TIMEOUT)
 
