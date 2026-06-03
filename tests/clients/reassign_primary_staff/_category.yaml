@@ -1,0 +1,27 @@
+# Reassign Primary Staff Subcategory
+# Migrated from automation-js/features/steps/reassign-matter-primary-staff.feature (VCITA2-13791)
+
+name: Reassign Primary Staff
+description: Reassign a matter's primary staff and verify the appointment is reassigned and the assignment email is sent
+
+tests:
+  - id: reassign_primary_staff
+    name: Reassign Matter Primary Staff
+    status: active
+    priority: high
+    description: Reassign the matter primary staff to Staff B (reassigning appointments), then verify the appointment is assigned to Staff B and the business receives the assignment email
+
+status: active
+priority: high
+tags:
+  - clients
+  - matters
+  - staff
+  - migration
+owner: QA Team
+created_at: 2026-06-03
+stability:
+  status: stable
+  last_stress_test: '2026-06-03'
+  pass_rate: 100.0%
+  iterations: 10

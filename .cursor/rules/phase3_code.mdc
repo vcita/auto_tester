@@ -276,6 +276,8 @@ if phone:
 
 **Do not retry user actions.** Wait for readiness, then act once. See `project.mdc` § Cross-Cutting Execution Principles.
 
+**Read re-checks are capped at 2 retries (3 attempts total).** When a result propagates asynchronously (e.g. a list/widget/index that lags the API), you may reload-and-re-check, but the loop must not exceed 2 retries — define a constant like `MAX_..._ATTEMPTS = 3` and stop there. Anything higher (e.g. 6) is not allowed; if 3 attempts isn't enough, fix the selector/state signal/propagation instead. Existing examples: `WIDGET_RELOAD_ATTEMPTS = 3`, `SETTINGS_READY_ATTEMPTS = 3`.
+
 ### No Fallbacks for Detection / Timeout Means Failure
 
 **One condition per step; if it times out, the test fails.** Do not add try/except fallbacks or continue after a timeout. See `project.mdc` § Cross-Cutting Execution Principles.
