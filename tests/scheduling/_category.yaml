@@ -10,6 +10,7 @@ description: Tests for scheduling functionality including services, calendar man
 execution_order:
   - services
   - appointments
+  - multi_booking
   - events
   - calendar
 tests: []
