@@ -398,29 +398,33 @@ def select_tab(page: Page, tab_name: str) -> None:
     wait_for_clients_table(page)
 
 
+def _click_visible(locator: Locator) -> None:
+    """Wait (bounded) for an element to be visible, then click. Guards against the
+    default 30s actionability timeout when a not-yet-rendered/animating element is
+    targeted, and against clicking a hidden mounted-but-inactive instance."""
+    locator.wait_for(state="visible", timeout=UI_TIMEOUT)
+    locator.click()
+
+
 def save_fixed_as_new_view(page: Page, view_name: str) -> None:
-    save_button = _active(page).locator(".table-actions__save--margin").first
-    save_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    save_button.click()
-    modal = page.locator('[data-qa="crm-save-view-modal"]').first
+    _click_visible(_active(page).locator(".table-actions__save--margin").first)
+    modal = page.locator('[data-qa="crm-save-view-modal"]:visible').first
     modal.wait_for(state="visible", timeout=UI_TIMEOUT)
-    name_input = page.locator('[data-qa="crm-save-view-modal-input-view-name"]').first
-    name_input.click()
+    name_input = modal.locator('[data-qa="crm-save-view-modal-input-view-name"]').first
+    _click_visible(name_input)
     name_input.fill(view_name)
-    page.locator('[data-qa="vc-footer-Save"]').first.click()
+    _click_visible(modal.locator('[data-qa="vc-footer-Save"]').first)
     wait_for_clients_table(page)
 
 
 def save_custom_view(page: Page) -> None:
-    save_button = _active(page).locator("button.table-actions__save").first
-    save_button.wait_for(state="visible", timeout=UI_TIMEOUT)
-    save_button.click()
+    _click_visible(_active(page).locator("button.table-actions__save").first)
     # The split-button opens a menu with "Save" / "Save as new"; pick "Save".
-    save_item = page.locator(".save-action-items__item").filter(has_text=re.compile(r"^Save$")).first
+    save_item = page.locator(".save-action-items__item:visible").filter(
+        has_text=re.compile(r"^Save$")).first
     if save_item.count() == 0:
-        save_item = page.locator(".save-action-items__item").first
-    save_item.wait_for(state="visible", timeout=UI_TIMEOUT)
-    save_item.click()
+        save_item = page.locator(".save-action-items__item:visible").first
+    _click_visible(save_item)
     wait_for_clients_table(page)
 
 

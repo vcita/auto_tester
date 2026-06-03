@@ -52,6 +52,7 @@ def test_create_edit_filters(page: Page, context: dict) -> None:
     print("  Step 4: Selecting 'Recently active' view...")
     select_view(page, "Recently active")
     assert_displayed_filters(page, ["Last activity time"])
+    assert_counter(page, "1 CLIENTS")
 
     print("  Step 5: Selecting 'All' tab...")
     select_tab(page, "All")
