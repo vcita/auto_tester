@@ -1,0 +1,34 @@
+# Estimates Subcategory
+# Migrated from automation-js/features/steps/estimates.feature (VCITA2-13789)
+# The three tests share one per-category account. Shared service/product/tax are
+# created once in tests/sales/_setup. Each test creates its OWN client so the
+# search-by-client assertion in create_estimate stays isolated and order-independent.
+
+name: Estimates
+description: Business creates estimates (existing + custom items, tax modes, sections) and verifies BO and Client Portal views
+
+tests:
+  - id: create_estimate
+    name: Business Creates Estimate
+    status: active
+    priority: high
+    description: Create an estimate with existing items (reordered) and a second with custom taxed items, verify search results, the back-office estimate page, and the client-portal estimate page
+  - id: include_tax_mode
+    name: Create Estimate In Tax Mode Include
+    status: active
+    priority: high
+    description: With tax_mode=include, create an estimate with custom taxed items and verify the total is tax-inclusive (no tax added on top)
+  - id: estimate_with_sections
+    name: Create Estimate With Sections
+    status: active
+    priority: high
+    description: Create an estimate with a top-level item plus a section grouping an item, and verify the back-office section layout and totals
+
+status: active
+priority: high
+tags:
+  - sales
+  - estimates
+  - migration
+owner: QA Team
+created_at: 2026-06-03
