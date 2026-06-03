@@ -13,6 +13,12 @@
 - Stores the 4 base client names in `context["crm_base_clients"]` for the
   sibling `custom_field_filtering` test (shared account).
 
+## 2026-06-03 — Stress hardening (clear filters)
+- `clear_all_filters`/`remove_filter`: settle the active panel first and add a
+  bounded (5s) click with a 3-attempt retry on "Clear all", removing an
+  intermittent 30s actionability timeout when clearing right after a view switch.
+- Validated 10/10 clean stress cycles on integration.
+
 ## 2026-06-03 — Scope parity + save-view stability
 - Restored the legacy counter assertion `1 CLIENTS` on the `Recently active`
   view (feature line 26), which was previously only asserting the filter chip.

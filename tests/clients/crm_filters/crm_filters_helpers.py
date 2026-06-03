@@ -26,6 +26,7 @@ INDEX_TIMEOUT_SECONDS = 5
 # the seeker indexing handled with poll-and-reload elsewhere), not a UI wait,
 # so it is intentionally above the 5s UI cap.
 FIELD_INDEX_TIMEOUT_SECONDS = 30
+CLEAR_RETRY_ATTEMPTS = 3
 INDEX_RELOAD_ATTEMPTS = 3
 
 
@@ -268,17 +269,31 @@ def edit_first_name_filter(page: Page, value: str) -> None:
 
 def remove_filter(page: Page, filter_name: str) -> None:
     chip = _filter_chip_by_name(page, filter_name)
-    chip.locator("button.v-chip__close").first.click()
+    close_btn = chip.locator("button.v-chip__close").first
+    close_btn.wait_for(state="visible", timeout=UI_TIMEOUT)
+    close_btn.click()
     wait_for_clients_table(page)
 
 
 def clear_all_filters(page: Page) -> None:
-    clear_action = _active(page).get_by_text("Clear all", exact=True)
-    if clear_action.count() == 0:
-        return
-    clear_action.first.click()
-    expect(_active(page).get_by_text("Clear all", exact=True)).to_have_count(0, timeout=UI_TIMEOUT)
+    # Settle the active panel first: a just-switched/saved view can briefly keep a
+    # transitioning panel mounted, so the "Clear all" target may not be actionable.
     wait_for_clients_table(page)
+    for _ in range(CLEAR_RETRY_ATTEMPTS):
+        clear_action = _active(page).get_by_text("Clear all", exact=True)
+        if clear_action.count() == 0:
+            wait_for_clients_table(page)
+            return
+        target = clear_action.first
+        target.wait_for(state="visible", timeout=UI_TIMEOUT)
+        try:
+            target.click(timeout=UI_TIMEOUT)
+        except PlaywrightTimeoutError:
+            continue
+        expect(_active(page).get_by_text("Clear all", exact=True)).to_have_count(0, timeout=UI_TIMEOUT)
+        wait_for_clients_table(page)
+        return
+    raise AssertionError("Could not clear all filters: 'Clear all' stayed present")
 
 
 # --------------------------------------------------------------------------- #
