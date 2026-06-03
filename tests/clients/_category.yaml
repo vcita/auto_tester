@@ -14,6 +14,7 @@ execution_order:
   - recently_active
   - reassign_primary_staff
   - custom_status
+  - crm_filters
   - delete_matter
 
 # Test metadata (order also in execution_order above)
