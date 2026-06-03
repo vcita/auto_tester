@@ -11,6 +11,7 @@ execution_order:
 - tips_settings
 - offset_fees
 - card_on_file
+- scheduled_payments
 tests: []
 status: active
 priority: high
