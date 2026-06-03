@@ -12,6 +12,7 @@ execution_order:
   - edit_contact
   - notes
   - recently_active
+  - reassign_primary_staff
   - custom_status
   - delete_matter
 
