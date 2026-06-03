@@ -13,6 +13,7 @@ execution_order:
   - notes
   - recently_active
   - custom_status
+  - crm_filters
   - delete_matter
 
 # Test metadata (order also in execution_order above)
