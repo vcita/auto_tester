@@ -1,0 +1,49 @@
+name: Calendar Settings
+description: Verify business-level Calendar settings (start-of-week, time format,
+  hidden weekends) and the Calendar Settings page side-nav permissions for an owner
+  versus a limited staff member. Migrated from automation-js features/tempo/calendar-settings.feature.
+account_profile:
+  type: isolated
+  slug: calendar_settings
+  cleanup: always
+execution_order:
+- business_settings
+- staff_permissions
+tests:
+- id: business_settings
+  name: Calendar business settings
+  status: active
+  priority: high
+  description: Set the business Start-of-week to Tuesday and the time format to 24
+    hours, hide weekends, and verify the Week view header shows Tue first, 00:00,
+    and 5 days.
+  tags:
+  - scheduling
+  - calendar
+  - settings
+- id: staff_permissions
+  name: Calendar Settings staff permissions
+  status: active
+  priority: high
+  description: Verify the Calendar Settings side-nav shows 4 tabs and a staff selector
+    for the owner, and 3 tabs without a staff selector for a limited staff member.
+  tags:
+  - scheduling
+  - calendar
+  - settings
+  - permissions
+status: active
+priority: high
+tags:
+- scheduling
+- calendar
+- settings
+- tempo
+- migration
+owner: QA Team
+created_at: 2026-06-04
+stability:
+  status: stable
+  last_stress_test: '2026-06-04'
+  pass_rate: 100.0%
+  iterations: 10
