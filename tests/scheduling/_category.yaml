@@ -13,6 +13,7 @@ execution_order:
   - multi_booking
   - events
   - calendar
+  - calendar_settings
 tests: []
 
 # Category metadata
