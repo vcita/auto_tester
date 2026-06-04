@@ -43,6 +43,62 @@ To keep the layout across updates:
 
 Note: per-column widths (the ADF `colwidth` cell attribute, set by dragging column borders in the editor) are stripped by the API HTML importer and cannot be set or preserved through these tools — only the `full-width` table layout can.
 
+## Publishing: MCP Size Limit + REST Fallback (Critical)
+
+This page is large (~48 KB of HTML, ~130 KB as an ADF payload) and keeps growing one
+row per migration. The MCP `updateConfluencePage` tool **cannot accept a body this large**:
+the call fails to parse almost immediately (error like `Expected ',' or '}' after property
+value in JSON at position 75`) regardless of body content, because the oversized argument
+is truncated before the tool runs. `getConfluencePage` still works (its large response is
+written to a file), so use the MCP only for *reading*.
+
+**Hard rules:**
+
+- **Never** do a small "probe"/test write to the live page to check whether MCP works.
+  `updateConfluencePage` replaces the whole body, so a tiny test body **overwrites and
+  destroys the page**. (This happened once and forced a full restore.)
+- Publish updates via the **Confluence REST API v2 PUT**, sending the modified **ADF**
+  (`atlas_doc_format`) built programmatically. This avoids inlining the body into a tool call.
+
+**REST publish workflow (reliable, no large inline emission):**
+
+1. Fetch current ADF for reading (MCP `getConfluencePage` with `contentFormat: adf`, or
+   `curl .../wiki/api/v2/pages/<id>?body-format=atlas_doc_format`). Note the current
+   `version.number`.
+2. Parse the ADF (`json.loads(page["body"])`) and modify it **structurally** in Python:
+   - Tables in document order: `0` = Summary, `1` = feature-file progress bar,
+     `2` = scenario progress bar, `3` = Migration Coverage (this one carries
+     `attrs.layout = "full-width"` — preserved automatically since you edit in place),
+     `4` = Scope Counting Rules, `5` = Status Definitions.
+   - Summary cells: match each row by its first-cell text, replace the second cell's
+     `content` paragraphs.
+   - Progress-bar label paragraphs (top-level, start with `Candidate ... migrated:`):
+     rebuild as `[strong(label), " ", code("N / M"), " (", strong("P%"), ")"]`.
+   - Progress bars are 48-cell single-row tables; each cell is a `tableCell` with
+     `attrs.background` of `#ff5630` (filled) or `#dfe1e6` (empty). Flip the next empty
+     cell to filled when the rounded percentage crosses a cell boundary
+     (`filled = round(48 * migrated / total)`).
+   - Append the new coverage row to `tables[3]["content"]` (it is a `tableRow` of
+     `tableCell`s; cell text uses `text` nodes with `marks` `{"type":"code"}`,
+     `{"type":"strong"}`, or `{"type":"link","attrs":{"href":...}}`). ADF text is plain
+     unicode — use literal `&`, `→`, `'` (no HTML entities).
+3. Write the PUT payload to a file (avoids shell-escaping a 130 KB body):
+   `{"id","status":"current","title","body":{"representation":"atlas_doc_format","value":<adf-as-json-string>},"version":{"number":<current+1>,"message":...}}`.
+4. PUT it:
+   ```bash
+   curl -X PUT -u "<email>:<token>" -H "Content-Type: application/json" \
+     "https://myvcita.atlassian.net/wiki/api/v2/pages/4690444289" -d @payload.json
+   ```
+5. Re-fetch in `adf` and verify the new row, the summary/bar updates, and that
+   `tables[3].attrs.layout` is still `"full-width"`.
+
+**Auth:** REST uses HTTP Basic with an Atlassian **API token** (`<email>:<token>`), which is
+**separate** from the MCP's OAuth — the MCP working does NOT mean a REST token is valid.
+Verify the token first with `curl -s -o /dev/null -w "%{http_code}" -u "<email>:<token>"
+https://myvcita.atlassian.net/rest/api/3/myself` (expect `200`). If it returns `401`/`403`,
+ask the user for a fresh token (id.atlassian.net → Security → API tokens) before touching
+the page — do not fall back to a destructive MCP write.
+
 ## Required Data
 
 Collect these values before editing the page:
@@ -74,12 +130,12 @@ Use a structured parser or a small script for counts. Do not update totals by me
 
 ## Update Workflow
 
-1. Fetch the current Confluence page with `contentFormat: html` (not markdown — markdown drops the full-width table layout; see "Preserve Table Layout").
+1. Fetch the current Confluence page in `adf` (MCP `getConfluencePage` `contentFormat: adf`, or REST `?body-format=atlas_doc_format`) and parse the ADF. Do NOT plan to publish via MCP — see "Publishing: MCP Size Limit + REST Fallback" (the page is too large for an MCP write).
 2. Add or update one row in the Migration Coverage table for the migrated scope.
    - Prefer one row per legacy feature file when the full file is migrated.
    - If only selected scenarios from a feature file are migrated, make that clear in `Scope covered` and update scenario progress only.
    - If stabilizing an existing migrated scope, update the existing row instead of adding a duplicate row.
-   - Edit the HTML in place: keep `<table data-layout="full-width">` for the Migration Coverage table and insert/modify the row's `<tr>...</tr>` without touching other cells.
+   - Edit the ADF in place: append/modify the `tableRow` in `tables[3]` (the `full-width` Migration Coverage table) without touching other cells.
 3. Update Summary rows:
    - `Migration progress by feature file`
    - `Migration progress by scenario`
@@ -88,7 +144,7 @@ Use a structured parser or a small script for counts. Do not update totals by me
    - latest migrated scope, Jira, and branch when this migration is the newest one.
 4. Preserve the `Scope Counting Rules`, `Update Instructions`, and `Status Definitions` sections.
 5. Remove stale `Backfill needed` entries only after replacing them with real run evidence.
-6. Publish the complete page body with `contentFormat: html`, not a partial section, keeping `data-layout="full-width"` on the Migration Coverage table.
+6. Publish the modified ADF via the REST API v2 PUT (payload from a file), per "Publishing: MCP Size Limit + REST Fallback". Verify the API token first; never fall back to an MCP write.
 7. Fetch the page again in `adf` and verify both the updated rows AND that the Migration Coverage table still shows `"layout": "full-width"`.
 
 ## Commands
