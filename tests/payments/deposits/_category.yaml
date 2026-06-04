@@ -1,0 +1,83 @@
+name: Deposits
+description: Assign payments as invoice deposits (Quick Actions and POS record paths)
+  and request/collect estimate deposits in the back office and client portal (signature
+  + mock gateway, and offline). Migrated from automation-js features/salsa/deposits.feature.
+account_profile:
+  type: isolated
+  slug: deposits
+  cleanup: always
+execution_order:
+- invoice_deposit_pos
+- invoice_deposit_quick
+- estimate_deposit_bo
+- estimate_deposit_cp_sign
+- estimate_deposit_offline
+tests:
+- id: invoice_deposit_pos
+  name: Assign a recorded payment as an invoice deposit (POS)
+  status: active
+  priority: high
+  description: 'With point_of_sale enabled, record two custom payments via POS (deposit_item
+    $5, regular_item1 $3), create and send an invoice with a $50 custom item, assign
+    the "Payment for Sale #1 - deposit_item" payment as the deposit, and verify the
+    invoice shows ISSUED, $45.00 (out of $50.00), and a $5.00 deposit.'
+  tags:
+  - payments
+  - deposits
+- id: invoice_deposit_quick
+  name: Assign a recorded payment as an invoice deposit (Quick Actions)
+  status: active
+  priority: high
+  description: Deny point_of_sale, record two custom payments via Quick Actions (deposit_item
+    $5, regular_item1 $3), create and send an invoice with a $50 custom item, assign
+    the $5 payment as the deposit, and verify the invoice shows ISSUED, $45.00 (out
+    of $50.00), and a $5.00 deposit.
+  tags:
+  - payments
+  - deposits
+- id: estimate_deposit_bo
+  name: Estimate with a deposit request, approve and take payment (back office)
+  status: active
+  priority: high
+  description: Create and send an estimate with a $50 item and a $10 fixed deposit
+    request; verify the back-office estimate shows SENT with DEPOSIT DUE $10.00, then
+    approve and take payment and verify it shows APPROVED with DEPOSIT PAID $10.00.
+  tags:
+  - payments
+  - deposits
+- id: estimate_deposit_cp_sign
+  name: Client signs and pays an estimate deposit (client portal, mock gateway)
+  status: active
+  priority: high
+  description: Connect the mock gateway, create an estimate via API ($80 product,
+    $10 fixed deposit, signature required, sent); as the client in the portal verify
+    the pending estimate shows DEPOSIT DUE $10.00, sign and pay the deposit via the
+    mock gateway, verify the payment success page ($10.00), and verify the estimate
+    becomes approved with DEPOSIT PAID.
+  tags:
+  - payments
+  - deposits
+- id: estimate_deposit_offline
+  name: Client approves an estimate with an offline deposit (client portal)
+  status: active
+  priority: high
+  description: Create an estimate via API ($80 product, $10 fixed deposit with can_client_pay
+    false, sent); as the client in the portal verify the pending estimate shows DEPOSIT
+    DUE $10.00 and cannot be paid online, approve it, verify the client is redirected
+    to the offline deposit page ($10.00), and verify the estimate becomes approved
+    with the deposit OFFLINE.
+  tags:
+  - payments
+  - deposits
+status: active
+priority: high
+tags:
+- payments
+- deposits
+owner: QA Team
+created_at: 2026-06-04
+stability:
+  status: stable
+  last_stress_test: '2026-06-04'
+  pass_rate: 100.0%
+  iterations: 10

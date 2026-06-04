@@ -12,6 +12,7 @@ execution_order:
 - offset_fees
 - card_on_file
 - scheduled_payments
+- deposits
 tests: []
 status: active
 priority: high
