@@ -1,0 +1,46 @@
+name: CRM Bulk Actions
+description: Bulk share document, send message, and delete clients from the CRM client
+  list
+account_profile:
+  type: isolated
+  slug: crm_bulk_actions
+  cleanup: always
+execution_order:
+- share_document
+- send_message
+- delete_client
+tests:
+- id: share_document
+  name: Share Document From CRM
+  status: active
+  priority: high
+  description: Select all clients and bulk-share a document; verify it in the client
+    card conversation and that its status is PENDING REVIEW.
+- id: send_message
+  name: Send Message From CRM
+  status: active
+  priority: high
+  description: Select a client and bulk-send a message; verify subject and content
+    in the client card conversation.
+- id: delete_client
+  name: Delete Client From CRM
+  status: active
+  priority: high
+  description: Select a client and bulk-delete it; verify it is gone and the other
+    client remains.
+status: active
+priority: high
+tags:
+- clients
+- crm
+- bulk_actions
+- documents
+- messaging
+- migration
+owner: QA Team
+created_at: 2026-06-05
+stability:
+  status: stable
+  last_stress_test: '2026-06-05'
+  pass_rate: 100.0%
+  iterations: 10
