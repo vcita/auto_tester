@@ -1,0 +1,52 @@
+# Coupons in Checkout Subcategory
+# Migrated from automation-js/features/salsa/coupons-pay.feature (VCITA2-13851)
+# Isolated account (fresh per run): account-level prerequisites (tax, 2 taxed services,
+# mock gateway) are created once in _setup; each test creates its own client + 2 PAST
+# appointments because paying a balance consumes it.
+
+name: Coupons in Checkout
+description: Apply coupons (cart/service, percentage/fixed) in the client-portal checkout and verify the payment-success amount. A client pays a single past meeting via its "Pay" action with a cart coupon ($108 for 10%, $84 for $30 off), or closes the whole outstanding balance from the payments list with a service-scoped coupon ($228 for 10% on appointment_1, $216 for $20 off appointment_1). Coupons are created via API except the service-percentage one, which is created in the Settings/Coupons UI.
+
+account_profile:
+  type: isolated
+  slug: coupons_checkout
+  cleanup: always
+
+execution_order:
+  - cart_percentage
+  - cart_fixed
+  - service_percentage_ui
+  - service_fixed
+
+tests:
+  - id: cart_percentage
+    name: Apply cart percentage coupon in CP checkout
+    status: active
+    priority: high
+    description: Create a 10% entire-cart coupon via API, pay the past appointment_1 meeting via its "Pay" action with the coupon, and verify the success page shows "Payment confirmed" and "Amount received $108.00" ($100 -10% +20% tax).
+  - id: cart_fixed
+    name: Apply cart fixed-amount coupon in CP checkout
+    status: active
+    priority: high
+    description: Create a $30 entire-cart coupon via API, pay the past appointment_1 meeting via its "Pay" action with the coupon, and verify the success page shows "Amount received $84.00" (($100-$30) +20% tax).
+  - id: service_percentage_ui
+    name: Apply service percentage coupon (created in UI) in CP checkout
+    status: active
+    priority: high
+    description: Create a 10% coupon on the appointment_1 service via the Settings/Coupons UI, close the whole balance (two past appointments) from the CP payments list with the coupon, and verify the success page shows "Amount received $228.00" (appt_1 $108 + appt_2 $120).
+  - id: service_fixed
+    name: Apply service fixed-amount coupon in CP checkout
+    status: active
+    priority: high
+    description: Create a $20 coupon on the appointment_1 service via API, close the whole balance (two past appointments) from the CP payments list with the coupon, and verify the success page shows "Amount received $216.00" (appt_1 $96 + appt_2 $120).
+
+status: active
+priority: high
+tags:
+  - payments
+  - coupons
+  - checkout
+  - client-portal
+  - migration
+owner: QA Team
+created_at: 2026-06-06
