@@ -26,6 +26,9 @@ pytest-playwright==0.4.4
 # HTTP client (for API-based account creation)
 requests==2.32.3
 
+# Google service-account auth (migration coverage tracker -> Google Sheets)
+google-auth==2.35.0
+
 # Async support
 asyncio-throttle==1.0.2
 
