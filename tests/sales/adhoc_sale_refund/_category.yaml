@@ -1,0 +1,33 @@
+# Ad-hoc Sale + Refund Subcategory
+# Migrated from automation-js/features/salsa/sales.feature (VCITA2-13849)
+# Isolated account (fresh per run) so the order/payment are deterministically
+# numbered Sale #1 - meeting / Payment for Sale #1 - meeting, matching the legacy
+# fresh-account assumption.
+
+name: Ad-hoc Sale Refund
+description: Client pays an ad-hoc meeting payment ($20) through the client-portal payment form via the mock gateway; verify the paid sale in Orders, Payments Received, and the Sale page, then full-refund the payment and verify the sale becomes CANCELLED.
+
+account_profile:
+  type: isolated
+  slug: adhoc_sale_refund
+  cleanup: always
+
+execution_order:
+  - create_and_refund
+
+tests:
+  - id: create_and_refund
+    name: Create ad-hoc sale and refund
+    status: active
+    priority: high
+    description: Pay a $20 meeting payment via the client-portal form and mock gateway, verify the success page, Orders (PAID), Payments Received search, and the Sale page (PAID, $20.00, first last), then full-refund and verify Orders (CANCELLED) and the sale state CANCELLED.
+
+status: active
+priority: high
+tags:
+  - sales
+  - payments
+  - refunds
+  - migration
+owner: QA Team
+created_at: 2026-06-06
