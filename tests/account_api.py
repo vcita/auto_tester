@@ -189,8 +189,19 @@ def first_staff_uid(context: dict) -> str:
 
 
 def create_service_via_api(
-    context: dict, service_name: str, staff_uids: list[str] | None = None
+    context: dict,
+    service_name: str,
+    staff_uids: list[str] | None = None,
+    *,
+    charge_type: str = "free",
+    price: str | None = None,
 ) -> dict:
+    """Create an appointment service via API.
+
+    `charge_type`/`price` default to the original free-service behavior so existing
+    callers are unchanged. Pass `charge_type="paid_non_secured"` + `price` to mirror
+    the legacy "display a fee" paid service (see automation-js api/service.js).
+    """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
         "category": {"uid": last_category_uid(context)},
@@ -201,10 +212,12 @@ def create_service_via_api(
         "duration": 60,
         "interaction_type": "business_location",
         "meeting_interaction_details": "TLV",
-        "charge_type": "free",
+        "charge_type": charge_type,
         "display": "true",
         "max_attendance": 2,
     }
+    if price is not None:
+        payload["price"] = price
     response = account_request(context, "POST", "/v2/settings/services", json=payload)
     service = response.get("data") or response
     service_id = service.get("id") or service.get("uid")
