@@ -2,6 +2,7 @@ name: Sales
 description: Tests for estimates (create, tax modes, sections)
 execution_order:
 - estimates
+- orders_filter
 tests: []
 status: active
 priority: high
