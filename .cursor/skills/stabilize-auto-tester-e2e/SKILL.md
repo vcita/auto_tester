@@ -106,6 +106,16 @@ Treat lower per-test waits and total runtime as a goal on every change, but neve
 - Preserve every assertion, setup path, edge case, and in-scope UI action per the `Scope And Quality Guardrail`; do not weaken selectors or bypass the tested UI path for speed.
 - If a speedup would cost scope or quality, do not apply it; surface the trade-off in the final report.
 
+## Pre-PR Wait Audit (Mandatory)
+
+Immediately before creating the PR, re-scan every edited `test.py` and helper one more time for wasted time, and fix or explicitly justify each finding:
+
+- **Timeouts past the 5s cap**: flag any `timeout=`/wait above 5 seconds (`page.goto`, `wait_for`, `expect`, locator waits, and polling deadlines). Lower it to ≤5s per the `Timing Strategy`, or document in `changelog.md` why a longer bounded poll is genuinely required (asynchronous product indexing or eventual consistency only — never to mask a flaky selector/setup).
+- **More than 2 retries**: flag any retry/reload loop that runs more than 2 retries. Reduce it to ≤2, or justify the bounded count against a real async readiness signal.
+- **Avoidable duration**: remove leftover fixed sleeps, redundant navigation/reloads, repeated logins, and UI setup that can be API setup for out-of-scope prerequisites.
+
+If this audit changes any wait, timeout, or retry logic, rerun the relevant `stress_test` and re-stamp stability from that final run before opening the PR (consistent with the `Timing Strategy` rule on re-running stress after timeout/retry changes). Never trade scope or quality for speed; surface the trade-off instead.
+
 ## Infrastructure Flakes
 
 - Treat account-creation HTTP 5xx responses as transient infrastructure; retry once, then fail normally if the retry also fails.

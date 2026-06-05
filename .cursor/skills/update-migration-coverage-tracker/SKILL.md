@@ -24,24 +24,19 @@ Do not mark a row `Migrated` from partial implementation, failed focused runs, u
 
 ## Tracker Location
 
-- Confluence page: `automation-js to auto_tester Migration Coverage Tracker`
-- Page ID: `4690444289`
-- Cloud ID: `myvcita.atlassian.net`
-- Parent page: `auto_tester Project Guide`
+The tracker has two synced artifacts:
 
-Use the Confluence MCP tools when available. Before calling an MCP tool, read its descriptor under the local MCP folder.
+- **Google Sheet** — holds only the full per-feature coverage table (scope, runtime comparison, stability, Jira, PR). One row per migrated scope.
+- **Confluence dashboard** — a rich page kept as-is: Summary metrics, the two colored progress bars, Scope Counting Rules, Update Instructions, and Status Definitions. The old big coverage table is replaced by a link to the Google Sheet.
+  - Page ID: `4690444289`
+  - Cloud ID: `myvcita.atlassian.net`
+  - Parent page: `auto_tester Project Guide`
 
-## Preserve Table Layout (Critical)
+Both are updated by one committed tool, `tools/migration_tracker` (see its `README.md` for one-time service-account + env setup). Do not hand-edit the sheet or the Confluence page — run the tool so the row, bars, and Summary metrics stay consistent.
 
-The Migration Coverage table is rendered with the Confluence **full-width** table layout. This layout lives in the ADF/HTML table element as `data-layout="full-width"` (ADF attr `"layout": "full-width"`). It is NOT expressible in markdown, so updating the page with `contentFormat: markdown` silently resets the table back to default width.
+## Why The Tool (Not Hand-Edited HTML)
 
-To keep the layout across updates:
-
-- Always fetch and publish with `contentFormat: html` (not markdown).
-- Keep the Migration Coverage table tag as `<table data-layout="full-width">`. The three narrow tables (Summary, Scope Counting Rules, Status Definitions) stay plain `<table>`.
-- After publishing, re-fetch in `adf` and confirm the Migration Coverage table still shows `"layout": "full-width"` (and that the narrow tables stay `"default"`).
-
-Note: per-column widths (the ADF `colwidth` cell attribute, set by dragging column borders in the editor) are stripped by the API HTML importer and cannot be set or preserved through these tools — only the `full-width` table layout can.
+The old single-page full-width table grew past the Confluence MCP argument-size limit and could no longer be published. Only that table moved to the Google Sheet; the rest of the page is preserved. The tool edits the page **in place** (refreshing the bars and the Summary metric rows, leaving every other section untouched) and publishes as **ADF** — the storage/HTML importer silently strips table-cell background colors and status lozenges, so ADF is the only format that keeps the colored bars.
 
 ## Required Data
 
@@ -74,22 +69,33 @@ Use a structured parser or a small script for counts. Do not update totals by me
 
 ## Update Workflow
 
-1. Fetch the current Confluence page with `contentFormat: html` (not markdown — markdown drops the full-width table layout; see "Preserve Table Layout").
-2. Add or update one row in the Migration Coverage table for the migrated scope.
-   - Prefer one row per legacy feature file when the full file is migrated.
-   - If only selected scenarios from a feature file are migrated, make that clear in `Scope covered` and update scenario progress only.
-   - If stabilizing an existing migrated scope, update the existing row instead of adding a duplicate row.
-   - Edit the HTML in place: keep `<table data-layout="full-width">` for the Migration Coverage table and insert/modify the row's `<tr>...</tr>` without touching other cells.
-3. Update Summary rows:
-   - `Migration progress by feature file`
-   - `Migration progress by scenario`
-   - `Migrated feature files`
-   - `Validated auto_tester scopes`
-   - latest migrated scope, Jira, and branch when this migration is the newest one.
-4. Preserve the `Scope Counting Rules`, `Update Instructions`, and `Status Definitions` sections.
-5. Remove stale `Backfill needed` entries only after replacing them with real run evidence.
-6. Publish the complete page body with `contentFormat: html`, not a partial section, keeping `data-layout="full-width"` on the Migration Coverage table.
-7. Fetch the page again in `adf` and verify both the updated rows AND that the Migration Coverage table still shows `"layout": "full-width"`.
+Run the committed tool from the repo root; it upserts the sheet row and re-publishes the Confluence dashboard in one call.
+
+1. Confirm setup once: `tools/migration_tracker/README.md` env vars are set (service-account key, sheet id, Confluence email + API token). If unset, stop and follow the README.
+2. Compute the current totals using the Counting Rules below (a small parser, never from memory): migrated feature files, total feature files, migrated scenarios, total scenarios.
+3. Upsert the row and refresh Confluence in one call (matched by `--feature`; updates if present, appends otherwise). Pass the Summary metrics you computed in step 2; any Summary row you omit is left unchanged:
+
+   ```bash
+   python -m tools.migration_tracker.update_tracker upsert \
+     --feature <legacy/feature/path.feature> \
+     --path <tests/auto_tester/path> \
+     --status Migrated --scope "<concise scope>" \
+     --original "<scenarios/steps, duration>" \
+     --migrated "<pass count, duration>" --improvement "<N.N% faster>" \
+     --stability "<focused/stress evidence>" \
+     --jira-key <VCITA2-XXXX> --jira-url <jira url> \
+     --pr-label "PR #<n>" --pr-url <pr url> \
+     --latest-branch "<branch> — PR #<n>" \
+     --refresh-confluence \
+     --ff-migrated <n> --ff-total 113 --sc-migrated <n> --sc-total 279 \
+     --tracked-ff <n> --tracked-sc <n> --validated-scopes <n>
+   ```
+
+   - Prefer one row per legacy feature file when the full file is migrated. For a partial migration, make the migrated scenario(s) clear in `--scope` and do not increment `--ff-migrated` until every scenario in that file is migrated.
+   - For a stabilization-only update, pass the same `--feature` to update the existing row in place (do not create a duplicate).
+   - `--ff-*`/`--sc-*` drive the bars and the two "candidate progress" Summary rows (the tool derives the "N left" counts). `--tracked-*`/`--validated-scopes` set the corresponding Summary rows; `--latest-*`/`--jira-key` set the "Latest" rows.
+4. To preview the edited page without publishing, use the `confluence` subcommand with `--emit <file>` (writes the ADF doc).
+5. Verify: open the printed sheet URL (row present/updated) and the Confluence page version, and confirm the bars/percentages and Summary rows match what you passed.
 
 ## Commands
 

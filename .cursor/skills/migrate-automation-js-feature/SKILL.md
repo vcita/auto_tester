@@ -76,6 +76,16 @@ On every migration and stabilization change, actively reduce per-test waits and 
 - Keep every legacy assertion, setup path, edge case, and in-scope UI action. Do not drop coverage, weaken selectors, or convert an in-scope UI action to an API shortcut just to go faster.
 - If a speedup would reduce scope or quality, do not make it; report the trade-off instead.
 
+## Pre-PR Wait Audit (Mandatory)
+
+Immediately before creating the PR, re-scan every edited `test.py` and helper one more time for wasted time, and fix or explicitly justify each finding:
+
+- **Timeouts past the 5s cap**: flag any `timeout=`/wait above 5 seconds (`page.goto`, `wait_for`, `expect`, locator waits, and polling deadlines). Lower it to ≤5s, or document in `changelog.md` why a longer bounded poll is genuinely required (asynchronous product indexing or eventual consistency only — never to mask a flaky selector/setup).
+- **More than 2 retries**: flag any retry/reload loop that runs more than 2 retries. Reduce it to ≤2, or justify the bounded count against a real async readiness signal.
+- **Avoidable duration**: remove leftover fixed sleeps, redundant navigation/reloads, repeated logins, and UI setup that can be API setup for out-of-scope prerequisites.
+
+If this audit changes any wait, timeout, or retry logic, rerun the relevant `stress_test` and re-stamp stability from that final run before opening the PR. Never trade scope or quality for speed; surface the trade-off instead.
+
 ## Definition Of Done
 
 The migration is complete only when all three checks pass:
@@ -87,6 +97,7 @@ The migration is complete only when all three checks pass:
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.
 - **Faster Without Loss**: total runtime was reduced where possible by removing avoidable waits and work, with no scope or quality reduction.
+- **Pre-PR Wait Audit Passed**: just before opening the PR, edited code was re-scanned for timeouts above the 5s cap and retry loops above 2 retries; each was lowered or explicitly justified, and stability was re-stamped if any wait/timeout/retry changed.
 
 ## Translation Rules
 
