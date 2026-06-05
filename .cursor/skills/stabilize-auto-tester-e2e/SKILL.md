@@ -27,7 +27,7 @@ description: Stabilize auto_tester E2E categories and subcategories by investiga
 8. Run lints for edited files.
 9. Rerun the same focused scope without `--headless` unless the user asks otherwise.
 10. Update health files only from real runner output.
-11. If the stabilized scope is migrated from automation-js, update the migration coverage tracker with the new status, runtime, and stability evidence.
+11. Close out without asking. When stabilization is validated, always commit + push the fix on its `VCITA2-XXXX` branch and open/update the PR, then — if the stabilized scope is migrated from automation-js — update the migration coverage tracker (via `update-migration-coverage-tracker`) with the new status, runtime, and stability evidence. These closeout steps carry standing approval; run them automatically and report links. Pause only for a genuine blocker (push rejected, PR conflict, missing tracker credentials).
 12. After any stress test completes, verify all status artifacts before reporting done:
    - Check `git diff` for every related `_category.yaml` and `_health.json`.
    - Confirm the parent category and every tested subcategory have the expected `stability` block.

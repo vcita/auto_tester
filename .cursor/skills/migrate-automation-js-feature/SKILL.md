@@ -61,7 +61,11 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
 
    - Summarize under the table whether scope was preserved against `migration_mapping.md`.
    - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
-9. After the migration satisfies the Definition Of Done, use the `update-migration-coverage-tracker` skill to update the Confluence coverage tracker with real run evidence and current progress totals.
+9. Run the mandatory closeout. Once the Definition Of Done checks pass, always perform the full closeout in order — never stop to ask whether to commit, push, open the PR, or update the tracker. These steps carry standing approval for the migration workflow; just do them and report links:
+   - **Commit + push**: stage only the explicit migration paths (source, `steps.md`, `script.md`, `test.py`, `changelog.md`, `_category.yaml`, resources). Never `git add -A`. Run-generated artifacts (`_runs/`, `migration_mapping.md`, `_health.json`) are git-ignored or excluded. Commit on a `VCITA2-XXXX_...` branch with message `VCITA2-XXXX migrate <feature> (auto_tester)`, then push with `-u`.
+   - **Open PR**: `gh pr create --base master` with a summary table (legacy→migrated scope), stability evidence, and the wait-audit result. Report the PR URL.
+   - **Update tracker**: use the `update-migration-coverage-tracker` skill to upsert the Google Sheet row and refresh the Confluence dashboard with real run evidence and current progress totals (feature/scenario bars, tracked/validated counts, latest scope/Jira/PR).
+   - The only time to pause is a genuine blocker (push rejected, PR conflict, missing tracker credentials) — fix it or report the specific blocker, do not ask for permission to run the closeout itself.
 10. After stabilization changes, re-check `steps.md`, `script.md`, and `test.py` together:
    - Make sure the phase docs do not claim assertions that were removed from executable code.
    - If an assertion is intentionally removed as redundant or out of scope, document why behavior coverage is still preserved.
@@ -95,9 +99,9 @@ The migration is complete only when all three checks pass:
 - **Pre-Stress Legacy Gate Passed**: after 3 successful migrated runs and before any stress test, scope and quality were re-verified against the legacy test and confirmed to be at least equivalent.
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
-- **Coverage Tracker Updated**: the Confluence coverage tracker reflects the migrated scope, measured results, stability evidence, and updated remaining counts.
 - **Faster Without Loss**: total runtime was reduced where possible by removing avoidable waits and work, with no scope or quality reduction.
 - **Pre-PR Wait Audit Passed**: just before opening the PR, edited code was re-scanned for timeouts above the 5s cap and retry loops above 2 retries; each was lowered or explicitly justified, and stability was re-stamped if any wait/timeout/retry changed.
+- **Closeout Completed (always, no approval needed)**: the migration is committed on its `VCITA2-XXXX` branch, pushed, and opened as a PR to `master`, **and** the coverage tracker (Google Sheet row + Confluence dashboard) is updated with measured results, stability evidence, and refreshed remaining counts. These run automatically as part of every migration — never gate them on asking the user.
 
 ## Translation Rules
 
