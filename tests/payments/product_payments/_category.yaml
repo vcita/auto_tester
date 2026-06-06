@@ -1,0 +1,28 @@
+# Product Payments (grouping subcategory)
+# Migrated from automation-js/features/salsa/products.feature (VCITA2-13858)
+# Each legacy scenario runs on a fresh automatic account, and the point_of_sale
+# feature flag conflicts across scenarios (some deny it, the POS scenario needs
+# it), so every scenario is its own isolated child subcategory with its own
+# account + Background (client + payable product).
+
+name: Product Payments
+description: Product payment-request flows migrated from products.feature - create & search product, payment request created (tax exclude/include), paying (partial + full), POS record-payment, invoiced product, edit & cancel request, and cancel & refund a paid product. Each scenario uses its own isolated account.
+
+execution_order:
+  - create_and_search
+  - request_created_exclude
+  - request_created_include
+  - pay_for_product
+  - pay_via_pos
+  - invoiced_product
+  - edit_cancel_request
+  - cancel_refund
+
+status: active
+priority: high
+tags:
+  - payments
+  - products
+  - migration
+owner: QA Team
+created_at: 2026-06-06
