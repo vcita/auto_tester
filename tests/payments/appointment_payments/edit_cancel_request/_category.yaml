@@ -1,0 +1,27 @@
+# Edit and cancel appointment's payment request (isolated account)
+# Migrated from appointment-payments.feature scenario 2
+# "edit and cancel appointment's payment request" (VCITA2-13857).
+
+name: Edit And Cancel Request
+description: On a fresh account with a "display a fee" $100 service and an API-scheduled appointment for "first last", edit the payment request amount to $50 (NOT YET DUE $50.00), then cancel the payment request (CANCELLED $50.00).
+
+account_profile:
+  type: isolated
+  slug: apptpay_edit
+  cleanup: always
+
+tests:
+  - id: edit_cancel
+    name: Edit then cancel appointment payment request
+    status: active
+    priority: high
+    description: Edit the appointment payment request amount to $50 and assert NOT YET DUE $50.00; cancel the payment request and assert CANCELLED $50.00.
+
+status: active
+priority: high
+tags:
+  - payments
+  - appointments
+  - migration
+owner: QA Team
+created_at: 2026-06-06
