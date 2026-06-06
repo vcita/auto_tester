@@ -35,6 +35,13 @@ CP_DASHBOARD_READY = ".quick-actions, .matter-picker"
 CHAT_BUTTON = '[data-qa="headerChatBtn"]'
 REVIEW_BUBBLE = ".review-bubble"
 
+# Auto-publish (reviews.feature scenarios 2 & 3). The CP shows it only when the
+# directory has an external review site AND the business enabled auto-publish.
+# `review-settings-loaded` is a display:none marker emitted once settings are fetched,
+# so it must be matched by presence (not visibility).
+AUTO_PUBLISH_CONTAINER = ".auto-publish-container"
+REVIEW_SETTINGS_LOADED = '[data-qa="review-settings-loaded"]'
+
 DEFAULT_SUCCESS_TEXT = "Thanks for your review!"
 
 
@@ -141,6 +148,58 @@ def _open_conversation(page: Page, context: dict) -> None:
     if chat is None:
         raise AssertionError("Conversation (chat) button did not appear in the client portal")
     chat.click(timeout=FAST_UI_TIMEOUT)
+
+
+def assert_cp_auto_publish_visibility(page: Page, context: dict, should_display: bool) -> None:
+    """Open the CP review page as the client and assert the auto-publish checkbox visibility.
+
+    Waits for the review page and the `review-settings-loaded` marker (so the
+    auto-publish decision has been computed) before checking `.auto-publish-container`.
+    """
+    client = context["review_client"]
+    pivot_uid = context["auto_account"]["pivot_uid"]
+    url = (
+        f"{vitrage_base(context)}/site/{pivot_uid}/activity/review"
+        f"?client_jwt={client['token']}"
+    )
+    page.goto(url, wait_until="domcontentloaded")
+
+    if _wait_cp_frame(page, REVIEW_READY, timeout=CP_LOAD_TIMEOUT) is None:
+        raise AssertionError("Client-portal review page (cp_iframe) did not become ready")
+    if not _wait_presence(page, REVIEW_SETTINGS_LOADED, timeout=CP_LOAD_TIMEOUT):
+        raise AssertionError("CP review settings did not finish loading (review-settings-loaded absent)")
+
+    if should_display:
+        if _wait_in_frame(page, REVIEW_READY, AUTO_PUBLISH_CONTAINER) is None:
+            raise AssertionError("Expected the CP auto-publish checkbox to be displayed, but it was not")
+    else:
+        if _count_in_frames(page, AUTO_PUBLISH_CONTAINER) != 0:
+            raise AssertionError("Expected the CP auto-publish checkbox to NOT be displayed, but it was")
+
+
+def _wait_presence(page: Page, selector: str, timeout: int = CP_LOAD_TIMEOUT) -> bool:
+    """Wait until `selector` exists in any frame (presence only; ignores visibility)."""
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        if _count_in_frames(page, selector) > 0:
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def _count_in_frames(page: Page, selector: str) -> int:
+    frame = page.frame(name="cp_iframe")
+    candidates = [frame, *page.frames] if frame is not None else list(page.frames)
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            count = candidate.locator(selector).count()
+            if count > 0:
+                return count
+        except Exception:
+            continue
+    return 0
 
 
 def _frame_with(page: Page, selector: str):
