@@ -1,0 +1,29 @@
+name: Pay For Event Via POS
+description: On a fresh account (point_of_sale enabled) with a "require to pay" $10
+  event and one registered client, record the payment through Point of Sale, then
+  verify the resulting Sale
+account_profile:
+  type: isolated
+  slug: evtpay_pos
+  cleanup: always
+tests:
+- id: pay_pos
+  name: Pay for event via Point of Sale
+  status: active
+  priority: high
+  description: Record the event payment request through POS; assert Orders shows PAID
+    "Sale
+status: active
+priority: high
+tags:
+- payments
+- events
+- pos
+- migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: unstable
+  last_stress_test: '2026-06-06'
+  pass_rate: 0.0%
+  iterations: 3
