@@ -1,7 +1,8 @@
 name: Dashboard
-description: Tests for the new-dashboard widgets (quick actions, etc.)
+description: Tests for the new-dashboard widgets (quick actions, app widgets manager, etc.)
 execution_order:
   - quick_actions_widget
+  - app_widgets_manager
 tests: []
 status: active
 priority: high

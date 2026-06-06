@@ -1,0 +1,29 @@
+name: App Widgets Manager
+description: New-dashboard widget set — the default widget count and the sales-widget
+  filter driven by the payments_module feature flag.
+tests:
+- id: widget_count
+  name: New Dashboard Widget Count
+  status: active
+  priority: high
+  description: With new_dashboard enabled, the dashboard shows the 6 default widgets.
+- id: widget_filter
+  name: Sales Widget Feature-Flag Filter
+  status: active
+  priority: high
+  description: Denying payments_module hides the sales widget (5 widgets); re-enabling
+    it and reloading shows the sales widget again.
+status: active
+priority: high
+tags:
+- dashboard
+- tempo
+- widgets
+- migration
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
