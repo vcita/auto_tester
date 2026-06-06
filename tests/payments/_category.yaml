@@ -5,6 +5,7 @@ execution_order:
 - settings
 - taxes_settings
 - coupons
+- coupons_checkout
 - invoices
 - record_payments
 - refunds_credits
