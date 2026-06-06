@@ -4,8 +4,9 @@ Centralizes the admin feature-flag management and the per-account token/base-url
 accessors that were previously duplicated across subcategory account helpers.
 """
 
+import calendar
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import requests
 
@@ -199,8 +200,9 @@ def create_service_via_api(
     """Create an appointment service via API.
 
     `charge_type`/`price` default to the original free-service behavior so existing
-    callers are unchanged. Pass `charge_type="paid_non_secured"` + `price` to mirror
-    the legacy "display a fee" paid service (see automation-js api/service.js).
+    callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
+    legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
+    legacy "display a fee" service (see automation-js api/service.js).
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
@@ -245,6 +247,107 @@ def create_appointment_via_api(
     response = account_request(context, "POST", "/business/scheduling/v1/bookings", json=payload)
     data = response.get("data") or response
     return data.get("booking") or data
+
+
+def create_package_via_api(
+    context: dict,
+    name: str,
+    services: list[dict],
+    total_bookings: int,
+    price: str | int,
+    *,
+    description: str = "",
+    expiration: str = "3",
+    expiration_unit: str = "m",
+    products: list[dict] | None = None,
+) -> dict:
+    """Create a payment package via API (mirrors automation-js api/packages.create_package).
+
+    `services` is a list of service dicts (each needs id/name/price/currency); they are
+    bundled into a single package item with `total_bookings` credits, matching the legacy
+    "specific"/"any" package types. POST /platform/v1/payment/packages.
+    """
+    items = [
+        {
+            "services": [
+                {
+                    "name": svc["name"],
+                    "price": svc["price"],
+                    "currency": svc.get("currency", "USD"),
+                    "id": svc["id"],
+                }
+                for svc in services
+            ],
+            "total_bookings": total_bookings,
+        }
+    ]
+    payload = {
+        "items": items,
+        "products": products or [],
+        "discount_unit": "p",
+        "online_payment_enabled": True,
+        "expiration": expiration,
+        "expiration_unit": expiration_unit,
+        "name": name,
+        "description": description,
+        "price": price,
+        "id": None,
+        "currency": "USD",
+        "use_platform_api": True,
+    }
+    response = account_request(context, "POST", "/platform/v1/payment/packages", json=payload)
+    data = response.get("data") or response
+    package = data.get("package") or data
+    package_id = package.get("id") or package.get("uid")
+    if not package_id:
+        raise ValueError(f"Package API response did not include an id: {response}")
+    return {
+        "id": package_id,
+        "name": package.get("name") or name,
+        "price": package.get("price", price),
+    }
+
+
+def _package_validity_window() -> tuple[str, str]:
+    """Return (valid_from, valid_until) as YYYY-MM-DD, mirroring legacy api/packages.
+
+    valid_from = yesterday; valid_until = +3 months then -1 day (legacy JS date math)."""
+    today = datetime.now(timezone.utc).date()
+    valid_from = (today - timedelta(days=1)).isoformat()
+    month_index = today.month - 1 + 3
+    year = today.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(today.day, calendar.monthrange(year, month)[1])
+    valid_until = (date(year, month, day) - timedelta(days=1)).isoformat()
+    return valid_from, valid_until
+
+
+def assign_package_to_client(
+    context: dict,
+    client_id: str,
+    package_id: str,
+    price: str | int,
+    *,
+    tax_uids: list[str] | None = None,
+) -> dict:
+    """Assign a package to a client via API (mirrors automation-js api/packages.assign_package).
+
+    POST /platform/v1/payment/client_packages with the legacy validity window."""
+    valid_from, valid_until = _package_validity_window()
+    payload = {
+        "client_id": client_id,
+        "package_id": package_id,
+        "price": price,
+        "valid_from": valid_from,
+        "valid_until": valid_until,
+        "tax_uids": tax_uids,
+        "use_platform_api": True,
+    }
+    response = account_request(
+        context, "POST", "/platform/v1/payment/client_packages", json=payload
+    )
+    data = response.get("data") or response
+    return data.get("client_package") or data
 
 
 def create_platform_staff_via_api(context: dict, name: str, email: str, role: str = "user") -> dict:

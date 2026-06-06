@@ -3,6 +3,7 @@ description: Tests for estimates (create, tax modes, sections) and an ad-hoc sal
 execution_order:
 - estimates
 - adhoc_sale_refund
+- orders_filter
 tests: []
 status: active
 priority: high

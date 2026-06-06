@@ -1,0 +1,39 @@
+# Orders Filter Subcategory
+# Migrated from automation-js/features/steps/orders.feature (VCITA2-13852)
+# Isolated account (fresh per run) so the Orders list contains exactly the
+# API-created booking + package and the type-filter result lists are
+# deterministic (and order-sensitive, matching the legacy should.eql).
+
+name: Orders Filter
+description: Filter the back-office Orders (Billing & Invoicing) list by payable type. Create a paid booking and a purchased package via API, then assert the Orders type filter returns exactly the booking under "bookings", the package under "packages", both (package first) under bookings+packages, and an empty list under "invoices".
+
+account_profile:
+  type: isolated
+  slug: orders_filter
+  cleanup: always
+
+execution_order:
+  - filter_orders
+
+tests:
+  - id: filter_orders
+    name: Filter orders by payable type
+    status: active
+    priority: high
+    description: With a paid booking (service, $100) and a purchased package (test_package, $150) created via API, assert the Orders type filter returns ['service'] for bookings, ['test_package - Package purchased'] for packages, ['test_package - Package purchased', 'service'] for bookings+packages (order matters), and [] for invoices.
+
+status: active
+priority: high
+tags:
+  - sales
+  - orders
+  - billing
+  - packages
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-06'
+  pass_rate: 100.0%
+  iterations: 10
