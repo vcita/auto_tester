@@ -1,0 +1,28 @@
+# Paying for custom-fee service appointment (isolated account)
+# Migrated from appointment-payments.feature scenario 7
+# "paying for custom fee service appointment" (VCITA2-13857).
+
+name: Custom Fee Service Appointment
+description: On a fresh account with a "display for a fee" (price varies) service and an API-scheduled appointment for "first last", record a Point-of-Sale payment of $90 with a 13% tax and a 10% discount, then assert Payments Received shows the sale payment.
+
+account_profile:
+  type: isolated
+  slug: apptpay_fee
+  cleanup: always
+
+tests:
+  - id: custom_fee_service
+    name: Pay for a custom-fee service appointment via POS
+    status: active
+    priority: high
+    description: Take payment via POS for a price-varies appointment, set the price $90, apply a 13% tax and a 10% discount, record the sale, and verify "Payment for Sale #1 - service" appears in Payments Received.
+
+status: active
+priority: high
+tags:
+  - payments
+  - appointments
+  - pos
+  - migration
+owner: QA Team
+created_at: 2026-06-06
