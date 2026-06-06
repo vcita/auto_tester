@@ -17,6 +17,7 @@ execution_order:
   - custom_status
   - crm_filters
   - crm_bulk_actions
+  - crm_selection_logic
   - delete_matter
 
 # Test metadata (order also in execution_order above)

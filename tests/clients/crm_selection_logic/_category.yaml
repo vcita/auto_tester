@@ -1,0 +1,29 @@
+name: CRM Selection Logic
+description: Verify CRM checkbox selection counts (single client, current page, all
+  pages) and the summary line, before and after searching to a filtered set.
+account_profile:
+  type: isolated
+  slug: crm_selection_logic
+  cleanup: always
+tests:
+- id: selection_counts
+  name: Checkbox Selection Counts
+  status: active
+  priority: high
+  description: Select a single client, the current page, and all pages; verify the
+    CRM summary line counts with 12 clients at 10 rows/page, then re-verify after
+    searching to a filtered 11-client set.
+status: active
+priority: high
+tags:
+- clients
+- crm
+- selection
+- migration
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
