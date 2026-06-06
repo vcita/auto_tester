@@ -3,6 +3,7 @@ description: Reviews settings and client-portal review flows. Migrated from auto
   features/tempo/reviews.feature.
 execution_order:
 - invite_to_review
+- auto_publish_settings
 tests: []
 status: active
 priority: high
