@@ -1,0 +1,13 @@
+name: Settings
+description: Business settings pages (business info, etc.)
+execution_order:
+  - business_info
+tests: []
+status: active
+priority: high
+tags:
+  - settings
+  - tempo
+  - migration
+owner: QA Team
+created_at: 2026-06-07

@@ -159,6 +159,31 @@ def pivot_uid(context: dict) -> str:
     return value
 
 
+def get_business(context: dict) -> dict:
+    """Return the account's business object (name, email, country, ...)."""
+    response = account_request(
+        context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}"
+    )
+    data = response.get("data") or response
+    return data.get("business") or data
+
+
+def update_business_country(context: dict, country_name: str) -> dict:
+    """Set the business country (e.g. 'Israel') via the admin API (mirrors legacy
+    update_country, which the platform endpoint requires admin auth for)."""
+    payload = {"business": {"business": {"country_name": country_name}}}
+    response = requests.post(
+        f"{resolve_api_base_url(context)}/platform/v1/businesses/{pivot_uid(context)}",
+        json=payload,
+        headers=admin_headers(),
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    body = response.json() if response.text else {}
+    data = body.get("data") or body
+    return data.get("business") or data
+
+
 def last_category_uid(context: dict) -> str:
     response = account_request(
         context, "GET", f"/platform/v1/categories?business_id={pivot_uid(context)}"
