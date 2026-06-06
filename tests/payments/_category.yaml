@@ -13,6 +13,7 @@ execution_order:
 - card_on_file
 - scheduled_payments
 - deposits
+- qr_code_payment
 tests: []
 status: active
 priority: high
