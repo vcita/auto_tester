@@ -5,6 +5,7 @@ execution_order:
 - settings
 - taxes_settings
 - coupons
+- coupons_checkout
 - invoices
 - record_payments
 - refunds_credits
@@ -13,6 +14,7 @@ execution_order:
 - card_on_file
 - scheduled_payments
 - deposits
+- qr_code_payment
 tests: []
 status: active
 priority: high
