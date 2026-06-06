@@ -1,13 +1,16 @@
 name: Sales
-description: Tests for estimates (create, tax modes, sections)
+description: Tests for estimates (create, tax modes, sections) and an ad-hoc sale + refund flow
 execution_order:
 - estimates
+- adhoc_sale_refund
 tests: []
 status: active
 priority: high
 tags:
 - sales
 - estimates
+- payments
+- refunds
 - migration
 owner: QA Team
 created_at: 2026-06-03
