@@ -19,12 +19,28 @@ Run one `frame.evaluate(...)` that does `querySelectorAll(selector)` and returns
 `{total, hidden}`, where an element is *hidden* when it has no client rects, or
 `visibility:hidden`, or `display:none` (matches Selenium `isDisplayed`). The
 identifier mirrors legacy: nearest `[data-qa]` ancestor, else parent `data-qa`,
-else `className`.
+else `className`, else tag name. Per-page hover/conditional icons are dropped via
+the legacy `excludeIconForPageUtil` list (dashboard `edit-button`, inbox
+`side_pane_true/false`, calendar `service-item-menu-activator`).
 
-## Stability
-- After `goto`, wait for `domcontentloaded` and (for Angular/Vue pages) for the
-  Angular iframe to attach.
-- Poll each layer up to a timeout: pass as soon as `hidden` is empty; this absorbs
-  lazy icon-font rendering. A layer with zero matching icons passes (matches the
-  legacy assertion, which only fails on present-but-hidden icons).
-- Only fixed waits replaced by condition polling; no scope/assertion removed.
+## Layer pass condition (per layer)
+Poll the layer and pass once `total > 0`, the `total` is **stable across two
+consecutive polls**, and `hidden` is empty. The count-stability gate prevents
+asserting mid-render while icons are still appearing. If the count never settles
+but `hidden` is empty by the deadline, it still passes.
+
+## Intentional deviation from legacy
+Every layer in `pageIframeLayers` is expected to render icons, so `total == 0`
+after the poll window is treated as a **failure** ("page/layer failed to load"),
+not a pass. Legacy `allHiddenIcons.should.be.empty` passes vacuously when no
+icons are found; the migration tightens this to avoid a false positive when a
+page or iframe layer never loads. No assertion or scope was dropped.
+
+## Wait policy (bounded exceptions to the 5s element cap)
+All are justified by the 3-level POV → Angular → Vue iframe boot plus lazy
+icon-font rendering; none are fixed sleeps gating assertions:
+- `goto` `domcontentloaded`: 30s (`NAV_TIMEOUT`) — cross-iframe page load.
+- Angular iframe attach: 20s (`FRAME_TIMEOUT`).
+- Per-layer poll window: 30s (`LAYER_POLL_SECONDS`) at a 0.5s interval, to absorb
+  lazy icon rendering.
+- One 1s post-nav settle (`SETTLE_MS`) before scanning, then condition polling.
