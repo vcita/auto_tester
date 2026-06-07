@@ -11,6 +11,9 @@ import time
 from playwright.sync_api import Page, expect
 
 UI_TIMEOUT = 5_000
+# page.goto budget for the top-level POV dashboard; domcontentloaded fires fast and the
+# widget readiness is gated separately by the WIDGET wait below.
+PAGE_TIMEOUT = 5_000
 
 WIDGET = ".quick-actions-widget"
 ACTION_ITEM = ".quick-action-item"
@@ -29,7 +32,7 @@ def _angular_frame(page: Page):
 
 def open_dashboard(page: Page) -> None:
     app_base = page.url.split("/app/")[0]
-    page.goto(f"{app_base}/app/dashboard", wait_until="domcontentloaded", timeout=15_000)
+    page.goto(f"{app_base}/app/dashboard", wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
     page.locator(WIDGET).first.wait_for(state="visible", timeout=UI_TIMEOUT)
 
 
@@ -143,15 +146,18 @@ def reorder_actions(page: Page, source: str, target: str) -> None:
     tgt_x = tgt["x"] + tgt["width"] / 2
     drop_y = tgt["y"] + 4  # just inside the target's top -> insert before it
 
+    # SortableJS only arms/animates a drag when pointer moves are separated by short
+    # gaps; these <=150ms pauses are drag-mechanics timing (each gates the next move so
+    # the library registers grab -> start -> travel -> insert), not arbitrary settles.
     page.mouse.move(src_x, src_y)
     page.mouse.down()
-    page.wait_for_timeout(150)
+    page.wait_for_timeout(150)  # let SortableJS register the grab before moving
     page.mouse.move(src_x, src_y - 12, steps=5)  # nudge to start the drag
-    page.wait_for_timeout(120)
+    page.wait_for_timeout(120)  # allow the drag-start threshold to fire
     page.mouse.move(tgt_x, drop_y, steps=20)  # travel to the target
-    page.wait_for_timeout(120)
+    page.wait_for_timeout(120)  # let the reorder animation place the ghost
     page.mouse.move(tgt_x, drop_y - 2, steps=4)  # settle past the insert line
-    page.wait_for_timeout(120)
+    page.wait_for_timeout(120)  # hold on the insert line before dropping
     page.mouse.up()
     save_actions(page)
 
@@ -179,6 +185,8 @@ def save_all_actions_expecting_error(page: Page, checked: bool) -> None:
     _toggle_all(page, checked)
     page.locator(SAVE_BUTTON).first.click()
     expect(page.locator(EDIT_MODAL).first).to_be_visible(timeout=UI_TIMEOUT)
-    expect(page.locator(ERROR_ALERT).first).to_be_visible(timeout=UI_TIMEOUT)
+    # The modal renders a hidden template copy of the alert alongside the live one, so
+    # target the *visible* alert (plain `.first` can latch onto the hidden duplicate).
+    expect(page.locator(f"{ERROR_ALERT}:visible").first).to_be_visible(timeout=UI_TIMEOUT)
     page.locator(CANCEL_BUTTON).first.click()
     page.locator(EDIT_MODAL).first.wait_for(state="hidden", timeout=UI_TIMEOUT)

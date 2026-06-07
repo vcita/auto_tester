@@ -13,4 +13,9 @@
   6 `.quick-action-item`, 1 `.quick-actions-widget`, 1 `[data-qa='edit-button']`.
 - The new-client modal is Angular, so it lives in the angular iframe — switch via
   `frame_locator('iframe[title="angularjs"]')`.
-- No fixed sleeps: visibility/`expect` waits only.
+
+## Wait policy
+- `open_dashboard` goto is bounded at 5s (`PAGE_TIMEOUT`); `domcontentloaded` fires
+  fast and widget readiness is gated by the `.quick-actions-widget` visibility wait.
+- All element waits are bounded at 5s. The only sleep is the 0.2s poll *interval* inside
+  `assert_actions`'s bounded <=5s lazy-render poll (poll cadence, not a blind sleep).
