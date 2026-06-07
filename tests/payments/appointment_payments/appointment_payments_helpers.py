@@ -11,6 +11,7 @@ helpers are imported from :mod:`event_payments_helpers` rather than duplicated.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timedelta
 
 from playwright.sync_api import Page, Frame
 
@@ -60,6 +61,16 @@ APPT_CANCEL_CONFIRM = 'button[ng-click="cancelAppointment()"]'
 
 # Confirmation dialog (mark completed)
 CONFIRM_ACTION_BTN = "button[data-qa='confirm-action'], button[ng-click='confirmAction()']"
+
+
+def _settle(page: Page) -> None:
+    """Best-effort wait for in-flight XHRs (e.g. record/cancel POST) to settle,
+    replacing fixed post-action sleeps. Bounded by UI_TIMEOUT; never a hard gate
+    (callers re-navigate and poll)."""
+    try:
+        page.wait_for_load_state("networkidle", timeout=UI_TIMEOUT)
+    except Exception:
+        pass
 
 
 def _store(context: dict) -> dict:
@@ -158,8 +169,30 @@ def _assert_package_details(frame: Frame, expected: dict) -> None:
         _wait_text(frame, f"{REDEEMED_CAPTION}", package_name,
                    "Redeemed-with-package caption")
     if expected.get("package_credit_refunded") == "true":
-        _wait_text(frame, "credit refund", package_name,
-                   "Package credit-refund detail")
+        _assert_credit_refund_caption(frame, package_name)
+
+
+def _assert_credit_refund_caption(frame: Frame, package_name: str) -> None:
+    """Assert the legacy credit-refund caption verbatim, including the issue date:
+    ``1 credit refund from {package} package was issued on {Mon DD}`` (date format
+    matches the legacy ``Intl.DateTimeFormat('en-US', {month:'short', day:'2-digit'})``).
+    Accepts today ±1 day so an account/runner timezone offset never flakes."""
+    phrase = f"1 credit refund from {package_name} package was issued on".lower()
+    dates = [(datetime.now() + timedelta(days=d)).strftime("%b %d").lower()
+             for d in (-1, 0, 1)]
+    deadline = time.monotonic() + UI_TIMEOUT / 1000
+    body = ""
+    while time.monotonic() < deadline:
+        try:
+            body = " ".join(frame.locator("body").first.inner_text(timeout=2000).split()).lower()
+        except Exception:
+            body = ""
+        if phrase in body and any(d in body for d in dates):
+            return
+        time.sleep(0.3)
+    raise AssertionError(
+        f"Package credit-refund caption mismatch: expected '{phrase}' + a recent date "
+        f"{dates}")
 
 
 def _wait_text(frame: Frame, needle: str, also: str, label: str) -> None:
@@ -228,8 +261,9 @@ def pay_for_appointment(page: Page, context: dict, amount: str,
     frame = open_appointment(page, context, identifier)
     _take_payment_record(frame, amount)
     # The take-payment dialog hides optimistically before the record POST returns;
-    # navigating away immediately aborts it, so let the save settle first.
-    page.wait_for_timeout(3000)
+    # navigating away immediately aborts it, so wait for the network to settle
+    # (the record XHR) instead of a fixed sleep.
+    _settle(page)
 
 
 def record_appt_payment_via_pos(page: Page, context: dict,
@@ -348,7 +382,7 @@ def cancel_appointment(page: Page, context: dict, identifier: str | None = None,
     if confirm is None:
         confirm = _find_control(page, "role=button[name=/Submit/i]", timeout=LOAD_TIMEOUT)
     confirm.click(timeout=FAST_UI_TIMEOUT)
-    page.wait_for_timeout(2000)
+    _settle(page)
 
 
 def mark_appt_completed(page: Page, context: dict, identifier: str | None = None) -> None:
@@ -367,7 +401,7 @@ def mark_appt_completed(page: Page, context: dict, identifier: str | None = None
         confirm.click()
     except Exception:
         pass
-    page.wait_for_timeout(1500)
+    _settle(page)
 
 
 def _open_appt_via_orders(page: Page, context: dict, service_name: str) -> Frame:
@@ -431,7 +465,7 @@ def cancel_package_redemption(page: Page, context: dict,
     approve = frame.locator(PS_APPROVE_REFUND_REDEMPTION).first
     approve.wait_for(state="visible", timeout=UI_TIMEOUT)
     approve.click()
-    page.wait_for_timeout(1500)
+    _settle(page)
 
 
 def redeem_appt_with_package(page: Page, context: dict,
@@ -450,25 +484,10 @@ def redeem_appt_with_package(page: Page, context: dict,
 
 def assert_payment_refunded(page: Page, context: dict, payment_title: str,
                             first_name: str) -> None:
-    """Open a payment from Payments Received and assert its title (refund check)."""
+    """Open the refunded payment from Payments Received and assert its detail header
+    (mirrors legacy 'payment was refunded' -> goToPayment + getPaymentNameText, which
+    clicks into the payment detail and reads the summary header)."""
     from tests.payments.event_payments.event_payments_helpers import (
-        PAYMENT_ROW, NAME_FILTER, _frame_with, ORDERS_RELOAD_RETRIES,
+        open_payment_detail_and_assert_title,
     )
-    last_error = None
-    for _ in range(ORDERS_RELOAD_RETRIES + 1):
-        page.goto(f"{app_base(context)}/app/payments/transactions",
-                  wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
-        frame = _frame_with(page, NAME_FILTER)
-        if frame is None:
-            last_error = "Payments Received search box not found"
-            continue
-        frame.locator(NAME_FILTER).first.fill(first_name, timeout=UI_TIMEOUT)
-        row = frame.locator(PAYMENT_ROW).filter(has_text=payment_title)
-        deadline = time.monotonic() + UI_TIMEOUT / 1000
-        while time.monotonic() < deadline:
-            if row.count() > 0 and row.first.is_visible():
-                return
-            page.wait_for_timeout(300)
-        last_error = f"payment '{payment_title}' not found"
-        page.wait_for_timeout(1000)
-    raise AssertionError(f"Refunded payment assertion failed: {last_error}")
+    open_payment_detail_and_assert_title(page, context, first_name, payment_title)
