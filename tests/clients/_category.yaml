@@ -16,6 +16,7 @@ execution_order:
   - collaborators
   - custom_status
   - crm_filters
+  - client_card
   - crm_bulk_actions
   - delete_matter
 
