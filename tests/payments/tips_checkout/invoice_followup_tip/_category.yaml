@@ -1,0 +1,10 @@
+name: Invoice Follow-up Tip
+account_profile:
+  type: isolated
+  slug: tips_inv
+  cleanup: always
+tests:
+  - id: charge_tip
+    name: BO follow-up tip on a paid invoice (charge)
+    status: active
+    priority: high

@@ -1,0 +1,25 @@
+# Tips at checkout (grouping subcategory)
+# Migrated from automation-js/features/salsa/tips.feature (VCITA2-13899)
+# Each legacy scenario runs on a fresh isolated account: the point_of_sale flag and
+# BO-vs-CP tip enablement differ across scenarios, so every scenario is its own
+# isolated child subcategory with its own account + Background.
+
+name: Tips At Checkout
+description: Tip-at-checkout flows migrated from tips.feature - back-office close-balance + custom record with tips, Point of Sale with tips, client-portal pay-link + close-balance with tips, client-portal follow-up tip on a meeting, and back-office follow-up tip on an invoice (charge) and an event payment (record). Each scenario uses its own isolated account.
+
+execution_order:
+  - bo_payment_tips
+  - pos_payment_tips
+  - cp_paylink_tips
+  - cp_followup_tip
+  - invoice_followup_tip
+  - event_followup_tip
+
+status: active
+priority: high
+tags:
+  - payments
+  - tips
+  - migration
+owner: QA Team
+created_at: 2026-06-07
