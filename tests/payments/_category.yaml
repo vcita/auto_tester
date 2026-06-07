@@ -10,6 +10,7 @@ execution_order:
 - record_payments
 - refunds_credits
 - tips_settings
+- tips_checkout
 - offset_fees
 - card_on_file
 - scheduled_payments

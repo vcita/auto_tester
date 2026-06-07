@@ -1,0 +1,10 @@
+name: CP Follow-up Tip
+account_profile:
+  type: isolated
+  slug: tips_cpfu
+  cleanup: always
+tests:
+  - id: add_tip_in_cp
+    name: CP follow-up tip on a paid meeting
+    status: active
+    priority: high

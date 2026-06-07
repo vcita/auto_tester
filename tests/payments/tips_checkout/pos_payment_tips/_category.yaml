@@ -1,0 +1,10 @@
+name: POS Payment With Tips
+account_profile:
+  type: isolated
+  slug: tips_pos
+  cleanup: always
+tests:
+  - id: take_via_pos
+    name: Sale from open requests and custom item via POS, both with tips
+    status: active
+    priority: high
