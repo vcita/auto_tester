@@ -15,6 +15,7 @@ execution_order:
 - scheduled_payments
 - deposits
 - qr_code_payment
+- event_payments
 tests: []
 status: active
 priority: high
