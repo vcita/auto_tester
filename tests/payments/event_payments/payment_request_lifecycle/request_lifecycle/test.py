@@ -32,9 +32,11 @@ def test_request_lifecycle(page: Page, context: dict) -> None:
 
     print("  Step 3: Cancel payment request -> CANCELLED $50.00")
     cancel_payment_request(page, context)
+    # Cancellation rollup to CANCELLED is slower to propagate than other states;
+    # widen the bounded eventual-consistency poll for this transition only.
     assert_event_payment_request(page, context, {
         "state": "CANCELLED", "amount": "$50.00",
         "client_full_name": client_name, "service_name": service_name,
-    })
+    }, timeout_s=20)
 
     print("  [OK] event payment request lifecycle verified")

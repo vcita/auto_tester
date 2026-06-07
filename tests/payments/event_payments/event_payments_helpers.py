@@ -129,13 +129,18 @@ def read_event_payment_request(frame: Frame) -> dict:
 
 
 def assert_event_payment_request(page: Page, context: dict, expected: dict,
-                                  client_name: str | None = None) -> None:
+                                  client_name: str | None = None,
+                                  timeout_s: float | None = None) -> None:
     """Open the attendee payment request and assert every expected field (strict).
 
     The booking payment-status is eventually consistent after recording a payment, so
     re-open the request within a bounded poll until it matches (re-render is required;
-    re-reading a static frame would not pick up the server-side rollup)."""
-    deadline = time.monotonic() + NAV_TIMEOUT / 1000
+    re-reading a static frame would not pick up the server-side rollup).
+
+    `timeout_s` overrides the default NAV_TIMEOUT poll window for transitions whose
+    server-side rollup is slower (e.g. cancel -> CANCELLED), as a documented
+    eventual-consistency exception to the element-wait cap."""
+    deadline = time.monotonic() + (timeout_s if timeout_s is not None else NAV_TIMEOUT / 1000)
     actual: dict = {}
     frame = open_attendee_payment_request(page, context, client_name)
     while time.monotonic() < deadline:

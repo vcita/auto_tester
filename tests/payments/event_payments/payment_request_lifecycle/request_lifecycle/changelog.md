@@ -16,3 +16,13 @@
   cache the order detail URL so post-waive reads navigate directly (waived requests
   drop out of the default Orders list).
 - Scenario 1 passing end-to-end (~36s).
+
+## 2026-06-07 — Stabilize cancel -> CANCELLED rollup (10/10 stress)
+- One in ten stress runs failed the Step 3 assertion with
+  `state: (CANCELLED, DUE)`: the cancellation rollup propagates slower than the
+  default `NAV_TIMEOUT` (10s) eventual-consistency poll.
+- Added an optional `timeout_s` override to `assert_event_payment_request` and
+  widened only the cancel transition to a documented 20s bounded poll (the
+  request is re-opened each iteration so the re-render picks up the server-side
+  state change). Other state assertions keep the default window.
+- Re-validated: `payment_request_lifecycle` stress 10/10 STABLE on integration.
