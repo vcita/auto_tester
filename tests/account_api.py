@@ -282,12 +282,13 @@ def future_appointment_start_time(lead_days: int = APPOINTMENT_LEAD_DAYS) -> str
 
 
 def create_appointment_via_api(
-    context: dict, service: dict, client: dict, staff_uid: str | None = None
+    context: dict, service: dict, client: dict, staff_uid: str | None = None,
+    start_time: str | None = None,
 ) -> dict:
     payload = {
         "business_id": pivot_uid(context),
         "staff_id": staff_uid or first_staff_uid(context),
-        "start_time": future_appointment_start_time(),
+        "start_time": start_time or future_appointment_start_time(),
         "service_id": service["id"],
         "client_id": client["id"],
     }

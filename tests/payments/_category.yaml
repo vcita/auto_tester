@@ -16,6 +16,8 @@ execution_order:
 - deposits
 - qr_code_payment
 - event_payments
+- appointment_payments
+- product_payments
 tests: []
 status: active
 priority: high
