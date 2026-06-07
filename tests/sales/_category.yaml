@@ -4,6 +4,7 @@ execution_order:
 - estimates
 - adhoc_sale_refund
 - orders_filter
+- sales_widget
 tests: []
 status: active
 priority: high
