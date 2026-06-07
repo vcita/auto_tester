@@ -1,0 +1,22 @@
+name: Gateway Setups
+description: Payment gateway + external-receipt setups migrated from automation-js
+  features/salsa/gateway_setups.feature. Three vcita-payments onboarding wizard
+  scenarios (funnel-v1 upgrade dialog, populated profession, must-fill profession +
+  MCC dialog) and two external-receipt scenarios (mockreceipts app receipt on a
+  back-office record payment and on a POS sale). Each scenario runs on its own
+  isolated account because the wizard scenarios require specific feature flags +
+  business_category at account creation, and the receipt scenarios mutate app state.
+execution_order:
+- external_receipt_bo
+- external_receipt_pos
+- funnel_upgrade
+- profession_populated
+- profession_required
+tests: []
+status: active
+priority: high
+tags:
+- payments
+- gateways
+owner: QA Team
+created_at: 2026-06-08
