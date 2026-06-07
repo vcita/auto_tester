@@ -31,6 +31,15 @@ Playwright/Python implementation notes for `test.py`.
 - Each rename is verified by the renamed field row becoming visible in the settings list.
 
 ## Timing
-- No fixed sleeps. UI waits are bounded (5s). The custom-field → filter-metadata
-  propagation uses a bounded reopen/reload loop (30s budget), the same backend-index
-  pattern used in crm_filters.
+- Element/interaction waits are bounded at 5s (`UI_TIMEOUT` / `CLIENTS_PAGE_TIMEOUT`
+  / `FILTER_OPTION_TIMEOUT`).
+- Two documented bounded exceptions above the 5s cap, both backend-eventual-
+  consistency rather than fixed sleeps:
+  - the rename success check waits up to 10s (`CLIENTS_PAGE_TIMEOUT + UI_TIMEOUT`)
+    for the renamed row to render;
+  - the custom-field → filter-metadata propagation uses a bounded 30s reopen/reload
+    poll (`FIELD_INDEX_TIMEOUT_SECONDS`), the same backend-index pattern as
+    crm_filters.
+- The inherited crm_filters assert/poll helpers use short poll *intervals*
+  (`time.sleep(0.3)` / `time.sleep(1)`) inside those bounded loops — poll cadence,
+  not blind pre-assertion sleeps.
