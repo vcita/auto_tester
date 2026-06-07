@@ -1,0 +1,32 @@
+name: Client Portal - deny payments view
+description: Deny clients from viewing their payments in the client portal and verify
+  the "Payments" action is no longer available in the portal. Migrated from payments_settings.feature
+  scenario "Client Portal - deny clients from viewing their payments in client portal".
+account_profile:
+  type: isolated
+  slug: paycpview
+  cleanup: always
+tests:
+- id: deny_payments_view
+  name: Deny client portal payments view and verify the action is hidden
+  status: active
+  priority: high
+  description: Verify the Payments action is available in the client portal by default,
+    deny clients from viewing payments via the payment settings API, then verify the
+    Payments action is no longer shown in the portal.
+  tags:
+  - payments
+  - settings
+  - client-portal
+status: active
+priority: high
+tags:
+- payments
+- settings
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10

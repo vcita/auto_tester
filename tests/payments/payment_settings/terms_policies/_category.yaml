@@ -1,0 +1,32 @@
+name: Terms and Policies
+description: Set custom text terms & policies and verify the text is displayed on
+  the payment settings page. Migrated from payments_settings.feature scenario "Terms
+  and Policies - set custom terms and policies text".
+account_profile:
+  type: isolated
+  slug: payterms
+  cleanup: always
+tests:
+- id: set_terms
+  name: Set custom terms and policies text and verify it displays
+  status: active
+  priority: high
+  description: With the mock payment gateway connected, set custom terms & policies
+    text via the payment settings API and verify the terms-and-policies settings tab
+    displays that text.
+  tags:
+  - payments
+  - settings
+  - terms
+status: active
+priority: high
+tags:
+- payments
+- settings
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10

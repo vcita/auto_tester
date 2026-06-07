@@ -19,6 +19,7 @@ execution_order:
 - event_payments
 - appointment_payments
 - product_payments
+- payment_settings
 tests: []
 status: active
 priority: high
