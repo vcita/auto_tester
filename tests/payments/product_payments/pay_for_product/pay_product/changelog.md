@@ -9,3 +9,15 @@
   Payments Received rows after each payment.
 - Reuses the entity-agnostic record-payment / orders / payments helpers from
   event_payments_helpers via product_payments_helpers.
+
+## 2026-06-07 - Exact order/payment counts + wait audit
+
+- `assert_order_listed` now applies the Billing & Invoicing **products** order-type
+  filter before asserting the row, mirroring legacy `search orders | filter |
+  products`. Payments Received counts are exact (1 then 2) via the shared
+  exact-count `search_payments`.
+- Wait audit (`product_payments_helpers.py`): replaced fixed post-action sleeps
+  (`wait_for_timeout(3000/2500/2000/1500)`) after record/cancel/edit/create/assign
+  with a bounded best-effort `networkidle` settle; reduced the add-product dialog
+  retry loop from 4 to 3 attempts (<=2 retries). Navigation budgets inherited from
+  the shared helper (documented 10s); element interactions stay at the 5s cap.
