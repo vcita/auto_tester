@@ -32,7 +32,7 @@ The tracker has two synced artifacts, both owned by `tools/migration_tracker`:
 
 | Artifact | Holds | Updated by the tool |
 |----------|-------|---------------------|
-| **Google Sheet** (source of truth) | The full per-feature coverage table — one row per migrated scope (scope, runtime comparison, stability, Jira, PR). | Row upserted, matched by feature file. |
+| **Google Sheet** (source of truth) | The full per-feature coverage table — one row per migrated scope (scope, runtime comparison, stability, Jira, PR). | Row upserted, matched by feature file. **The upsert rewrites the whole row from the args you pass — any column you omit is written blank.** |
 | **Confluence dashboard** (page `4690444289`, cloud `myvcita.atlassian.net`, parent "auto_tester Project Guide") | A rich page: Summary metrics, two colored progress bars, Scope Counting Rules, Update Instructions, Status Definitions. The old big coverage table is replaced by a link to the Sheet. | Bars + Summary metric rows refreshed **in place**; other sections untouched. |
 
 Why a tool and not hand-edited HTML:
@@ -57,7 +57,7 @@ Collect before running:
 - Stability evidence — only real focused or `stress_test` output.
 - Jira link and PR link, or `TBD` if unavailable.
 
-For a stabilization-only update, keep the existing original-run data and change only the migrated result, duration, status, stability evidence, Jira, or PR.
+> **Always pass the complete row data on every upsert — even for a one-field change** (e.g. adding the PR link later). The Sheet upsert rewrites the whole row from the args provided, so any field you omit (`--scope`, `--original`, `--migrated`, `--improvement`, `--stability`, …) is blanked. This is the opposite of the Confluence Summary rows, where an omitted metric is left unchanged. For a stabilization-only update, re-pass the existing original-run data alongside the changed migrated result, duration, status, stability evidence, Jira, or PR.
 
 ## Counting Rules
 
@@ -121,7 +121,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
    ```
 
    - For a partial migration, make the migrated scenario(s) clear in `--scope` and do not increment `--ff-migrated` until every scenario in the file is migrated.
-   - For a stabilization-only update, pass the same `--feature` to update the existing row (no duplicate).
+   - For a stabilization-only update, pass the same `--feature` to update the existing row (no duplicate). **Re-pass every column** (`--scope`, `--original`, `--migrated`, `--improvement`, `--stability`, …) — the upsert rewrites the whole row, so omitted columns are blanked, even when you only meant to add a PR link.
    - `--ff-*`/`--sc-*` drive the bars and the two "candidate progress" Summary rows (the tool derives the "N left" counts). `--tracked-*`/`--validated-scopes` set their Summary rows; `--latest-*`/`--jira-key` set the "Latest" rows.
 4. To preview without publishing, use the `confluence` subcommand with `--emit <file>` (writes the ADF doc).
 5. Verify: open the printed Sheet URL (row present/updated) and the Confluence page version, and confirm the bars/percentages and Summary rows match what you passed.
