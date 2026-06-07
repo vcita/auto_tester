@@ -1,0 +1,20 @@
+name: Layout
+description: Frontage layout checks across the POV / Angular / Vue iframe layers (e.g.
+  design-system icons render on the main pages).
+execution_order:
+- icons_visible
+tests: []
+status: active
+priority: high
+tags:
+- layout
+- frontage
+- spotlights
+- migration
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
