@@ -14,8 +14,8 @@ tests:
   status: active
   priority: high
   description: Send an invoice with a saved+taxed custom item and a non-saved custom
-    item ($66.95 ISSUED), send a second invoice reusing existing items, then copy an
-    invoice, asserting the orders list after each step
+    item ($66.95 ISSUED), send a second invoice reusing existing items, then copy
+    an invoice, asserting the orders list after each step
   tags:
   - payments
   - invoices
@@ -28,3 +28,8 @@ tags:
 - invoices
 owner: QA Team
 created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10

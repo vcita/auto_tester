@@ -1,7 +1,8 @@
 name: Invoice Tax Include Mode
-description: With the account tax mode set to "include", create and send an invoice with
-  taxed and untaxed custom items and verify the tax-inclusive total. Migrated from
-  automation-js features/steps/invoices.feature scenario "create invoice in mode include".
+description: With the account tax mode set to "include", create and send an invoice
+  with taxed and untaxed custom items and verify the tax-inclusive total. Migrated
+  from automation-js features/steps/invoices.feature scenario "create invoice in mode
+  include".
 account_profile:
   type: isolated
   slug: invtax
@@ -26,3 +27,8 @@ tags:
 - tax
 owner: QA Team
 created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
