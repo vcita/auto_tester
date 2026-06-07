@@ -8,8 +8,8 @@ from tests.clients.crm_selection_logic.crm_selection_helpers import (
     open_clients_list,
     search_clients,
     select_all_pages,
+    select_client_by_name,
     select_current_page,
-    select_first_client,
     set_rows_per_page,
     sort_by_client_name,
 )
@@ -36,7 +36,7 @@ def test_selection_counts(page: Page, context: dict) -> None:
     sort_by_client_name(page)
 
     print("  Step 3: Selecting single client, current page, all pages (full list)...")
-    select_first_client(page)
+    select_client_by_name(page, "first01 last01")
     assert_summary_text(page, "1 SELECTED OF 12 CLIENTS")
     select_current_page(page)
     assert_summary_text(page, "10 SELECTED OF 12 CLIENTS")
@@ -49,7 +49,7 @@ def test_selection_counts(page: Page, context: dict) -> None:
     # again, so select_client toggles a settled row (avoids the re-render race where
     # the stale "...SELECTED..." text is still present).
     assert_summary_text(page, "11 CLIENTS")
-    select_first_client(page)
+    select_client_by_name(page, "first01 last01")
     assert_summary_text(page, "1 SELECTED OF 11 CLIENTS")
     select_current_page(page)
     assert_summary_text(page, "10 SELECTED OF 11 CLIENTS")

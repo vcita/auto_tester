@@ -13,8 +13,10 @@ import re
 import time
 
 from playwright.sync_api import Page, expect
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tests.clients.crm_bulk_actions.crm_bulk_helpers import (  # noqa: F401  (re-exported for the test)
+    PROPAGATION_ATTEMPTS,
     UI_TIMEOUT,
     open_clients_list,
     search_clients,
@@ -32,15 +34,29 @@ CLIENT_ROW = '[data-qa="CrmTable-All"] tbody tr'
 ROW_CHECKBOX = ".v-input--selection-controls__input"
 
 
-def select_first_client(page: Page) -> None:
-    """Select the first client row on the current page.
+def select_client_by_name(page: Page, name: str) -> None:
+    """Select the CRM row for `name` (e.g. 'first01 last01').
 
-    The single-client selection only needs the count ("1 SELECTED OF M") to update;
-    which client is irrelevant, so target the first visible row. This avoids any
-    dependency on sort order / which page a specific named client lands on.
+    Targets the specifically named client (legacy `selects client "first01 last01"`)
+    rather than "the first row", so that sort + rows-per-page remain an oracle: the
+    named client must actually land on the current page after the sort, otherwise the
+    row is absent and the selection fails (catching a broken sort/pagination that a
+    first-row selection would silently pass).
+
+    The CRM list is search-index backed, so right after the skeleton clears the named
+    row can still be settling. Each element wait stays at the 5s UI cap; a bounded retry
+    (re-gating on table readiness between attempts) absorbs that async settle without
+    widening any single wait — mirroring the async-list retry pattern in crm_bulk_helpers.
     """
-    row = page.locator(CLIENT_ROW).first
-    row.wait_for(state="visible", timeout=UI_TIMEOUT)
+    row = page.locator(CLIENT_ROW).filter(has_text=name).first
+    for attempt in range(PROPAGATION_ATTEMPTS):
+        try:
+            row.wait_for(state="visible", timeout=UI_TIMEOUT)
+            break
+        except PlaywrightTimeoutError:
+            if attempt == PROPAGATION_ATTEMPTS - 1:
+                raise
+            wait_for_clients_table(page)
     row.locator(ROW_CHECKBOX).first.click()
     summary = page.locator(SUMMARY_TEXT).first
     expect(summary).to_contain_text("SELECTED", timeout=UI_TIMEOUT)
@@ -67,11 +83,12 @@ def select_current_page(page: Page) -> None:
 
 
 def assert_summary_text(page: Page, expected: str) -> None:
-    """Assert the CRM summary line equals ``expected`` (case-insensitive, whitespace-normalized).
+    """Assert the CRM summary line equals ``expected`` exactly (whitespace-normalized).
 
     Read via inner_text (rendered text, respecting CSS text-transform) to match the
-    legacy Selenium getText() which returned the rendered uppercase label. Poll up to
-    the 5s UI cap so the count assertion absorbs the post-selection re-render.
+    legacy Selenium getText() which returned the rendered uppercase label, and compare
+    with exact string equality (`summaryText.should.be.eq(text)`). Poll up to the 5s
+    UI cap so the count assertion absorbs the post-selection re-render.
     """
     summary = page.locator(SUMMARY_TEXT).first
     summary.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -79,7 +96,7 @@ def assert_summary_text(page: Page, expected: str) -> None:
     actual = ""
     while time.monotonic() < deadline:
         actual = " ".join((summary.inner_text() or "").split())
-        if actual.upper() == expected.upper():
+        if actual == expected:
             return
         time.sleep(0.2)
     raise AssertionError(f"CRM summary expected {expected!r}, got {actual!r}")
