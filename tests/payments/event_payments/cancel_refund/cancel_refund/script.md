@@ -13,5 +13,7 @@ Helpers in `event_payments_helpers.py`.
   (`button[data-qa='confirm-cancel-event']`).
 
 ## Step 3 — Payment refunded
-- `search_payments(page, context, "first", "Payment for <event>", 1)`: the
-  refunded payment is listed in Payments Received.
+- `open_payment_detail_and_assert_title(page, context, "first", "Payment for <event>")`:
+  open the payment from Payments Received (filtered by client) and assert the
+  payment detail header (`div.summary-header h3`) equals the title — mirrors legacy
+  `payment was refunded` (goToPayment + getPaymentNameText).

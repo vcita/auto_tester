@@ -18,9 +18,16 @@ from playwright.sync_api import Page, Frame
 from tests.account_api import pivot_uid
 
 UI_TIMEOUT = 5000
-PAGE_TIMEOUT = 20000
-NAV_TIMEOUT = 20000
-ORDERS_RELOAD_RETRIES = 3
+# PAGE_TIMEOUT (page.goto) and NAV_TIMEOUT (cross-iframe POV->Angular boot / frame
+# readiness) are documented bounded exceptions to the 5s element cap: navigation and
+# iframe (re)render across the nested POV/Angular/Vue documents legitimately exceed
+# 5s. Halved from the original 20s. Pure element interactions stay at UI_TIMEOUT.
+PAGE_TIMEOUT = 10000
+NAV_TIMEOUT = 10000
+# External client-portal (vitrage) navigation is slower still; documented bounded
+# exception (eventual page boot of the external live site + chat widget).
+CP_NAV_TIMEOUT = 15000
+ORDERS_RELOAD_RETRIES = 2
 CP_VITRAGE = "https://live.meet2know.com"
 CP_IFRAME = "#cp_iframe"
 
@@ -123,15 +130,20 @@ def read_event_payment_request(frame: Frame) -> dict:
 
 def assert_event_payment_request(page: Page, context: dict, expected: dict,
                                   client_name: str | None = None) -> None:
-    """Open the attendee payment request and assert every expected field (strict)."""
-    frame = open_attendee_payment_request(page, context, client_name)
-    deadline = time.monotonic() + UI_TIMEOUT / 1000
+    """Open the attendee payment request and assert every expected field (strict).
+
+    The booking payment-status is eventually consistent after recording a payment, so
+    re-open the request within a bounded poll until it matches (re-render is required;
+    re-reading a static frame would not pick up the server-side rollup)."""
+    deadline = time.monotonic() + NAV_TIMEOUT / 1000
     actual: dict = {}
+    frame = open_attendee_payment_request(page, context, client_name)
     while time.monotonic() < deadline:
         actual = read_event_payment_request(frame)
         if all(actual.get(key) == value for key, value in expected.items()):
             return
-        time.sleep(0.3)
+        time.sleep(0.5)
+        frame = open_attendee_payment_request(page, context, client_name)
     mismatch = {k: (expected[k], actual.get(k)) for k in expected if actual.get(k) != expected[k]}
     raise AssertionError(f"Event payment request mismatch (expected, actual): {mismatch}")
 
@@ -328,7 +340,7 @@ def _open_order_by_title(page: Page, context: dict, title: str) -> None:
         frame, row = _orders_frame(page, title)
         if row is not None:
             row.click()
-            page.wait_for_timeout(800)
+            # Detail readiness is polled by the caller (_detail_frame / _read_sale_data).
             return
         page.wait_for_timeout(1500)
     raise AssertionError(f"Order '{title}' not found in Billing & Invoicing")
@@ -378,9 +390,13 @@ def _frame_with(page: Page, selector: str, timeout_ms: int = NAV_TIMEOUT):
     return None
 
 
+PAYMENT_DETAIL_HEADER = "div.summary-header h3"
+
+
 def search_payments(page: Page, context: dict, first_name: str,
                     payment_title: str, expected_count: int = 1) -> None:
-    """Filter Payments Received by client name and assert >= expected matching rows."""
+    """Filter Payments Received by client name and assert exactly `expected_count`
+    matching rows (legacy asserts the sorted matching-title list by exact length)."""
     last_error = None
     for _ in range(ORDERS_RELOAD_RETRIES + 1):
         page.goto(f"{app_base(context)}/app/payments/transactions",
@@ -394,12 +410,36 @@ def search_payments(page: Page, context: dict, first_name: str,
         rows = frame.locator(PAYMENT_ROW).filter(has_text=payment_title)
         deadline = time.monotonic() + UI_TIMEOUT / 1000
         while time.monotonic() < deadline:
-            if rows.count() >= expected_count:
+            if rows.count() == expected_count:
                 return
             page.wait_for_timeout(300)
         last_error = f"found {rows.count()} of {expected_count} '{payment_title}' rows"
         page.wait_for_timeout(1000)
     raise AssertionError(f"Payments search for '{payment_title}' failed: {last_error}")
+
+
+def open_payment_detail_and_assert_title(page: Page, context: dict, first_name: str,
+                                         payment_title: str) -> None:
+    """Open the payment from Payments Received and assert its detail header equals
+    `payment_title` (mirrors legacy 'payment was refunded' -> goToPayment +
+    getPaymentNameText, which clicks into /app/transactions/{uid} and reads the
+    summary header)."""
+    search_payments(page, context, first_name, payment_title, expected_count=1)
+    frame = _frame_with(page, NAME_FILTER)
+    if frame is None:
+        raise AssertionError("Payments Received list not found when opening payment detail")
+    link = frame.locator(PAYMENT_ROW).filter(has_text=payment_title).first.locator(
+        "xpath=ancestor::a[1]")
+    link.wait_for(state="visible", timeout=UI_TIMEOUT)
+    link.click()
+    detail = _frame_with(page, PAYMENT_DETAIL_HEADER)
+    if detail is None:
+        raise AssertionError("Payment detail page did not load")
+    header = detail.locator(PAYMENT_DETAIL_HEADER).first
+    header.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    actual = header.inner_text().strip()
+    assert actual == payment_title, (
+        f"payment detail header: expected {payment_title!r}, got {actual!r}")
 
 
 # Invoice creation wizard (#vue_wizard_iframe) + invoice detail
@@ -464,11 +504,14 @@ def assert_invoice_page(page: Page, context: dict, expected: dict) -> None:
     re-open from Orders as a fallback."""
     frame = _detail_frame(page)
     actual: dict = {}
-    for _ in range(15):
+    # Bounded eventual-consistency poll: the invoice PAID rollup lags the recorded
+    # payment. Documented exception to the 5s cap (backend aggregation only).
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
         actual = _read_invoice_data(frame)
         if all(actual.get(k) == v for k, v in expected.items()):
             return
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(1000)
     mismatch = {k: (v, actual.get(k)) for k, v in expected.items() if actual.get(k) != v}
     raise AssertionError(f"Invoice page mismatch (expected, actual): {mismatch}")
 
@@ -509,7 +552,12 @@ def cancel_event_with_refund(page: Page, context: dict) -> None:
     refund.click(timeout=FAST_UI_TIMEOUT)
     confirm = _find_control(page, EVENT_CANCEL_CONFIRM, timeout=LOAD_TIMEOUT)
     confirm.click(timeout=FAST_UI_TIMEOUT)
-    page.wait_for_timeout(2000)
+    # Best-effort: the cancel dialog closes on success. The caller re-navigates and
+    # polls (Payments Received reload loop) so this is a readiness hint, not a gate.
+    try:
+        confirm.wait_for(state="hidden", timeout=UI_TIMEOUT)
+    except Exception:
+        pass
 
 
 def _dump_controls(page: Page, label: str) -> None:
@@ -539,13 +587,15 @@ def assert_cp_conversation_title(page: Page, context: dict, title: str) -> None:
     try:
         cp_page = cp_context.new_page()
         cp_page.goto(f"{CP_VITRAGE}/site/{pivot_uid(context)}/action?client_jwt={token}",
-                     wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
+                     wait_until="domcontentloaded", timeout=CP_NAV_TIMEOUT)
         cp_frame = cp_page.frame_locator(CP_IFRAME)
         chat = cp_frame.locator('[data-qa="headerChatBtn"]').first
-        chat.wait_for(state="visible", timeout=NAV_TIMEOUT)
+        # Client portal (external vitrage) renders slower than internal app routes;
+        # use the documented bounded CP budget rather than the 5s cap.
+        chat.wait_for(state="visible", timeout=CP_NAV_TIMEOUT)
         chat.click()
         header = cp_frame.locator('[data-qa="bubble-header"]').filter(has_text=title).first
-        header.wait_for(state="visible", timeout=NAV_TIMEOUT)
+        header.wait_for(state="visible", timeout=CP_NAV_TIMEOUT)
     finally:
         cp_context.close()
 

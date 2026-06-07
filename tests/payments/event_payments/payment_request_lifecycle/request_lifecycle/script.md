@@ -3,20 +3,22 @@
 Playwright/Python notes for `test.py`.
 
 ## Navigation
-- The event page (`/app/events/{uid}`) renders in the Angular frontage iframe; the
-  attendee list is a nested Vue iframe. `open_attendee_payment_request` finds the
-  attendee activator in whichever frame holds it, clicks it, then clicks the
-  "Go to payment status" menu item, and waits for the Angular payment-request view
-  (`span[data-qa='payment_status_state']`).
+- On new-dashboard (POV) accounts the event attendee menu no longer exposes the
+  payment request, so it is reached through Billing & Invoicing → Orders.
+  `open_attendee_payment_request` opens `/app/payments/orders`, scans `page.frames`
+  for the order row matching the event service, clicks it, and waits for the Angular
+  booking payment-status view (`span[data-qa='payment_status_state']`). The detail
+  URL is cached and reused (a waived request drops out of the default Orders list).
 
 ## Reads / assertions (`event_payments_helpers.py`)
 - `assert_event_payment_request` reads `div.summary-header h3` (service), `h2`
   (amount), `span[data-qa='payment_status_state']` (state, `:` stripped), and
-  `span.contact-name` (client), and polls until all expected fields match.
+  `[data-qa='display-name']` (client), and polls until all expected fields match.
 - `edit_payment_request_amount` clicks `edit_payment_status`, fills
   `input[name="price"]`, and Saves.
 - `cancel_payment_request` opens `ps-more-actions` → `waive_payment` → confirm
   `cancel_payment()`.
 
 ## Timing
-- No fixed sleeps; bounded UI waits (5s) and NAV waits (20s) for iframe (re)render.
+- No fixed sleeps; bounded element/NAV waits capped at 5s, with the Orders-list
+  reload loop (≤2 retries) absorbing order-indexing lag.

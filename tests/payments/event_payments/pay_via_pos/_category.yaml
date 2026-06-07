@@ -1,7 +1,7 @@
 name: Pay For Event Via POS
 description: On a fresh account (point_of_sale enabled) with a "require to pay" $10
   event and one registered client, record the payment through Point of Sale, then
-  verify the resulting Sale
+  verify the resulting Sale (Orders PAID, sale detail page, Payments Received receipt).
 account_profile:
   type: isolated
   slug: evtpay_pos
@@ -12,7 +12,7 @@ tests:
   status: active
   priority: high
   description: Record the event payment request through POS; assert Orders shows PAID
-    "Sale
+    "Sale #1 - <event>", the sale detail page, and the Payments Received row.
 status: active
 priority: high
 tags:
