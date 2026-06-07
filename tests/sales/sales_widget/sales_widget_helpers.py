@@ -41,7 +41,10 @@ from tests.account_api import (
 NEW_DASHBOARD_FLAG = "new_dashboard"
 
 STATE_TIMEOUT = 5000
-NAV_TIMEOUT = 20000
+# NAV_TIMEOUT is the dashboard/iframe render-readiness budget (POV dashboard boot +
+# embedded widget frame); a documented bounded exception to the 5s element cap,
+# halved from the original 20s.
+NAV_TIMEOUT = 10000
 AGG_TIMEOUT = 40  # seconds; bounded eventual-consistency poll for the rollup
 
 WIDGET_CONTAINER = ".sales-widget.sales-widget--loaded"
@@ -61,6 +64,14 @@ REDIRECT_TITLES = {
     "payments": "Payments Received",
     "estimates": "Estimates",
     "billing": "Billing & Invoicing",
+}
+
+# Back-office destination page headers, addressed by their POV data-qa ids (matches
+# legacy paymentsReceived/estimatesList/billingAndInvoicing page objects).
+REDIRECT_HEADERS = {
+    "payments": '[data-qa="Payments Received"]',
+    "estimates": "[data-qa='Estimates']",
+    "billing": '[data-qa="Billing & Invoicing"]',
 }
 
 
@@ -260,24 +271,25 @@ def assert_widget_values(page: Page, context: dict, expected: dict) -> None:
 
 
 def assert_redirect(page: Page, context: dict, value_selector: str, target: str) -> None:
-    """Click a widget value and assert the matching back-office page heading shows.
+    """Click a widget value and assert the matching back-office page header shows.
 
-    The POV page chrome renders the destination title as a heading (e.g. "Payments
-    Received"); asserting the heading is more stable than the legacy data-qa id and
-    avoids matching the same label in the side menu."""
+    Mirrors legacy redirect verification (getPaymentsReceivedHeader /
+    getEstimatesPageHeader / getBillingAndInvoicingHeader), which assert the POV
+    page-header `data-qa` id (`[data-qa="Payments Received"]` etc.)."""
     goto_new_dashboard(page, context)
     scope = _widget_scope(page)
     scope.locator(value_selector).first.click(timeout=STATE_TIMEOUT)
 
-    title = REDIRECT_TITLES[target]
+    header = REDIRECT_HEADERS[target]
     deadline = time.monotonic() + NAV_TIMEOUT / 1000
     while time.monotonic() < deadline:
         for frame in [page, *page.frames]:
             try:
-                heading = frame.get_by_role("heading", name=title, exact=True)
-                if heading.count() > 0 and heading.first.is_visible():
+                loc = frame.locator(header).first
+                if loc.count() > 0 and loc.is_visible():
                     return
             except Exception:
                 continue
         page.wait_for_timeout(300)
-    raise AssertionError(f"Redirect to '{title}' page header was not visible after click")
+    raise AssertionError(f"Redirect to '{REDIRECT_TITLES[target]}' "
+                         f"page header ({header}) was not visible after click")
