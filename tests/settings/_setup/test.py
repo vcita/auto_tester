@@ -7,7 +7,7 @@ country code) then logs in. Mirrors the legacy business_info_page Background
 
 from playwright.sync_api import Page
 
-from tests.account_api import update_business_country
+from tests.account_api import update_business_country, wait_for_business_country
 from tests._functions.login.test import fn_login
 
 
@@ -19,6 +19,9 @@ def setup_settings(page: Page, context: dict) -> None:
 
     print("  Step 1: Setting business country to Israel...")
     update_business_country(context, "Israel")
+    # Read the country back before logging in so the business-info page never loads
+    # against a stale (not-yet-persisted) country value.
+    wait_for_business_country(context, "Israel")
 
     print("  Step 2: Logging in...")
     fn_login(page, context, username=username, password=password)

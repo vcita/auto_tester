@@ -5,6 +5,11 @@ from playwright.sync_api import Page, expect
 from tests.account_api import get_business
 
 UI_TIMEOUT = 5_000
+# goto budget for the top-level POV settings page; domcontentloaded fires fast.
+PAGE_TIMEOUT = 5_000
+# POV mounts the Angular settings page inside an iframe; its boot is a documented
+# cross-iframe readiness exception (slower than a same-document element wait).
+IFRAME_TIMEOUT = 10_000
 
 ANGULAR_IFRAME = 'iframe[title="angularjs"]'
 NAME_FIELD = 'input[name="name"]'
@@ -37,8 +42,11 @@ def test_business_info_display(page: Page, context: dict) -> None:
     print(f"  Expecting name={expected_name!r}, email={expected_email!r}, country='Israel (972)'")
 
     app_base = page.url.split("/app/")[0]
-    page.goto(f"{app_base}/app/settings/business", wait_until="domcontentloaded", timeout=15_000)
+    page.goto(f"{app_base}/app/settings/business", wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
 
+    # Wait for the Angular settings iframe to boot before reaching into it, so the
+    # field reads run against a mounted frame rather than racing the iframe load.
+    page.locator(ANGULAR_IFRAME).first.wait_for(state="visible", timeout=IFRAME_TIMEOUT)
     frame = page.frame_locator(ANGULAR_IFRAME)
     name_field = frame.locator(NAME_FIELD).first
     name_field.wait_for(state="visible", timeout=UI_TIMEOUT)
