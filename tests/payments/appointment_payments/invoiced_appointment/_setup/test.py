@@ -1,8 +1,11 @@
 """Setup for the "Paying for invoiced appointment" scenario.
 
 Mirrors the appointment-payments.feature Background: log in, then via API create
-the client "first last", a "display a fee" $100 service, and schedule an
-appointment for the client.
+the client "first last", a "require to pay" $100 service, and schedule an
+appointment for the client. (The scenario seeds require-to-pay rather than the
+legacy "display a fee" so the appointment exposes an Orders row for POV-routed
+invoice creation; see ``_open_appt_via_orders`` - the invoice->PAID behavior under
+test is identical.)
 """
 
 import time

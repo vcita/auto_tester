@@ -17,3 +17,17 @@
   appointment-page redeem-package / cancel-redemption buttons (same package
   UI as the event redeem scenario). The UI scheduling dialog is an out-of-scope
   prerequisite; all three payment-request states are preserved.
+
+## 2026-06-07 - Restore exact credit-refund caption (scope)
+
+- The legacy `package_credit_refunded` check asserts the full caption
+  `1 credit refund from {package} package was issued on {Mon DD}`
+  (meetingHelper). The migration previously only checked the substring
+  "credit refund" + package name; `_assert_package_details` now verifies the
+  complete phrasing **including the issue date** (date format mirrors the legacy
+  `Intl.DateTimeFormat('en-US', {month:'short', day:'2-digit'})`, accepting
+  today ±1 day to absorb any account/runner timezone offset).
+- `redeem_with_package=false` for meeting1 is preserved as a behavior assertion
+  (meeting1 completes to DUE $100, i.e. not auto-redeemed) rather than a UI
+  checkbox: API scheduling never auto-redeems and the package is assigned after
+  scheduling, so the legacy redeem=false outcome holds.
