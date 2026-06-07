@@ -34,13 +34,13 @@ def test_late_fee(page: Page, context: dict) -> None:
     )
 
     print("  Step 3: Assert pending add_invoice_late_fee jobber execution (day 15)")
-    assert_jobber_execution(
+    execution = assert_jobber_execution(
         context, event_name=LATE_FEE_EVENT, status="pending",
         expected_date=next_month_day(15).strftime("%Y-%m-%d"),
     )
 
     print("  Step 4: Trigger the add_invoice_late_fee jobber execution")
-    trigger_jobber_execution(context, LATE_FEE_EVENT)
+    trigger_jobber_execution(context, LATE_FEE_EVENT, execution=execution)
 
     print("  Step 5: Assert invoice total becomes $110.00 (late fee applied)")
     assert_invoice_page(

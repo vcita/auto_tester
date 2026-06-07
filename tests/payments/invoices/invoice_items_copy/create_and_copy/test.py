@@ -44,7 +44,7 @@ def test_create_and_copy(page: Page, context: dict) -> None:
     search_orders(page, ["new_invoice #0000002", "product_invoice #0000001"])
 
     print("  Step 6: Copy the newest invoice for 'first last'")
-    copy_invoice(page, "first last")
+    copy_invoice(page, context, "first last")
     print("  Step 7: Assert orders list after copy")
     search_orders(page, [
         "new_invoice #0000003", "new_invoice #0000002", "product_invoice #0000001",

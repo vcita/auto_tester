@@ -44,33 +44,29 @@ def open_orders(page: Page):
 
 
 def _select_client(page: Page, billing, client_name: str) -> None:
-    """Select a client in the invoice client picker.
+    """Select a client in the invoice client picker (mirrors the proven create_invoice
+    picker in tests/payments/invoices/create_invoice).
 
-    The picker renders inside the angularjs frame; its result rows highlight the
-    matched text (wrapped in markup) which breaks text-node matching, so select via
-    keyboard (type -> ArrowDown -> Enter) like the proven create_invoice picker, then
-    fall back to clicking a matching client row."""
+    The picker highlights the matched substring with markup, so result rows can't be
+    located by client-name text. Instead we wait for ANY candidate row to render, then
+    keyboard-select (ArrowDown -> Enter) the top match and wait for the picker to close.
+    Fall back to clicking a client-looking row (one whose text contains an email)."""
     dialog = billing.get_by_role("dialog", name=re.compile("Invoice"))
     if dialog.count() == 0:
         dialog = billing.get_by_role("dialog")
-    scope = dialog.first if dialog.count() > 0 else billing
+    if dialog.count() == 0:
+        raise AssertionError("Client picker dialog did not open")
+    scope = dialog.first
 
     search = scope.locator("input").first
     search.wait_for(state="visible", timeout=UI_TIMEOUT)
     search.click()
     search.fill("")
-    search.type(client_name, delay=15)
-
-    row = scope.get_by_role("button").filter(has_text=re.compile(re.escape(client_name), re.I))
-    if row.count() == 0:
-        row = scope.get_by_text(client_name)
-    deadline = time.monotonic() + NAV_TIMEOUT / 1000
-    while time.monotonic() < deadline:
-        if row.count() > 0 and row.first.is_visible():
-            break
-        time.sleep(POLL)
+    search.type(client_name, delay=10)
 
     try:
+        candidate = scope.get_by_role("button").filter(has_text=re.compile(r".+")).first
+        candidate.wait_for(state="visible", timeout=UI_TIMEOUT)
         page.keyboard.press("ArrowDown")
         page.keyboard.press("Enter")
         scope.wait_for(state="hidden", timeout=UI_TIMEOUT)
@@ -78,10 +74,16 @@ def _select_client(page: Page, billing, client_name: str) -> None:
     except Exception:
         pass
 
-    if row.count() > 0 and row.first.is_visible():
-        row.first.click()
-        return
-    raise AssertionError(f"Client picker never showed candidate: {client_name}")
+    client_row = scope.get_by_role("button").filter(has_text=re.compile(r"@|vcita", re.I)).first
+    if client_row.count() == 0:
+        buttons = scope.get_by_role("button")
+        if buttons.count() > 1:
+            client_row = buttons.nth(1)
+    if client_row.count() == 0:
+        raise AssertionError(f"Client picker never showed candidate: {client_name}")
+    client_row.wait_for(state="visible", timeout=UI_TIMEOUT)
+    client_row.click()
+    scope.wait_for(state="hidden", timeout=UI_TIMEOUT)
 
 
 def open_new_invoice(page: Page, client_name: str):
@@ -100,9 +102,13 @@ def open_new_invoice(page: Page, client_name: str):
     return billing, wizard
 
 
-def _handle_first_invoice_setup(billing) -> None:
-    """A fresh account shows the first-invoice numbering dialog on first send; accept the
-    default (#0000001) so numbering starts at 1, mirroring the legacy default path."""
+def _handle_first_invoice_setup(billing, context: dict) -> None:
+    """A fresh account shows the first-invoice numbering dialog on the FIRST send only;
+    accept the default (#0000001) so numbering starts at 1, mirroring the legacy default
+    path. It can never re-appear, so we wait for it once and skip the wait on later sends."""
+    if context.get("_first_invoice_handled"):
+        return
+    context["_first_invoice_handled"] = True
     dialog = billing.locator('[data-qa="first-invoice-setup-dialog"]')
     try:
         dialog.first.wait_for(state="visible", timeout=2000)
@@ -114,14 +120,14 @@ def _handle_first_invoice_setup(billing) -> None:
         dialog.first.wait_for(state="hidden", timeout=UI_TIMEOUT)
 
 
-def send_invoice(page: Page, billing, wizard) -> None:
+def send_invoice(page: Page, billing, wizard, context: dict) -> None:
     """Issue the invoice via the wizard primary action (legacy 'sends' -> ISSUED)."""
     send = wizard.locator('[data-qa="itemizable-dialog-main"]')
     if send.count() == 0:
         send = wizard.get_by_role("button", name=re.compile(r"^Send", re.I))
     send.first.wait_for(state="visible", timeout=UI_TIMEOUT)
     send.first.click()
-    _handle_first_invoice_setup(billing)
+    _handle_first_invoice_setup(billing, context)
     page.wait_for_url("**/app/invoices/**", timeout=NAV_TIMEOUT, wait_until="domcontentloaded")
 
 
@@ -145,10 +151,10 @@ def create_and_send_invoice(page: Page, context: dict, *, name: str, client_name
         )
     if billing_address:
         set_billing_address(wizard, billing_address)
-    send_invoice(page, billing_scope(page), wizard)
+    send_invoice(page, billing_scope(page), wizard, context)
 
 
-def copy_invoice(page: Page, client_name: str) -> None:
+def copy_invoice(page: Page, context: dict, client_name: str) -> None:
     """Copy the newest order's invoice to a client (open first order > Copy invoice > send)."""
     billing = open_orders(page)
     first_row = billing.locator(f"{ORDER_ROW} a, a {ORDER_ROW}").first
@@ -173,7 +179,7 @@ def copy_invoice(page: Page, client_name: str) -> None:
     wizard.locator('[data-qa="itemizable-details-header"]').first.wait_for(
         state="visible", timeout=NAV_TIMEOUT
     )
-    send_invoice(page, billing_scope(page), wizard)
+    send_invoice(page, billing_scope(page), wizard, context)
 
 
 def _find_invoice(context: dict, title: str) -> dict:

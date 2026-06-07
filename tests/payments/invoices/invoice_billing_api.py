@@ -160,9 +160,11 @@ def assert_jobber_execution(context: dict, *, event_name: str, status: str,
     return execution
 
 
-def trigger_jobber_execution(context: dict, event_name: str) -> dict:
-    """Find a jobber execution by name and trigger it (POST .../{uid}/execute)."""
-    execution = wait_for_jobber_execution(context, event_name)
+def trigger_jobber_execution(context: dict, event_name: str,
+                             execution: dict | None = None) -> dict:
+    """Trigger a jobber execution (POST .../{uid}/execute). Reuses an already-fetched
+    `execution` when provided (e.g. from assert_jobber_execution) to avoid a re-poll."""
+    execution = execution or wait_for_jobber_execution(context, event_name)
     uid = execution.get("uid") or execution.get("id")
     if not uid:
         raise ValueError(f"Jobber execution '{event_name}' has no uid: {execution}")
