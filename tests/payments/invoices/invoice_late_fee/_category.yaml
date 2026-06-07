@@ -1,0 +1,36 @@
+name: Invoice Late Fee
+description: Create an invoice with late fees enabled, verify the scheduled late-fee
+  jobber execution, then trigger it and verify the late fee is applied. Migrated from
+  automation-js features/steps/invoices.feature scenario "create invoice with late
+  fee".
+account_profile:
+  type: isolated
+  slug: invlate
+  country_name: United States
+  cleanup: always
+tests:
+- id: late_fee
+  name: Invoice With Late Fee
+  status: active
+  priority: high
+  description: With late fees enabled (10% after 5 days), create a $100 invoice due
+    next month, assert it is ISSUED and subject to late fees with a pending add_invoice_late_fee
+    jobber execution, then trigger the execution and assert the total becomes $110.00
+  tags:
+  - payments
+  - invoices
+  - late-fee
+  - jobber
+status: active
+priority: high
+tags:
+- payments
+- invoices
+- late-fee
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
