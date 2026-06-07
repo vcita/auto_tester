@@ -61,6 +61,16 @@ EDIT_PRICE_INPUT = '[data-qa="product-price"]'
 EDIT_SAVE_BTN = 'button[data-qa="vc-footer-Save"]'
 
 
+def _settle(page: Page) -> None:
+    """Best-effort wait for in-flight XHRs (record/cancel/edit POST) to settle,
+    replacing fixed post-action sleeps. Bounded by UI_TIMEOUT; never a hard gate
+    (callers re-navigate and poll)."""
+    try:
+        page.wait_for_load_state("networkidle", timeout=UI_TIMEOUT)
+    except Exception:
+        pass
+
+
 def _store(context: dict) -> dict:
     return context["product_payments"]
 
@@ -165,7 +175,7 @@ def edit_product_amount(page: Page, context: dict, amount: str,
     price.fill(str(amount))
     save_frame = _frame_with_selector(page, EDIT_SAVE_BTN)
     save_frame.locator(EDIT_SAVE_BTN).first.click()
-    page.wait_for_timeout(1500)
+    _settle(page)
 
 
 def cancel_product_request(page: Page, context: dict, refund: bool = False,
@@ -190,7 +200,7 @@ def cancel_product_request(page: Page, context: dict, refund: bool = False,
     confirm.wait_for(state="visible", timeout=UI_TIMEOUT)
     confirm.click()
     confirm.wait_for(state="hidden", timeout=NAV_TIMEOUT)
-    page.wait_for_timeout(1500)
+    _settle(page)
 
 
 def _confirm_dialog_frame(page: Page, timeout_ms: int = NAV_TIMEOUT) -> Frame:
@@ -236,7 +246,9 @@ def pay_for_product(page: Page, context: dict, amount: str,
     frame = open_product_order(page, context, product_name)
     frame.locator(TAKE_PAYMENT_BTN).first.click()
     _record_cash_payment(page, amount)
-    page.wait_for_timeout(3000)
+    # The record POST settles asynchronously; wait for network idle (not a fixed
+    # sleep) before the caller navigates away.
+    _settle(page)
 
 
 def record_product_via_pos(page: Page, context: dict,
@@ -307,16 +319,53 @@ def invoice_product(page: Page, context: dict, invoice_name: str,
     page.wait_for_url("**/app/invoices/**", timeout=NAV_TIMEOUT, wait_until="domcontentloaded")
 
 
-def assert_order_listed(page: Page, context: dict, title: str) -> None:
-    """Assert an order titled `title` appears in Billing & Invoicing."""
+# Billing & Invoicing order-type filter (mirrors legacy filterByPaymentType)
+ORDER_TYPE_FILTER = '[name="type_filter"]'
+ORDER_TYPES = ("bookings", "invoices", "packages", "products")
+
+
+def assert_order_listed(page: Page, context: dict, title: str,
+                        order_type: str = "products") -> None:
+    """Filter Billing & Invoicing by order type and assert the order titled `title`
+    is listed, mirroring legacy `search orders | filter | products` (filterOrders
+    selects only the products type before checking the result)."""
+    from tests.payments.event_payments.event_payments_helpers import PAYMENT_ROW
+    last_error = None
     for _ in range(ORDERS_RELOAD_RETRIES + 1):
         page.goto(f"{app_base(context)}/app/payments/orders",
                   wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
-        _, row = _orders_frame(page, title)
-        if row is not None:
-            return
-        page.wait_for_timeout(1500)
-    raise AssertionError(f"Order '{title}' not found in Billing & Invoicing")
+        frame = _frame_with_selector(page, ORDER_TYPE_FILTER)
+        _apply_type_filter(page, frame, order_type)
+        rows = frame.locator(PAYMENT_ROW).filter(has_text=title)
+        deadline = time.monotonic() + UI_TIMEOUT / 1000
+        while time.monotonic() < deadline:
+            if rows.count() > 0 and rows.first.is_visible():
+                return
+            page.wait_for_timeout(300)
+        last_error = f"order '{title}' not visible under '{order_type}' filter"
+        page.wait_for_timeout(1000)
+    raise AssertionError(f"Order listing assertion failed: {last_error}")
+
+
+def _apply_type_filter(page: Page, frame: Frame, order_type: str) -> None:
+    """Select only `order_type` in the order type_filter (clear the other types)."""
+    dropdown = frame.locator(ORDER_TYPE_FILTER).first
+    dropdown.wait_for(state="visible", timeout=UI_TIMEOUT)
+    dropdown.click()
+    target = frame.locator(f'[name="{order_type}"]').first
+    target.wait_for(state="visible", timeout=UI_TIMEOUT)
+    for other in ORDER_TYPES:
+        if other == order_type:
+            continue
+        opt = frame.locator(f'[name="{other}"]').first
+        try:
+            if opt.count() > 0 and opt.get_attribute("selected") is not None:
+                opt.click()
+        except Exception:
+            continue
+    if target.get_attribute("selected") is None:
+        target.click()
+    page.keyboard.press("Escape")
 
 
 def _frame_with_selector(page: Page, selector: str, timeout_ms: int = NAV_TIMEOUT) -> Frame:
@@ -367,7 +416,7 @@ def _open_product_dialog(page: Page) -> Frame:
     the dialog; if the Vue list is not ready yet the message is dropped, so wait
     for list readiness and re-click until the dialog appears."""
     _frame_with_selector(page, PRODUCTS_LIST_READY)
-    for _ in range(4):
+    for _ in range(3):
         _js_click(_visible_in_frames(page, ADD_PRODUCT_BTN))
         try:
             return _frame_with_selector(page, DIALOG_NAME, timeout_ms=5000)
@@ -403,7 +452,7 @@ def create_product_ui(page: Page, context: dict, *, name: str, description: str,
         frame.locator(DIALOG_TAX_PICKER).first.click()
         page.wait_for_timeout(300)
     _js_click(frame.locator(DIALOG_SAVE).first)
-    page.wait_for_timeout(2000)
+    _settle(page)
 
 
 def search_products_ui(page: Page, context: dict, query: str,
@@ -506,4 +555,4 @@ def assign_product_ui(page: Page, context: dict, *, product_name: str,
 
     add_btn = _frame_with_selector(page, ASSIGN_ADD_BTN)
     _js_click(add_btn.locator(ASSIGN_ADD_BTN).first)
-    page.wait_for_timeout(2500)
+    _settle(page)

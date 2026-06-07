@@ -10,3 +10,10 @@
 - The legacy "payment was refunded" check (open the payment, assert its title) is
   preserved by asserting the "Payment for payable_item1" row exists in Payments
   Received after the refund.
+
+## 2026-06-07 - Restore refund-detail assertion
+
+- Step 3 now opens the refunded payment from Payments Received and asserts the
+  payment detail header (shared `open_payment_detail_and_assert_title`), exactly
+  mirroring legacy `payment was refunded` (goToPayment + getPaymentNameText). It
+  previously stopped at list-row presence.

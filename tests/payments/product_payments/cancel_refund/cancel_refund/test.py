@@ -3,17 +3,20 @@
 
 from playwright.sync_api import Page
 
+from tests.payments.event_payments.event_payments_helpers import (
+    open_payment_detail_and_assert_title,
+)
 from tests.payments.product_payments.product_payments_helpers import (
     assert_product_payment_request,
     cancel_product_request,
     pay_for_product,
-    search_payments,
 )
 
 
 def test_cancel_refund(page: Page, context: dict) -> None:
     """Pay $5, cancel the product request with refund (CANCELLED $10.00), and
-    verify the refunded payment in Payments Received."""
+    open the refunded payment to assert its detail header (legacy 'payment was
+    refunded')."""
     print("  Step 1: Pay $5 for payable_item1")
     pay_for_product(page, context, "5", "payable_item1")
 
@@ -24,7 +27,8 @@ def test_cancel_refund(page: Page, context: dict) -> None:
         "product_name": "payable_item1", "client_full_name": "first last",
     }, "payable_item1")
 
-    print("  Step 3: Verify the refunded payment in Payments Received")
-    search_payments(page, context, "first", "Payment for payable_item1", expected_count=1)
+    print("  Step 3: Payment refunded (open payment, assert detail title)")
+    open_payment_detail_and_assert_title(
+        page, context, "first", "Payment for payable_item1")
 
     print("  [OK] cancel & refund paid product verified")
