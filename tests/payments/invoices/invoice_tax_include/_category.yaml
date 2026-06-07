@@ -1,0 +1,28 @@
+name: Invoice Tax Include Mode
+description: With the account tax mode set to "include", create and send an invoice with
+  taxed and untaxed custom items and verify the tax-inclusive total. Migrated from
+  automation-js features/steps/invoices.feature scenario "create invoice in mode include".
+account_profile:
+  type: isolated
+  slug: invtax
+  country_name: United States
+  cleanup: always
+tests:
+- id: tax_include
+  name: Invoice In Tax Include Mode
+  status: active
+  priority: high
+  description: Set tax mode to include, send an invoice with a taxed ($15) and an
+    untaxed ($50) custom item, and assert the invoice is ISSUED at $65.00 (tax included)
+  tags:
+  - payments
+  - invoices
+  - tax
+status: active
+priority: high
+tags:
+- payments
+- invoices
+- tax
+owner: QA Team
+created_at: 2026-06-07

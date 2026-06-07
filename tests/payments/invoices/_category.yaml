@@ -8,6 +8,9 @@ execution_order:
 - cancel_invoice
 - view_download_invoice
 - eu_strict_invoices
+- invoice_items_copy
+- invoice_tax_include
+- invoice_late_fee
 tests:
 - id: create_invoice
   name: Create Invoice
