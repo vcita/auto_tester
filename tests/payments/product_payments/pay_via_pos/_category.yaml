@@ -1,0 +1,26 @@
+# Pay for product via Point of Sale (isolated account, POS enabled)
+# Migrated from products.feature scenario 4b "paying for product via Point of Sale" (VCITA2-13858).
+
+name: Pay Product Via POS
+description: On a fresh account (point_of_sale enabled) with a $10 payable product assigned to "first last", record the payment through Point of Sale (PAID $10.00) and verify the "Payment for Sale #1 - payable_item1" in Payments Received.
+
+account_profile:
+  type: isolated
+  slug: prodpay_pos
+  cleanup: always
+
+tests:
+  - id: pay_pos
+    name: Pay for product via Point of Sale
+    status: active
+    priority: high
+    description: Record the product payment via POS (record-payment, Cash) and assert PAID $10.00 with the "Payment for Sale #1 - payable_item1" present in Payments Received.
+
+status: active
+priority: high
+tags:
+  - payments
+  - products
+  - migration
+owner: QA Team
+created_at: 2026-06-06
