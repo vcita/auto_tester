@@ -1,0 +1,13 @@
+name: Dashboard
+description: Tests for the new-dashboard widgets (quick actions, etc.)
+execution_order:
+  - quick_actions_widget
+tests: []
+status: active
+priority: high
+tags:
+  - dashboard
+  - spotlights
+  - migration
+owner: QA Team
+created_at: 2026-06-07

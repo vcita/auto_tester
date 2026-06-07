@@ -1,0 +1,30 @@
+name: Quick Actions Widget
+description: New-dashboard quick-actions widget — default actions, opening an action,
+  editing the action set, reordering, and the min/max error messages.
+tests:
+- id: widget_actions
+  name: Quick Actions Default And Open
+  status: active
+  priority: high
+  description: Verify the default quick actions are displayed and clicking the client
+    action opens the new client modal.
+- id: edit_actions
+  name: Edit Actions And Error Messages
+  status: active
+  priority: high
+  description: Remove/add actions and verify the displayed set, reorder two actions,
+    and verify the error message when unchecking all and checking all actions.
+status: active
+priority: high
+tags:
+- dashboard
+- spotlights
+- quick_actions
+- migration
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
