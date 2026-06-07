@@ -6,6 +6,7 @@ accessors that were previously duplicated across subcategory account helpers.
 
 import calendar
 import os
+import time
 from datetime import date, datetime, timedelta, timezone
 
 import requests
@@ -157,6 +158,52 @@ def pivot_uid(context: dict) -> str:
     if not value:
         raise ValueError("auto_account pivot_uid is missing from context")
     return value
+
+
+def get_business(context: dict) -> dict:
+    """Return the account's business object (name, email, country, ...)."""
+    response = account_request(
+        context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}"
+    )
+    data = response.get("data") or response
+    return data.get("business") or data
+
+
+def update_business_country(context: dict, country_name: str) -> dict:
+    """Set the business country (e.g. 'Israel') via the admin API (mirrors legacy
+    update_country, which the platform endpoint requires admin auth for)."""
+    payload = {"business": {"business": {"country_name": country_name}}}
+    response = requests.post(
+        f"{resolve_api_base_url(context)}/platform/v1/businesses/{pivot_uid(context)}",
+        json=payload,
+        headers=admin_headers(),
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    body = response.json() if response.text else {}
+    data = body.get("data") or body
+    return data.get("business") or data
+
+
+def wait_for_business_country(context: dict, expected_country: str, timeout_s: int = 10) -> str:
+    """Poll the business API until the saved country == ``expected_country``.
+
+    The country write (update_business_country) is eventually consistent: a GET issued
+    immediately after the POST can still echo the old country. Read it back before the
+    UI loads so the business-info page never renders a stale country (a flaky read the
+    legacy account-creation-with-country setup avoided by setting it up front).
+    """
+    deadline = time.monotonic() + timeout_s
+    actual = ""
+    while time.monotonic() < deadline:
+        details = get_business(context).get("business") or {}
+        actual = details.get("country_name") or details.get("country") or ""
+        if actual == expected_country:
+            return actual
+        time.sleep(0.5)
+    raise AssertionError(
+        f"business country expected {expected_country!r}, got {actual!r} after read-back"
+    )
 
 
 def last_category_uid(context: dict) -> str:

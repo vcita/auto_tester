@@ -1,0 +1,24 @@
+name: Business Info
+description: Business info settings page — verify it displays the business name, country
+  code, and owner email.
+tests:
+- id: business_info_display
+  name: Business Info Page Displays Details
+  status: active
+  priority: high
+  description: The business info page shows the account's business name, the Israel
+    (972) country code, and the owner email.
+status: active
+priority: high
+tags:
+- settings
+- business_info
+- tempo
+- migration
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
