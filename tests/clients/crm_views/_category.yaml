@@ -1,0 +1,30 @@
+# CRM Views Subcategory
+# Migrated from automation-js/features/steps/crm-view-create-and-edit.feature (VCITA2-13951)
+# Runs on a fresh isolated account so the created views, staff and the SSO staff-switch
+# stay deterministic and the switched-in staff session never leaks (cleanup: always).
+
+name: CRM Views
+description: Admin creates account/staff-level CRM views, verifies their description and permission level, edits and deletes them, and verifies staff-level permission enforcement (view visibility + edit/delete availability) after switching the logged-in staff via SSO.
+
+account_profile:
+  type: isolated
+  slug: crm_views
+  cleanup: always
+
+tests:
+  - id: create_edit_views
+    name: Create And Edit Views
+    status: active
+    priority: high
+    description: As admin create 3 views (2 account-level, 1 staff-level) and verify description+permission; switch to a user staff and verify the staff view is hidden and an account view is read-only; back as admin edit one view to staff-level and delete the staff view; switch to the staff again and verify the now-staff view is hidden and the remaining account view stays read-only.
+
+status: active
+priority: high
+tags:
+  - clients
+  - crm
+  - views
+  - permissions
+  - migration
+owner: QA Team
+created_at: 2026-06-08
