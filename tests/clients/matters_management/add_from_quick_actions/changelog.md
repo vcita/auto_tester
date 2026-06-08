@@ -15,3 +15,9 @@
   the prior test, sharing the email), the second confirm is absent — the old hard wait timed
   out at 5s. Now dismissed in a 5s-bounded loop that returns once the matter form is reachable.
 - Verified: 3 clean focused runs + 3/3 stress on integration.
+
+## 2026-06-08 - Closeout validation (VCITA2-13952)
+- Re-validated post-cleanup: 7 clean focused runs (56-64s) and stress 3/3 (latest).
+  Across stress iterations one earlier run hit a transient 5000ms timeout (~8/9 overall);
+  the `open_matter` bounded retry (1 + 2) absorbs CRM-indexing lag and it did not recur.
+  Treated as an infra hiccup, well within the project's 3/30 tolerance.
