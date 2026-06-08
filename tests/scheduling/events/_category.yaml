@@ -5,6 +5,16 @@
 name: Events
 description: Tests for scheduling group event instances, managing attendees, and canceling events
 
+# Full run order: shared-account flat tests first, then the isolated events_list subcategory.
+execution_order:
+  - schedule_event
+  - view_event
+  - add_attendee
+  - remove_attendee
+  - edit_event
+  - cancel_event
+  - events_list
+
 # Execution order - tests run sequentially in this order
 tests:
   - id: _setup

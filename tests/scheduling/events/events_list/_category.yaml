@@ -1,0 +1,32 @@
+# Events List page (isolated account)
+# Migrated from automation-js/features/tempo/events-list.feature (VCITA2-13949).
+# Runs on a fresh account so the empty-state assertion is deterministic and the two
+# API-created event services + UI-scheduled events are the only events in the list.
+
+name: Events List
+description: On a fresh account, verify the events list page - empty state on an empty search, scheduling an event from the list ("+ new event") for a require-to-pay service (SCHEDULED), scheduling a display-a-fee service in the previous month (COMPLETED), and filtering by the COMPLETED status.
+
+account_profile:
+  type: isolated
+  slug: events_list
+  cleanup: always
+
+execution_order:
+  - list_states
+
+tests:
+  - id: list_states
+    name: List States
+    status: active
+    priority: high
+    description: Empty state, one SCHEDULED event scheduled from the list, two events (SCHEDULED + COMPLETED), and the COMPLETED status filter.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - events
+  - events-list
+  - migration
+owner: QA Team
+created_at: 2026-06-08
