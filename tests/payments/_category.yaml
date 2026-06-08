@@ -21,6 +21,7 @@ execution_order:
 - product_payments
 - generate_pdfs
 - payment_settings
+- gateway_setups
 tests: []
 status: active
 priority: high

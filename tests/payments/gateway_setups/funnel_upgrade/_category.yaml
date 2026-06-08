@@ -1,0 +1,33 @@
+name: Wizard - funnel v1 upgrade
+description: With the vcita-payments onboarding wizard flags plus payment funnel v1
+  (vp_payment_conversion_one, payment_gateways_disabled), open the payment wizard
+  and try to connect a third-party gateway; the funnel-v1 account is required to upgrade,
+  so the upgrade dialog is shown. Migrated from automation-js features/salsa/gateway_setups.feature.
+account_profile:
+  type: isolated
+  slug: gwfunnel
+  cleanup: always
+tests:
+- id: try_connect
+  name: Wizard - funnel v1 upgrade
+  status: active
+  priority: high
+  description: Try to connect a gateway on a funnel-v1 account and verify the upgrade
+    dialog is shown
+  tags:
+  - payments
+  - gateways
+  - wizard
+status: active
+priority: high
+tags:
+- payments
+- gateways
+- wizard
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10

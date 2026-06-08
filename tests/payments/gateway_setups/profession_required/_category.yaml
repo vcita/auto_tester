@@ -1,0 +1,33 @@
+name: Wizard - profession required
+description: With the vcita-payments onboarding wizard flags enabled and no business_category,
+  open the payment wizard, verify the preliminary next button is disabled, fill the
+  profession, and verify the MCC clarification dialog is shown. Migrated from automation-js
+  features/salsa/gateway_setups.feature.
+account_profile:
+  type: isolated
+  slug: gwprofreq
+  cleanup: always
+tests:
+- id: fill_profession
+  name: Wizard - profession required
+  status: active
+  priority: high
+  description: Open the wizard with no profession, confirm next is disabled, fill
+    the profession, and verify the MCC dialog
+  tags:
+  - payments
+  - gateways
+  - wizard
+status: active
+priority: high
+tags:
+- payments
+- gateways
+- wizard
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10

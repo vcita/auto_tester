@@ -1,0 +1,32 @@
+name: Wizard - populated profession
+description: With the vcita-payments onboarding wizard flags enabled and business_category
+  'legal_services', open the payment wizard and verify the preliminary step's profession
+  is prepopulated with 'Legal services'. Migrated from automation-js features/salsa/gateway_setups.feature.
+account_profile:
+  type: isolated
+  slug: gwprofpop
+  cleanup: always
+tests:
+- id: profession_shown
+  name: Wizard - populated profession
+  status: active
+  priority: high
+  description: Open the payment onboarding wizard and verify the preliminary profession
+    is prepopulated from business_category
+  tags:
+  - payments
+  - gateways
+  - wizard
+status: active
+priority: high
+tags:
+- payments
+- gateways
+- wizard
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10
