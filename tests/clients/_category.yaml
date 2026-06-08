@@ -19,6 +19,8 @@ execution_order:
   - client_card
   - crm_bulk_actions
   - crm_selection_logic
+  - crm_views
+  - matters_management
   - delete_matter
 
 # Test metadata (order also in execution_order above)

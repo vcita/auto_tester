@@ -7,7 +7,8 @@ description: Tests for creating, editing, and canceling 1-on-1 appointments manu
 
 # Run order is defined in parent scheduling/_category.yaml (execution_order)
 
-# Full run order: shared-account flat tests first, then the isolated appointments_list subcategory.
+# Full run order: shared-account flat tests first, then the isolated subcategories
+# (`appointments_list`, `multistaff`) which each run on their own fresh account.
 execution_order:
   - create_appointment
   - view_appointment
@@ -17,6 +18,7 @@ execution_order:
   - create_custom_appointment
   - cancel_custom_appointment
   - appointments_list
+  - multistaff
 
 # Execution order - tests run sequentially in this order
 tests:

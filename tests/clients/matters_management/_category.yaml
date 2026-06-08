@@ -1,0 +1,58 @@
+# Matters Management (create / nest)
+# Migrated from automation-js/features/steps/matters-management.feature (VCITA2-13952)
+# Note: "Matter" is vcita's general entity - called "Property" for landscapers, "Patient" for doctors, etc.
+
+name: Matters Management
+description: Create matters under a contact from the contact pane and the quick-actions
+  menu, nest an existing matter under a contact, and navigate matters from the matter list.
+account_profile:
+  type: isolated
+  slug: matters_management
+  cleanup: always
+
+execution_order:
+  - add_from_pane
+  - add_from_quick_actions
+  - nest_matter
+  - navigate_matter_list
+
+tests:
+  - id: add_from_pane
+    name: Add Matter From Contact Pane
+    status: active
+    priority: high
+    description: From the contact's matter page, add a new matter via the contact-pane
+      Add matter action and verify it exists under that contact.
+  - id: add_from_quick_actions
+    name: Add Matter From Quick Actions
+    status: active
+    priority: high
+    description: Add a new matter under the same contact via the Quick Actions menu
+      (suggested-contact flow) and verify it exists under that contact.
+  - id: nest_matter
+    name: Nest Existing Matter Under Contact
+    status: active
+    priority: high
+    description: Nest an existing standalone matter under the contact via the matter
+      More menu and verify it exists under the contact and the title shows the matter.
+  - id: navigate_matter_list
+    name: Navigate Matter From List
+    status: active
+    priority: high
+    description: Click a matter from the matter list and verify the page title shows
+      the selected matter.
+
+status: active
+priority: high
+tags:
+  - clients
+  - matters
+  - crm
+  - migration
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10
