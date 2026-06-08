@@ -1,0 +1,38 @@
+# Appointments List page (isolated account)
+# Migrated from automation-js/features/tempo/appointments-list.feature (VCITA2-13953).
+# Runs on a fresh account so the empty-state assertion is deterministic and the only
+# bookings in the list are the two appointments this subcategory creates via API.
+
+name: Appointments List
+description: On a fresh account, verify the appointments list page - empty state on an empty search, one scheduled appointment (SCHEDULED), a second appointment scheduled in the past (COMPLETED) with the client-portal "Appointment confirmed" conversation, the COMPLETED status filter, and exporting the list ("Bookings" download).
+
+account_profile:
+  type: isolated
+  slug: appointments_list
+  cleanup: always
+
+execution_order:
+  - list_states
+  - export_list
+
+tests:
+  - id: list_states
+    name: List States
+    status: active
+    priority: high
+    description: Empty state, one SCHEDULED appointment, two appointments (SCHEDULED + COMPLETED) with the CP "Appointment confirmed" conversation, and the COMPLETED status filter.
+  - id: export_list
+    name: Export List
+    status: active
+    priority: high
+    description: Export the appointments list and verify a "Bookings" file is downloaded.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - appointments
+  - appointments-list
+  - migration
+owner: QA Team
+created_at: 2026-06-08
