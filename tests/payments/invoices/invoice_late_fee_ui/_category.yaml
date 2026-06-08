@@ -1,0 +1,42 @@
+name: Invoice Late Fee (UI + Client Portal)
+description: Set up invoice late fees through the settings UI (amount type), create
+  and send an invoice with late fee enabled, verify the business-side invoice (ISSUED,
+  $100, "Subject to late fees"), then have the client open the pending invoice in
+  the client portal and verify the "Late fees" caption. Migrated from automation-js
+  features/steps/payments-settings/invoice-settings.feature ("Set up invoice late
+  fee").
+account_profile:
+  type: isolated
+  slug: invlfui
+  country_name: United States
+  cleanup: always
+execution_order:
+- set_late_fee_invoice
+tests:
+- id: set_late_fee_invoice
+  name: Set Up Invoice Late Fee (UI + Client Portal)
+  status: active
+  priority: high
+  description: Configure amount-based late fees in the settings UI, create+send an
+    invoice with late fee enabled, assert the business invoice (ISSUED, $100.00, "Subject
+    to late fees"), and assert the client-portal invoice shows "Late fees".
+  tags:
+  - payments
+  - invoices
+  - late-fee
+  - client-portal
+status: active
+priority: high
+tags:
+- payments
+- invoices
+- late-fee
+- client-portal
+- migration
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
