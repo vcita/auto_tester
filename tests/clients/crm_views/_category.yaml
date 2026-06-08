@@ -28,3 +28,8 @@ tags:
   - migration
 owner: QA Team
 created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10
