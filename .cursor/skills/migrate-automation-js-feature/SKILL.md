@@ -43,7 +43,9 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Run the migrated scope successfully 3 times with fresh runner state before stress testing.
    - **Hard gate before stress_test**: after those 3 successful runs, re-check `migration_mapping.md`, `steps.md`, `script.md`, and `test.py` against the legacy `.feature`, step definitions, page objects, API helpers, and assertions.
    - Do not start `stress_test` until scope at least matches the legacy test and quality is at least as strong as the legacy test: no removed user-facing assertions, no lost setup/edge-case coverage, no UI action replaced by API when the UI action is in scope, and no weaker selector/wait strategy than the old flow.
-   - Stability run only after the hard gate passes: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`
+   - Stability run only after the hard gate passes. Two stages:
+     - **Smoke (cheap pre-check)**: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`. A 3-iteration run only catches gross breakage — it **never** stamps `stability.status: stable` and is not sufficient evidence to claim "stable".
+     - **Full stability gate (required before claiming stable)**: rerun with `--iterations 10`. The runner only stamps `stability.status: stable` at a **100% pass over 10 iterations** (`STABLE_MIN_ITERATIONS = 10`). Only a clean 10/10 may be recorded as the tracker stability evidence (`stress 10/10 …`). 3 iterations routinely mask time-of-day, propagation-lag, and SSO-redirect flakes that only surface across 10 runs.
 8. After a successful migration, run the original and migrated tests and report the comparison.
    - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
@@ -98,7 +100,7 @@ The migration is complete only when all three checks pass:
 - **High Quality**: phase files are synchronized, helpers are reused or extracted, Python compiles, lints are clean, and changes are logged.
 - **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation was checked against the local `migration_mapping.md`; the mapping file itself stays out of the PR.
 - **Pre-Stress Legacy Gate Passed**: after 3 successful migrated runs and before any stress test, scope and quality were re-verified against the legacy test and confirmed to be at least equivalent.
-- **Proven Stability**: focused run passes, resolved heal requests are deleted, and repeated runs pass with fresh auto-created accounts.
+- **Proven Stability**: focused run passes, resolved heal requests are deleted, and a full **10-iteration `stress_test` passed at 100%** (matching the runner's `STABLE_MIN_ITERATIONS = 10`) with fresh auto-created accounts. A 3-iteration smoke run is only a pre-check — it never stamps `stability.status: stable` and is not valid stability evidence.
 - **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Faster Without Loss**: total runtime was reduced where possible by removing avoidable waits and work, with no scope or quality reduction.
 - **Pre-PR Wait Audit Passed**: just before opening the PR, edited code was re-scanned for timeouts above the 5s cap and retry loops above 2 retries; each was lowered or explicitly justified, and stability was re-stamped if any wait/timeout/retry changed.

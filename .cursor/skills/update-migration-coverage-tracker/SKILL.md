@@ -66,6 +66,10 @@ Why a tool and not hand-edited HTML:
 - The page is published as **ADF** (`atlas_doc_format`). The storage/HTML importer silently strips table-cell background colors and status lozenges, so ADF is the only format that keeps the colored bars.
 - Publishing replaces the whole page body. **Never** do a manual or "probe" write to the live page (it overwrites everything). Always go through the tool, which fetches the current page, edits it in place, and republishes the full doc.
 
+> **The two progress bars are NOT "left unchanged when omitted" — they are redrawn from the totals you pass.** The "omitted ⇒ unchanged" rule applies only to the Summary metric *rows*. The bars are driven by `--ff-migrated/--ff-total/--sc-migrated/--sc-total`, which default to `0`; if you pass `--refresh-confluence` **without** those totals, `_refresh_bars` redraws both bars at `0 / 0` and wipes the progress. So whenever you use `--refresh-confluence`, always pass the current ff/sc totals.
+>
+> **An `In review → Merged` flip is a numeric no-op for Confluence** — both statuses already count toward progress (see Counting Rules), so the bars and Summary don't change. Do that flip as a **Sheet-only upsert** (omit `--refresh-confluence`); only re-refresh Confluence if you genuinely changed totals, and then re-pass the current ff/sc numbers.
+
 One-time setup (service-account key, Sheet id, Confluence email + API token) is in `tools/migration_tracker/README.md`. If the env vars are unset, stop and follow the README.
 
 ## Required Data
@@ -83,6 +87,29 @@ Collect before running:
 - Jira link and PR link, or `TBD` if unavailable.
 
 > **Always pass the complete row data on every upsert — even for a one-field change** (e.g. adding the PR link later). The Sheet upsert rewrites the whole row from the args provided, so any field you omit (`--scope`, `--original`, `--migrated`, `--improvement`, `--stability`, …) is blanked. This is the opposite of the Confluence Summary rows, where an omitted metric is left unchanged. For a stabilization-only update, re-pass the existing original-run data alongside the changed migrated result, duration, status, stability evidence, Jira, or PR.
+
+### Reading the current row before re-upserting
+
+The tool has no `show`/`get` command, so before a one-field change (e.g. flipping `In review → Merged`) read the existing row so you can re-pass every column verbatim. Fetch with `valueRenderOption=FORMULA` so the Jira/PR `HYPERLINK` URLs come back (needed for `--jira-url`/`--pr-url`):
+
+```bash
+python3 - <<'PY'
+from tools.migration_tracker import config
+from tools.migration_tracker.google_sheets import SheetsClient
+
+client = SheetsClient(config.GSA_KEY_PATH, config.require("SHEET_ID", config.SHEET_ID))
+resp = client._session.get(
+    f"https://sheets.googleapis.com/v4/spreadsheets/{config.SHEET_ID}/values/{config.SHEET_TAB}",
+    params={"valueRenderOption": "FORMULA"},
+)
+for row in resp.json().get("values", []):
+    path = row[1] if len(row) > 1 else ""
+    if "<your/auto_tester/path>" in path:  # filter to the row(s) you're editing
+        print(row)
+PY
+```
+
+Copy `Scope covered`, `Original result`, `Migrated result`, `Duration improvement`, and the Jira/PR URLs out of the printed row and re-pass them on the upsert so nothing is blanked.
 
 ## Counting Rules
 
@@ -151,7 +178,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
    - `--ff-*`/`--sc-*` drive the bars and the two "candidate progress" Summary rows (the tool derives the "N left" counts). `--tracked-*`/`--validated-scopes` set their Summary rows; `--latest-*`/`--jira-key` set the "Latest" rows.
 4. To preview without publishing, use the `confluence` subcommand with `--emit <file>` (writes the ADF doc).
 5. Verify: open the printed Sheet URL (row present/updated) and the Confluence page version, and confirm the bars/percentages and Summary rows match what you passed.
-6. **After the PR merges**, run the same upsert again for that `--feature` with `--status Merged` (re-pass every column, since the upsert rewrites the whole row). This is the only time a row should read `Merged`.
+6. **After the PR merges**, run the same upsert again for that `--feature` with `--status Merged` (re-pass every column, since the upsert rewrites the whole row — read the current row first if needed, see "Reading the current row before re-upserting"). This is the only time a row should read `Merged`. Do it as a **Sheet-only upsert (no `--refresh-confluence`)**: `In review → Merged` doesn't change any progress count, and refreshing without the ff/sc totals would zero the bars.
 
 ## Reference
 
