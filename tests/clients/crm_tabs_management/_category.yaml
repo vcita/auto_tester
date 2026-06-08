@@ -1,0 +1,37 @@
+name: CRM Tabs Management
+description: Manage CRM table tabs - select the New inquiries tab (empty state, 0
+  clients), switch to the Recently active view and search the self-client (1 client,
+  "(You as a client)"), drag the New inquiries tab before All, then close New inquiries
+  and verify it returns to the views dropdown.
+account_profile:
+  type: isolated
+  slug: crmtabs
+  cleanup: always
+execution_order:
+- manage_crm_tabs
+tests:
+- id: manage_crm_tabs
+  name: Manage CRM Table Tabs
+  status: active
+  priority: high
+  description: Select the New inquiries tab (empty, 0 CLIENTS); select the Recently
+    active view and search form_first (1 CLIENTS, "(You as a client)"); drag New inquiries
+    before All; close New inquiries and verify it appears in the views dropdown.
+  tags:
+  - clients
+  - crm
+  - tabs
+status: active
+priority: high
+tags:
+- clients
+- crm
+- tabs
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
