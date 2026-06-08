@@ -89,7 +89,7 @@ jira_label, jira_url, pr_label, pr_url]`. This writes all rows, applies formatti
 python -m tools.migration_tracker.update_tracker upsert \
   --feature features/tempo/calendar-settings.feature \
   --path tests/scheduling/calendar_settings \
-  --status Migrated --scope "..." \
+  --status "In review" --scope "..." \
   --original "2 scenarios / 14 steps, 74.0s" \
   --migrated "3/3, ~43s" --improvement "~42% faster" \
   --stability "stress 10/10 on 2026-06-04" \
