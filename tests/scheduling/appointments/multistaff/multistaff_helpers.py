@@ -56,7 +56,8 @@ def schedule_appointment(
     _pick_service(page, inner, service_name)
 
     _schedule_button(inner).wait_for(state="visible", timeout=UI_TIMEOUT)
-    _set_tomorrow_10am(inner)
+    _set_future_date(page, inner)
+    _set_start_time(inner, "10:00 AM")
     _fill_address_if_present(page, inner)
     if additional_staff:
         _select_additional_staff(page, inner, additional_staff)
@@ -68,8 +69,17 @@ def schedule_appointment(
 
 
 def _open_new_appointment(page: Page, outer, inner, client_name: str) -> None:
+    """Open the New Appointment dialog and select the client.
+
+    The client (created via API in _setup) occasionally has not surfaced in the dialog's
+    client search within one timeout (CRM indexing lag -> "ALL CLIENTS" empty). Re-opening
+    the dialog re-issues the search, so retry the whole open+search (1 + 2) rather than
+    failing on a transient empty result.
+    """
     last_error: Exception | None = None
-    for attempt in range(2):
+    for attempt in range(3):
+        if attempt:
+            _dismiss_open_dialog(page, outer)
         new_btn = inner.get_by_role("button", name="New")
         new_btn.wait_for(state="visible", timeout=UI_TIMEOUT)
         new_btn.click()
@@ -78,21 +88,39 @@ def _open_new_appointment(page: Page, outer, inner, client_name: str) -> None:
         appointment_option.click(timeout=UI_TIMEOUT)
         outer.get_by_role("dialog").wait_for(state="visible", timeout=UI_TIMEOUT)
 
-        search = outer.get_by_role("textbox", name="Search by name, email or tag")
-        search.click(timeout=UI_TIMEOUT)
-        page.wait_for_timeout(100)
-        search.press_sequentially(client_name, delay=30)
-        client_option = outer.get_by_role("button").filter(has_text=client_name)
-        client_option.wait_for(state="visible", timeout=UI_TIMEOUT)
-        client_option.click(timeout=UI_TIMEOUT)
-
-        service_picker = inner.locator('[data-qa="service-picker-modal"]:visible')
         try:
+            search = outer.get_by_role("textbox", name="Search by name, email or tag")
+            search.click(timeout=UI_TIMEOUT)
+            page.wait_for_timeout(100)
+            search.press_sequentially(client_name, delay=30)
+            client_option = outer.get_by_role("button").filter(has_text=client_name)
+            client_option.wait_for(state="visible", timeout=UI_TIMEOUT)
+            client_option.click(timeout=UI_TIMEOUT)
+
+            service_picker = inner.locator('[data-qa="service-picker-modal"]:visible')
             service_picker.wait_for(state="visible", timeout=UI_TIMEOUT)
             return
         except PlaywrightTimeoutError as exc:
             last_error = exc
     raise last_error or AssertionError("Service picker did not open after client selection")
+
+
+def _dismiss_open_dialog(page: Page, outer) -> None:
+    """Best-effort close of an appointment dialog left open by a failed attempt."""
+    if outer.get_by_role("dialog").count() == 0:
+        return
+    cancel = outer.get_by_role("button", name=re.compile(r"^Cancel$", re.I)).first
+    for closer in (
+        lambda: cancel.click(timeout=2_000),
+        lambda: page.keyboard.press("Escape"),
+    ):
+        try:
+            closer()
+        except Exception:  # noqa: BLE001 - try the next closer
+            continue
+        page.wait_for_timeout(_SETTLE_MS)
+        if outer.get_by_role("dialog").count() == 0:
+            return
 
 
 def _pick_service(page: Page, inner, service_name: str) -> None:
@@ -107,23 +135,74 @@ def _pick_service(page: Page, inner, service_name: str) -> None:
     service_picker.wait_for(state="hidden", timeout=UI_TIMEOUT)
 
 
-def _set_tomorrow_10am(inner) -> None:
-    try:
-        tomorrow = datetime.now() + timedelta(days=1)
-        current_month = datetime.now().strftime("%B")
-        current_year = datetime.now().year
-        date_field = inner.get_by_text(
-            re.compile(rf"\d{{1,2}}\s+{current_month}\s+{current_year}")
-        ).first
-        date_field.click(timeout=UI_TIMEOUT)
-        inner.get_by_role("button", name=str(tomorrow.day)).last.click(timeout=UI_TIMEOUT)
-    except Exception:  # noqa: BLE001 - default (near-future) date is acceptable
-        pass
+def _set_future_date(page: Page, inner, days_ahead: int = 3) -> None:
+    """Move the appointment to a date `days_ahead` in the future and verify it landed.
+
+    This is REQUIRED, not best-effort: the dialog defaults to today, and once the
+    appointment start time is in the past the meeting becomes COMPLETED and its
+    additional-staff edit link is no longer rendered. `multi_staff_meeting` then can
+    never remove a staff. The legacy default-date behaviour only "passed" when the
+    suite ran early enough in the account's timezone that today's slot was still
+    upcoming; this makes the future date deterministic regardless of run time.
+    """
+    target = datetime.now() + timedelta(days=days_ahead)
+
+    # The appointment dialog's start-date field. `[data-qa="date-picker-text-input"]` is the
+    # readonly <input> itself, so its value is read via input_value (not inner_text).
+    date_input = (
+        inner.locator('[data-qa="service-date-input"]').first
+        .locator('[data-qa="date-picker-text-input"]').first
+    )
+    before = (date_input.input_value(timeout=UI_TIMEOUT) or "").strip()
+    date_input.click(timeout=UI_TIMEOUT)
+
+    # IMPORTANT: scope to the dialog's date-picker popup. The calendar page also has an
+    # always-visible mini-calendar (another v-date-picker), so an unscoped `.first` would
+    # drive the sidebar instead of the appointment date field.
+    menu = inner.locator(".date-picker-menu-content")
+    header = menu.locator(".v-date-picker-header__value").first
+    table = menu.locator(".v-date-picker-table--date").first
+    table.wait_for(state="visible", timeout=UI_TIMEOUT)
+
+    target_label = target.strftime("%B %Y").lower()
+    for _ in range(13):  # bounded month navigation (>=1 year of headroom)
+        if target_label in (header.inner_text(timeout=UI_TIMEOUT) or "").lower():
+            break
+        menu.locator(".v-date-picker-header button").last.click(timeout=UI_TIMEOUT)
+        page.wait_for_timeout(_SETTLE_MS)
+
+    # Adjacent-month cells share the same table: leading cells are the previous
+    # month's high days, trailing cells the next month's low days. So a low target
+    # day is the first match and a high target day is the last in-month match.
+    day_cells = table.locator("button.v-btn").filter(
+        has_text=re.compile(rf"^\s*{target.day}\s*$")
+    )
+    cell = day_cells.first if target.day <= 14 else day_cells.last
+    cell.wait_for(state="visible", timeout=UI_TIMEOUT)
+    # Vuetify v-btn day cells ignore a plain Playwright click (ripple overlay swallows it),
+    # so dispatch the click event directly to fire Vue's @input handler.
+    cell.dispatch_event("click")
+
+    # The date field is the source of truth; it must change away from today's default.
+    # A no-op (the original silent bug) leaves a today/past appointment that is COMPLETED
+    # and therefore has no additional-staff edit link for the removal step.
+    for _ in range(int(UI_TIMEOUT / _SETTLE_MS)):
+        after = (date_input.input_value() or "").strip()
+        if after and after != before:
+            return
+        page.wait_for_timeout(_SETTLE_MS)
+    raise AssertionError(
+        f"Appointment date did not advance to {target:%Y-%m-%d} (date field still {before!r}); "
+        "a non-future appointment would be COMPLETED and not editable."
+    )
+
+
+def _set_start_time(inner, time_text: str) -> None:
     try:
         start = inner.locator('[data-qa="service-start-time-input"] input').first
         start.click(timeout=UI_TIMEOUT)
-        inner.locator('[data-qa="item-10:00 AM"]').first.click(timeout=UI_TIMEOUT)
-    except Exception:  # noqa: BLE001 - default start time is acceptable
+        inner.locator(f'[data-qa="item-{time_text}"]').first.click(timeout=UI_TIMEOUT)
+    except Exception:  # noqa: BLE001 - a future date already guarantees an editable (SCHEDULED) meeting
         pass
 
 

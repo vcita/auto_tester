@@ -734,19 +734,33 @@ def trigger_calendar_print(page: Page) -> None:
 
 
 def switch_logged_in_staff(page: Page, context: dict, staff: dict) -> None:
-    token = get_sso_token(context, staff)
+    """SSO-login as ``staff`` and wait for the dashboard to be reachable.
+
+    The SSO redirect chain (sso/login -> dashboard) is occasionally slower than a single
+    UI_TIMEOUT under integration load, leaving the app on a blank bootstrapping page. Retry
+    the whole login (with a fresh single-use token each attempt) so a transient slow
+    redirect does not fail the test. Bounded to 1 + 2 retries per project policy.
+    """
     base_url = resolve_partner_base_url(context)
     redirect_to = quote("/app/dashboard", safe="")
-    try:
-        page.goto(
-            f"{base_url}/v1/partners/sso/login?staff_uid={staff_uid(staff)}&sso_token={token}&redirect_to={redirect_to}",
-            wait_until="domcontentloaded",
-            timeout=UI_TIMEOUT,
-        )
-    except PlaywrightError as error:
-        if "ERR_ABORTED" not in str(error):
-            raise
-    page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT)
+    last_error: Exception | None = None
+    for _ in range(3):
+        token = get_sso_token(context, staff)
+        try:
+            page.goto(
+                f"{base_url}/v1/partners/sso/login?staff_uid={staff_uid(staff)}&sso_token={token}&redirect_to={redirect_to}",
+                wait_until="domcontentloaded",
+                timeout=UI_TIMEOUT,
+            )
+        except PlaywrightError as error:
+            if "ERR_ABORTED" not in str(error):
+                raise
+        try:
+            page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT)
+            return
+        except PlaywrightTimeoutError as error:
+            last_error = error
+    raise last_error or AssertionError("SSO staff switch did not reach the dashboard")
 
 
 def navigate_calendar(page: Page, display: str, direction: str | None = None):
