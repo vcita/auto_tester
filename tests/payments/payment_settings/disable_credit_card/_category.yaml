@@ -1,0 +1,33 @@
+name: Online Payments - disable credit card
+description: Disable credit-card payments in the client portal and verify a client
+  cannot pay (no-payment error dialog). Migrated from payments_settings.feature scenario
+  "Online Payments - disable credit card payments in client portal".
+account_profile:
+  type: isolated
+  slug: paynocc
+  cleanup: always
+tests:
+- id: no_payment_error
+  name: Disable credit-card payments and verify the CP payment error
+  status: active
+  priority: high
+  description: Verify the provider banner on the payment settings page, connect the
+    mock gateway, disable credit-card payments via the API, then as a client open
+    the public make-payment form, attempt to pay, and verify the no-payment error
+    dialog displays.
+  tags:
+  - payments
+  - settings
+  - client-portal
+status: active
+priority: high
+tags:
+- payments
+- settings
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-08'
+  pass_rate: 100.0%
+  iterations: 10

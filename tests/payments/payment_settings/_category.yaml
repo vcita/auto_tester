@@ -1,0 +1,19 @@
+name: Payment Settings
+description: Payment settings setups migrated from automation-js
+  features/salsa/payments_settings.feature — default currency, terms & policies,
+  client-portal payments visibility, and disabling credit-card payments. Each
+  scenario runs on its own isolated account because it mutates account-wide
+  payment state.
+execution_order:
+- currency
+- terms_policies
+- cp_deny_payments
+- disable_credit_card
+tests: []
+status: active
+priority: high
+tags:
+- payments
+- settings
+owner: QA Team
+created_at: 2026-06-07

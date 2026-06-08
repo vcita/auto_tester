@@ -19,6 +19,8 @@ execution_order:
 - event_payments
 - appointment_payments
 - product_payments
+- generate_pdfs
+- payment_settings
 - gateway_setups
 tests: []
 status: active

@@ -84,9 +84,11 @@ def _reveal_all_providers(frame) -> None:
 
 
 def _submit_mock_popup(popup) -> None:
-    popup.wait_for_load_state("domcontentloaded")
-    popup.locator("#secret").fill("bla")
-    popup.locator("#alias").fill("blu")
+    popup.wait_for_load_state("domcontentloaded", timeout=GATEWAY_CONNECT_TIMEOUT)
+    secret = popup.locator("#secret")
+    secret.wait_for(state="visible", timeout=GATEWAY_CONNECT_TIMEOUT)
+    secret.fill("bla", timeout=FAST_UI_TIMEOUT)
+    popup.locator("#alias").fill("blu", timeout=FAST_UI_TIMEOUT)
     submit = popup.locator("button[type=submit]")
     submit.wait_for(state="visible", timeout=FAST_UI_TIMEOUT)
     submit.click()
@@ -126,13 +128,35 @@ def connect_mock_gateway(page: Page, context: dict) -> None:
     _reveal_all_providers(frame)
     frame.locator(PROVIDER_MOCK).first.evaluate("(el) => el.click()")
 
-    with page.context.expect_page(timeout=GATEWAY_CONNECT_TIMEOUT) as popup_info:
-        frame.locator(PROVIDER_MOCK_CONNECT).first.evaluate("(el) => el.click()")
-    popup = popup_info.value
-    _submit_mock_popup(popup)
-    try:
-        popup.wait_for_event("close", timeout=GATEWAY_CONNECT_TIMEOUT)
-    except Exception:
-        pass
-
+    _connect_mock_popup_with_retry(page, frame)
     _save_when_mock_connected(page)
+
+
+def _connect_mock_popup_with_retry(page: Page, frame) -> None:
+    """Open the external mock-gateway popup, fill + submit it, retrying once.
+
+    The popup is an external-gateway round trip that can transiently load slowly
+    (occasionally past the default nav budget), so a single failed open/submit is
+    retried rather than failing the whole setup.
+    """
+    last_error: Exception | None = None
+    for _ in range(2):
+        popup = None
+        try:
+            with page.context.expect_page(timeout=GATEWAY_CONNECT_TIMEOUT) as popup_info:
+                frame.locator(PROVIDER_MOCK_CONNECT).first.evaluate("(el) => el.click()")
+            popup = popup_info.value
+            _submit_mock_popup(popup)
+            try:
+                popup.wait_for_event("close", timeout=GATEWAY_CONNECT_TIMEOUT)
+            except Exception:
+                pass
+            return
+        except Exception as error:
+            last_error = error
+            if popup is not None and not popup.is_closed():
+                try:
+                    popup.close()
+                except Exception:
+                    pass
+    raise AssertionError(f"Mock-gateway popup did not complete after 2 attempts: {last_error}")

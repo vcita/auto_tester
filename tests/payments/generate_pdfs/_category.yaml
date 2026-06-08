@@ -1,0 +1,53 @@
+name: Generate PDFs
+description: Generate and verify estimate, invoice, and receipt PDFs via the billboard
+  API (back-office document generation). Migrated from automation-js features/steps/generate_pdfs.feature.
+  Every scenario is API-only, so the three subcategories share one isolated account
+  and a single API-created client.
+account_profile:
+  type: isolated
+  slug: generate_pdfs
+  cleanup: always
+execution_order:
+- estimate_pdf
+- invoice_pdf
+- receipt_pdf
+tests:
+- id: estimate_pdf
+  name: Generate estimate PDF
+  status: active
+  priority: high
+  description: Create an estimate via API ($20 item) for the shared client and verify
+    the billboard returns a non-empty PDF for it.
+  tags:
+  - payments
+  - pdfs
+- id: invoice_pdf
+  name: Generate invoice PDF
+  status: active
+  priority: high
+  description: Create an invoice via API ($20 item) for the shared client and verify
+    the billboard returns a non-empty PDF for it.
+  tags:
+  - payments
+  - pdfs
+- id: receipt_pdf
+  name: Generate receipt PDF
+  status: active
+  priority: high
+  description: Create an invoice via API, record a $20 Cash payment against it, and
+    verify the billboard returns a non-empty receipt PDF (keyed by payment id).
+  tags:
+  - payments
+  - pdfs
+status: active
+priority: high
+tags:
+- payments
+- pdfs
+owner: QA Team
+created_at: 2026-06-07
+stability:
+  status: stable
+  last_stress_test: '2026-06-07'
+  pass_rate: 100.0%
+  iterations: 10
