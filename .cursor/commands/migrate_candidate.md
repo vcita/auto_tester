@@ -90,7 +90,7 @@ Run `/stress_test categories: <category/subcategory> iterations: <iterations>` (
 ## Step 7 — Compare and update tracker
 
 - Run both the original `automation-js` scope and the migrated `auto_tester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
-- Update the Confluence coverage tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals.
+- Update the Confluence coverage tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to `In review` (PR open, not merged) — never `Merged` at this stage. Flip it to `Merged` only after the PR lands on `master`.
 
 ---
 
@@ -101,6 +101,6 @@ All of the `migrate-automation-js-feature` DoD checks pass **and**:
 - Jira ticket created under the epic, in the sprint, assigned to `assignee`.
 - `/codeReview` issues resolved.
 - Stress test stable at `iterations` runs on `env`.
-- Coverage tracker updated with measured results.
+- Coverage tracker updated with measured results, with the row `Status` set to `In review` (PR open); flipped to `Merged` only after the PR merges.
 
 Do not commit or push without explicit approval (per repo rules). Keep `migration_mapping.md`, `plan.md`, and `_health.json` churn out of any commit.
