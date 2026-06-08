@@ -1,8 +1,10 @@
 # Migrate Candidate
 
-End-to-end workflow to pick a legacy `automation-js` candidate, open its Jira ticket, migrate it into `auto_tester` with zero scope/quality loss, review, stabilize, and update the coverage tracker.
+End-to-end workflow to pick a legacy `automation-js` candidate, open its Jira ticket, migrate it into `auto_tester` with zero scope/quality loss, review, stabilize, and keep the coverage tracker live at every step.
 
 This command **orchestrates** existing skills and commands; it does not redefine their rules. Follow each referenced source as the authority.
+
+The coverage tracker (Google Sheet + Confluence page `4690444289`) must reflect the **real** state of the migration as it progresses — not only at the end. Update it at each relevant step so the row `Status` always matches where the work actually is.
 
 **Skills/commands to follow:**
 - **Migration rules and DoD:** `migrate-automation-js-feature` skill (read its SKILL.md)
@@ -23,6 +25,29 @@ Parse these from the user's input; fall back to the defaults when not given. Do 
 - `candidate` — specific feature/scenario to migrate. **Default: auto-select** (see Step 1)
 - `env` — **Default: `integration`**
 - `iterations` — stress-test iterations. **Default: `3`**
+
+---
+
+## Tracker status — keep it live
+
+The `update-migration-coverage-tracker` skill is the authority for **how** to run the tracker tool (env, args, counting rules, full-row re-pass). This command only says **when** to update it and **which** status to set. Every update goes through the committed tool — **never** hand-edit the Sheet or Confluence page.
+
+Map each step to the row `Status` (full lifecycle in the skill):
+
+| After step | Status to set | Meaning |
+|------------|---------------|---------|
+| Step 2 (ticket + branch created) | `Proposed` | Candidate identified; implementation not started. |
+| Step 3 (writing phase docs / `test.py`) | `In progress` | Implementation underway; stability gate not yet passed. |
+| Step 3 end / Step 6 (runnable, runs not yet green) | `Needs stabilization` | Implemented and runnable, but focused/stress runs are not green. |
+| Step 6 → Step 7 (stability gate passed, PR opened) | `In review` | The only status that counts toward progress while the PR is open. |
+| After the PR merges to `master` | `Merged` | The only true "done". |
+| Any step where work stalls | `Blocked` | Note the blocker in `Scope covered`. |
+
+Rules that apply to every tracker update below:
+
+- **Re-pass the full row on every upsert** (matched by `--feature`). The Sheet upsert rewrites the whole row, so any column you omit is blanked — carry forward every known field (`--scope`, `--original`, `--migrated`, `--improvement`, `--stability`, `--jira-*`, `--pr-*`).
+- **Do not increment the progress counters** (`--ff-migrated` / `--sc-migrated`) until the row is `In review` or `Merged`. Early statuses (`Proposed`, `In progress`, `Needs stabilization`, `Blocked`) do not count toward progress.
+- **Never jump straight to `In review`/`Merged`** from partial implementation, failed focused runs, unresolved heal requests, or guessed runtime data.
 
 ---
 
@@ -56,6 +81,8 @@ Once approved, use the `manage-jira-issues` skill to create the ticket:
 
 Capture the created issue key (e.g. `VCITA2-XXXXX`) — it is needed for the branch name, PR, and tracker row. Then create the feature branch (alphanumeric, underscores, dashes only — `git-branch-naming`).
 
+**Tracker:** once the ticket and branch exist, upsert the row at **`Proposed`** via the `update-migration-coverage-tracker` skill — `--feature`, `--path`, `--status "Proposed"`, `--scope` (planned scope), `--jira-key`/`--jira-url`, and `--latest-branch`. Leave run/stability columns and the progress counters empty (this status does not count toward progress).
+
 ---
 
 ## Step 3 — Migrate (zero scope/quality loss)
@@ -66,6 +93,8 @@ Follow the `migrate-automation-js-feature` skill end to end:
 - Create `migration_mapping.md` (local, not committed) before `test.py`.
 - Implement in strict phase order: `steps.md` → `script.md` → `test.py` → `changelog.md`; register in `_category.yaml`.
 - Honor the **hard gate**: 3 clean focused runs, then re-verify scope and quality against the legacy test before any stress test.
+
+**Tracker:** when implementation starts (phase docs / `test.py` being written), upsert the same row to **`In progress`** (re-pass the known columns). Once the test is runnable but the focused/stress runs are not yet green, move it to **`Needs stabilization`**. Still no progress-counter increment at either status.
 
 ---
 
@@ -85,12 +114,15 @@ Run `/codeReview` on the changes (it applies the `code-review-checklist` skill).
 
 Run `/stress_test categories: <category/subcategory> iterations: <iterations>` (default 3) on `env`. Monitor to completion. Investigate and fix any non-infrastructure failures, then re-run until stable.
 
+**Tracker:** keep the row at **`Needs stabilization`** while runs are still failing or being re-run. Do **not** advance to `In review` until the stability gate is genuinely passed. If work stalls on an external dependency, product bug, or missing selector, set **`Blocked`** and record the blocker in `--scope`.
+
 ---
 
-## Step 7 — Compare and update tracker
+## Step 7 — Compare and update tracker (`In review`, then `Merged`)
 
 - Run both the original `automation-js` scope and the migrated `auto_tester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
-- Update the Confluence coverage tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to `In review` (PR open, not merged) — never `Merged` at this stage. Flip it to `Merged` only after the PR lands on `master`.
+- Once the stability gate has passed and the PR is open, update the tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to **`In review`** (PR open, not merged) — never `Merged` at this stage. This is the first status that **counts toward progress**, so this is where you increment `--ff-migrated` / `--sc-migrated` (full scenario set only) and refresh the Summary/`--tracked-*`/`--latest-*` rows.
+- **After the PR merges to `master`**, run the same upsert again for that `--feature` with `--status "Merged"` (re-pass every column). This is the only time a row should read `Merged`.
 
 ---
 
@@ -101,6 +133,7 @@ All of the `migrate-automation-js-feature` DoD checks pass **and**:
 - Jira ticket created under the epic, in the sprint, assigned to `assignee`.
 - `/codeReview` issues resolved.
 - Stress test stable at `iterations` runs on `env`.
+- Coverage tracker kept live across the run — the row advanced through `Proposed` → `In progress` → `Needs stabilization` → `In review` as the work actually progressed (using `Blocked` if it ever stalled), never skipping ahead of the real state.
 - Coverage tracker updated with measured results, with the row `Status` set to `In review` (PR open); flipped to `Merged` only after the PR merges.
 
 Do not commit or push without explicit approval (per repo rules). Keep `migration_mapping.md`, `plan.md`, and `_health.json` churn out of any commit.
