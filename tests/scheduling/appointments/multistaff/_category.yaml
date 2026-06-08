@@ -1,0 +1,39 @@
+# Multistaff appointment scheduling (isolated account)
+# Migrated from automation-js/features/tempo/multistaff.feature (VCITA2-13950).
+# Runs on a fresh account so staff/client/service setup and the assigned/additional-staff
+# assertions are deterministic. The owner (multi-staff) scenario runs first; the
+# staff-switch (SSO) scenario runs last so the switched session never leaks.
+
+name: Multistaff
+description: On a fresh multistaff account, schedule an appointment as a switched-in user staff (assigned staff = that staff), and schedule a multi-staff appointment as the owner with two additional staff then remove one (assigned staff = owner, additional staff = the remaining one).
+
+account_profile:
+  type: isolated
+  slug: multistaff
+  cleanup: always
+
+execution_order:
+  - multi_staff_meeting
+  - schedule_as_user_staff
+
+tests:
+  - id: multi_staff_meeting
+    name: Multi Staff Meeting
+    status: active
+    priority: high
+    description: As the owner, schedule an appointment with two additional staff, remove one, and verify assigned staff = owner and additional staff = the remaining staff.
+  - id: schedule_as_user_staff
+    name: Schedule As User Staff
+    status: active
+    priority: high
+    description: Switch the logged-in staff to a user-role staff (SSO), schedule an appointment, and verify the created meeting is assigned to that staff with the right client and price.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - appointments
+  - multistaff
+  - migration
+owner: QA Team
+created_at: 2026-06-08
