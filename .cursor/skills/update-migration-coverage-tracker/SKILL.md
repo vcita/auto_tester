@@ -44,7 +44,9 @@ validated-but-open PR is `In review`, not merged.
 Rules:
 
 - **Never set `Merged` before the PR is actually merged.** At closeout (PR opened),
-  set `In review`. After the PR merges, run the tracker again to flip the row to `Merged`.
+  set `In review`. After the PR merges, run the tracker again to flip the row to `Merged`,
+  refreshing **both** the Sheet and Confluence (`--refresh-confluence` with the current
+  ff/sc totals re-passed so the bars don't reset).
 - `In review` and `Merged` both require the full stability gate to have passed; do
   not set them from partial work, failed runs, or guessed data.
 - The legacy `Migrated` value is retired — classify rows as `In review` (PR open) or
@@ -68,7 +70,7 @@ Why a tool and not hand-edited HTML:
 
 > **The two progress bars are NOT "left unchanged when omitted" — they are redrawn from the totals you pass.** The "omitted ⇒ unchanged" rule applies only to the Summary metric *rows*. The bars are driven by `--ff-migrated/--ff-total/--sc-migrated/--sc-total`, which default to `0`; if you pass `--refresh-confluence` **without** those totals, `_refresh_bars` redraws both bars at `0 / 0` and wipes the progress. So whenever you use `--refresh-confluence`, always pass the current ff/sc totals.
 >
-> **An `In review → Merged` flip is a numeric no-op for Confluence** — both statuses already count toward progress (see Counting Rules), so the bars and Summary don't change. Do that flip as a **Sheet-only upsert** (omit `--refresh-confluence`); only re-refresh Confluence if you genuinely changed totals, and then re-pass the current ff/sc numbers.
+> **When a test PR merges, update BOTH the Sheet and Confluence.** Flip the row to `Merged` **and** pass `--refresh-confluence` on the same upsert. The `In review → Merged` flip does not change the progress counts, but Confluence must still be refreshed so the page reflects the merge and the "Latest migrated scope / Latest Jira / Latest branch" rows stay current. Because `--refresh-confluence` **redraws the bars from the totals you pass**, you MUST re-pass the current ff/sc totals (`--ff-migrated/--ff-total/--sc-migrated/--sc-total`) and the `--tracked-*`/`--validated-scopes`/`--latest-branch` values on the merge upsert — otherwise `_refresh_bars` resets the bars to `0 / 0` and wipes the progress.
 
 One-time setup (service-account key, Sheet id, Confluence email + API token) is in `tools/migration_tracker/README.md`. If the env vars are unset, stop and follow the README.
 
@@ -178,7 +180,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
    - `--ff-*`/`--sc-*` drive the bars and the two "candidate progress" Summary rows (the tool derives the "N left" counts). `--tracked-*`/`--validated-scopes` set their Summary rows; `--latest-*`/`--jira-key` set the "Latest" rows.
 4. To preview without publishing, use the `confluence` subcommand with `--emit <file>` (writes the ADF doc).
 5. Verify: open the printed Sheet URL (row present/updated) and the Confluence page version, and confirm the bars/percentages and Summary rows match what you passed.
-6. **After the PR merges**, run the same upsert again for that `--feature` with `--status Merged` (re-pass every column, since the upsert rewrites the whole row — read the current row first if needed, see "Reading the current row before re-upserting"). This is the only time a row should read `Merged`. Do it as a **Sheet-only upsert (no `--refresh-confluence`)**: `In review → Merged` doesn't change any progress count, and refreshing without the ff/sc totals would zero the bars.
+6. **After the PR merges**, run the same upsert again for that `--feature` with `--status Merged` (re-pass every column, since the upsert rewrites the whole row — read the current row first if needed, see "Reading the current row before re-upserting"). This is the only time a row should read `Merged`. Update **both artifacts**: pass `--refresh-confluence` so the Confluence page reflects the merge and its "Latest" rows stay current. Because `In review → Merged` doesn't change progress counts but `--refresh-confluence` redraws the bars from the args, you MUST re-pass the current ff/sc totals (`--ff-migrated/--ff-total/--sc-migrated/--sc-total`) plus `--tracked-*`/`--validated-scopes`/`--latest-branch`; the bars stay put while the page is refreshed.
 
 ## Reference
 

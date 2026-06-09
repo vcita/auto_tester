@@ -122,7 +122,7 @@ Run `/stress_test categories: <category/subcategory> iterations: <iterations>` (
 
 - Run both the original `automation-js` scope and the migrated `auto_tester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
 - Once the stability gate has passed and the PR is open, update the tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to **`In review`** (PR open, not merged) — never `Merged` at this stage. This is the first status that **counts toward progress**, so this is where you increment `--ff-migrated` / `--sc-migrated` (full scenario set only) and refresh the Summary/`--tracked-*`/`--latest-*` rows.
-- **After the PR merges to `master`**, run the same upsert again for that `--feature` with `--status "Merged"` (re-pass every column). This is the only time a row should read `Merged`.
+- **After the PR merges to `master`**, run the same upsert again for that `--feature` with `--status "Merged"` (re-pass every column). This is the only time a row should read `Merged`. Update **both** the Sheet and Confluence: pass `--refresh-confluence` and re-pass the current ff/sc totals (`--ff-*`/`--sc-*`) plus `--tracked-*`/`--validated-scopes`/`--latest-branch`, so the page reflects the merge and its "Latest" rows stay current without zeroing the bars (per the `update-migration-coverage-tracker` skill).
 
 ---
 
