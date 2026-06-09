@@ -21,6 +21,7 @@ execution_order:
   - crm_selection_logic
   - crm_views
   - matters_management
+  - matter_deletion
   - delete_matter
 
 # Test metadata (order also in execution_order above)
