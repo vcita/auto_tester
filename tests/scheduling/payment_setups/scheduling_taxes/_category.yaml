@@ -1,0 +1,34 @@
+# Services and scheduling with taxes (isolated account)
+# Migrated from payment-setups.feature scenario "Services and Scheduling with taxes".
+# Create taxes, apply them to services (UI + API), verify tax text on the services list,
+# schedule appointments with per-appointment tax overrides, and verify payment-request
+# amounts with tax math; then flip tax_mode to include and verify tax-inclusive amounts.
+
+name: Scheduling With Taxes
+description: On a fresh account, create taxes (a default-for-services tax + others), create services with taxes (UI and API), verify tax text on the services list, schedule appointments with tax overrides, verify meeting prices and payment-request amounts with tax math (DUE / NOT YET DUE, "$X ($Y + Tax)"), then set tax_mode include and verify the tax-inclusive amount.
+
+account_profile:
+  type: isolated
+  slug: ps_scheduling_taxes
+  cleanup: always
+
+execution_order:
+  - scheduling_taxes
+
+tests:
+  - id: scheduling_taxes
+    name: Scheduling With Taxes
+    status: active
+    priority: high
+    description: Create taxes and taxed services, verify services-list tax text, schedule with tax overrides, verify payment-request tax math, and verify tax_mode include behavior.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - services
+  - payments
+  - taxes
+  - migration
+owner: QA Team
+created_at: 2026-06-09

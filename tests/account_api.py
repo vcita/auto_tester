@@ -243,13 +243,15 @@ def create_service_via_api(
     *,
     charge_type: str = "free",
     price: str | None = None,
+    tax_uids: list[str] | None = None,
 ) -> dict:
     """Create an appointment service via API.
 
     `charge_type`/`price` default to the original free-service behavior so existing
     callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
     legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
-    legacy "display a fee" service (see automation-js api/service.js).
+    legacy "display a fee" service (see automation-js api/service.js). `tax_uids` attaches
+    business taxes to the service (legacy `tax_uids`), e.g. a default-for-services tax.
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
@@ -267,6 +269,8 @@ def create_service_via_api(
     }
     if price is not None:
         payload["price"] = price
+    if tax_uids:
+        payload["tax_uids"] = tax_uids
     response = account_request(context, "POST", "/v2/settings/services", json=payload)
     service = response.get("data") or response
     service_id = service.get("id") or service.get("uid")

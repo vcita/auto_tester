@@ -15,6 +15,7 @@ execution_order:
   - events
   - calendar
   - calendar_settings
+  - payment_setups
 tests: []
 
 # Category metadata
