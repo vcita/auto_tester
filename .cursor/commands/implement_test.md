@@ -41,7 +41,7 @@ Use **base_url + "/login"** from config.yaml (target.base_url); never hardcode t
 ## PHASE 3: Generate test.py
 
 1. **Copy VERIFIED PLAYWRIGHT CODE exactly from script.md** — Do not modify or improve locators. See **phase3_code.mdc** (copy from script, use verified code only).
-2. **Wait strategy** — Use event-based waits with long timeouts (30–45s); do not use `wait_for_timeout()` alone for action completion. See **phase2_script.mdc** § CRITICAL: Wait Strategy and **phase3_code.mdc** § CRITICAL: Wait Strategy.
+2. **Wait strategy** — Use state-based waits capped at 5 seconds (`timeout=5000`); never use `wait_for_timeout()` alone for action completion. If 5s is not enough, fix the selector/readiness signal/setup instead of raising the timeout. See **phase2_script.mdc** § CRITICAL: Wait Strategy and **phase3_code.mdc** § CRITICAL: Wait Strategy.
 3. **No retries for actions** — Wait for readiness, then act once. See **project.mdc** § Cross-Cutting Execution Principles.
 
 **Generate test.py only after the full flow has been validated in MCP.** See **build.mdc** § CRITICAL: Complete the Full Action During Exploration.
@@ -77,6 +77,34 @@ Add an entry to `tests/{category}/{test_name}/changelog.md` following the format
 
 ---
 
+## PHASE 6: Scope & Quality Guardrail (Before Marking Complete)
+
+Before calling the test done, verify scope and quality did not decline during implementation or debugging:
+
+- Re-check `steps.md`, `script.md`, and `test.py` together; they must agree, and `test.py` must actually perform every assertion `steps.md`/`script.md` promise (no claimed-but-missing checks).
+- Confirm every intended user-facing action, assertion, edge case, and data expectation from `steps.md` is implemented — nothing was silently dropped or weakened to make the test pass.
+- Confirm no in-scope UI action was replaced by an API shortcut; API is only for prerequisites outside the behavior under test. See **build.mdc** § CRITICAL: Real User Actions Only and **project.mdc** § Real User Actions Rule.
+- Confirm success is validated by real data/state, never by toasts or dialogs closing. See **build.mdc** § CRITICAL: Validate Success from User Perspective.
+- If an assertion was removed as redundant, document in `changelog.md` which remaining assertion preserves the same behavior coverage.
+- Never weaken a selector (role/label/`data-qa` → fragile position/text) just to pass. See **prefer-data-qa-selectors**.
+- Report scope/quality preservation when you summarize the build. Do not mark the test complete if coverage shrank or assertions/selectors got weaker.
+
+---
+
+## PHASE 7: Wait & Duration Audit (Before Marking Complete)
+
+Before calling the test done, re-scan `test.py` and its helpers for wasted time, and fix or explicitly justify each finding:
+
+- **Wasted retries**: flag any retry/reload loop above 2 retries; reduce to ≤2, or justify the bounded count against a real async readiness signal. Never add blind "retry the action" loops to mask a flaky selector/setup. See **project.mdc** § Cross-Cutting Execution Principles.
+- **Fixed sleeps**: replace any `page.wait_for_timeout()`/`sleep()` used to wait for an action to complete with an explicit condition wait on a real readiness signal (element state, URL, dialog hidden, count change).
+- **Oversized timeouts**: flag any `timeout=`/wait above the project 5-second wait cap (`page.goto`, `wait_for`, `expect`, locator waits, polling deadlines); lower it to ≤5s, or document in `changelog.md` why a longer bounded poll is genuinely required (asynchronous product indexing/eventual consistency only — never to mask a flaky selector/setup).
+- **Avoidable duration**: remove redundant navigation/reloads, repeated logins, and UI setup that can be API setup for out-of-scope prerequisites; shorten any action that can be performed faster without losing coverage.
+- Never trade scope or quality for speed — if a speedup would cost either, skip it and surface the trade-off.
+
+If this audit changes any wait, timeout, or retry, re-run the category (PHASE 4) to confirm it still passes before marking complete.
+
+---
+
 ## Continue Until Complete
 
 **Work through all phases until the test is implemented and validated.** Do not stop unless you hit a genuine blocker or need information only the user can provide. See **build.mdc** § CRITICAL: Continue Until Complete and § Implementation Checklist.
@@ -84,4 +112,4 @@ Add an entry to `tests/{category}/{test_name}/changelog.md` following the format
 - **Continue when:** next step is clear (even if tedious), pattern is clear from similar tests, or you need more MCP exploration or file generation.
 - **Stop only when:** genuine blocker with no path forward, user input required, product bug needs user decision, or **all phases are complete for all tests** in the category.
 
-**Before stopping, verify:** steps.md, script.md, and test.py created; Phase 3.5 validation done; tests run and pass (Phase 4); changelog.md updated (Phase 5). If any item is incomplete and you know how to do it, continue. See **build.mdc** § CRITICAL: Run the Test Before Marking Complete and § Quality Checklist.
+**Before stopping, verify:** steps.md, script.md, and test.py created; Phase 3.5 validation done; tests run and pass (Phase 4); changelog.md updated (Phase 5); scope & quality guardrail passed (Phase 6); wait & duration audit passed (Phase 7). If any item is incomplete and you know how to do it, continue. See **build.mdc** § CRITICAL: Run the Test Before Marking Complete and § Quality Checklist.

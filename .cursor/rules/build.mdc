@@ -951,6 +951,30 @@ expect(page.get_by_text(old_value)).not_to_be_visible()
 ### The validation rule:
 **If a user wouldn't trust the action completed without checking, neither should the test.**
 
+## CRITICAL: Scope & Quality Guardrail (Before Marking Complete)
+
+Before calling the test done, verify scope and quality did not decline during exploration, code generation, or debugging. A test that passes by covering less is not done.
+
+- Re-check `steps.md`, `script.md`, and `test.py` together; they must agree, and `test.py` must actually perform every assertion the docs promise (no claimed-but-missing checks).
+- Confirm every intended user-facing action, assertion, edge case, and data expectation from `steps.md` is implemented — nothing was silently dropped or weakened to make the test pass.
+- Confirm no in-scope UI action was replaced by an API shortcut. API is only for prerequisites outside the behavior under test (see § CRITICAL: Real User Actions Only).
+- Confirm success is validated by real data/state, never by toasts or dialogs closing (see § CRITICAL: Validate Success from User Perspective).
+- If an assertion was removed as redundant, document in `changelog.md` which remaining assertion preserves the same behavior coverage.
+- Never weaken a selector (role/label/`data-qa` → fragile position/text) just to pass.
+- Report scope/quality preservation when you summarize the build.
+
+## CRITICAL: Wait & Duration Audit (No Wasted Time, Before Marking Complete)
+
+Before calling the test done, re-scan `test.py` and its helpers for wasted time, and fix or explicitly justify each finding. The goal is the shortest run that keeps full scope and quality.
+
+- **Wasted retries**: flag any retry/reload loop above 2 retries; reduce to ≤2, or justify the bounded count against a real async readiness signal. Never add blind "retry the action" loops to mask a flaky selector/setup (see project.mdc § Cross-Cutting Execution Principles).
+- **Fixed sleeps**: replace any `page.wait_for_timeout()`/`sleep()` used to wait for an action to complete with an explicit condition wait on a real readiness signal (element state, URL, dialog hidden, count change).
+- **Oversized timeouts**: flag any `timeout=`/wait above the project 5-second wait cap (`page.goto`, `wait_for`, `expect`, locator waits, polling deadlines); lower it to ≤5s, or document in `changelog.md` why a longer bounded poll is genuinely required (asynchronous product indexing/eventual consistency only — never to mask a flaky selector/setup).
+- **Avoidable duration**: remove redundant navigation/reloads, repeated logins, and UI setup that can be API setup for out-of-scope prerequisites; shorten any action that can be performed faster without losing coverage.
+- Never trade scope or quality for speed — if a speedup would cost either, skip it and surface the trade-off.
+
+If this audit changes any wait, timeout, or retry, re-run the category and confirm it still passes before marking complete.
+
 ## Quality Checklist
 
 Before marking build complete:
@@ -963,3 +987,5 @@ Before marking build complete:
 - [ ] **EXPLORATION WAS COMPLETED FULLY** - all actions done to final state
 - [ ] **TEST WAS RUN AND PASSED** - not just written, actually executed
 - [ ] **VALIDATION CHECKS ACTUAL RESULTS** - not just toasts/confirmations
+- [ ] **SCOPE & QUALITY DID NOT DECLINE** - every intended action/assertion/edge case implemented; no in-scope UI action swapped for API; no weakened selectors (see § CRITICAL: Scope & Quality Guardrail)
+- [ ] **WAIT & DURATION AUDIT PASSED** - no wasted retries (≤2), no fixed sleeps for action completion, no timeouts above the 5s cap (or justified), no avoidable duration (see § CRITICAL: Wait & Duration Audit)

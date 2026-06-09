@@ -84,9 +84,9 @@ Use the rule files as the **definition of what to validate**. For each rule, the
 
 **Source**: `.cursor/rules/phase2_script.mdc` § CRITICAL: Wait Strategy; `.cursor/rules/phase3_code.mdc` § CRITICAL: Wait Strategy
 
-- **Rule**: Event-based waits with long timeouts (30–45s); no arbitrary `wait_for_timeout()` alone for action completion. Small delays (≤500 ms) only for focus/animation when documented. See phase2_script.mdc and phase3_code.mdc for full rule.
-- **Check**: In scoped `test.py` (and `script.md` if desired), grep for `wait_for_timeout`. Any call > 500 ms (or without a preceding event-based wait) is a violation unless justified. Allow only ≤500 ms with an "allowed" / "brief" comment.
-- **Report**: Pass if no forbidden long waits and event-based waits use long timeouts; Fail with file:line and suggested replacement (event-based wait with long timeout) where useful.
+- **Rule**: State-based waits capped at 5 seconds (`timeout=5000`); no arbitrary `wait_for_timeout()` alone for action completion. Small delays (100–300 ms) only for focus/animation when documented. See phase2_script.mdc and phase3_code.mdc for full rule.
+- **Check**: In scoped `test.py` (and `script.md` if desired), grep for `wait_for_timeout` and any `timeout=` above 5000. A `wait_for_timeout` used for action completion (or > 300 ms without an "allowed"/"brief" comment), or any state/action wait above the 5s cap, is a violation unless justified (asynchronous product indexing/eventual consistency only).
+- **Report**: Pass if every explicit state/action wait is ≤5s (`timeout=5000`) and no fixed sleep is used for action completion; Fail with file:line and a suggested state-based replacement (capped at 5s) where useful.
 
 ### 2.7 Context / prerequisites consistency (optional)
 
