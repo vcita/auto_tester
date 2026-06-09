@@ -1,0 +1,13 @@
+name: Online Presence
+description: Online Presence widgets (contact form widget, etc.)
+execution_order:
+  - contact_form_widget
+tests: []
+status: active
+priority: high
+tags:
+  - online_presence
+  - tango
+  - migration
+owner: QA Team
+created_at: 2026-06-09

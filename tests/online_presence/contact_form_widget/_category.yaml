@@ -1,0 +1,32 @@
+name: Contact Form Widget
+description: Public contact-form widget behavior. A client marked as spam who submits
+  the public contact-form widget must not create a message in the business inbox /
+  the client's conversation.
+account_profile:
+  type: isolated
+  slug: contact_form_widget
+  cleanup: always
+execution_order:
+- spam_submission
+tests:
+- id: spam_submission
+  name: Spam Client Contact Form Submission
+  status: active
+  priority: high
+  description: A client marked as spam (via the client card) submits the public contact-form
+    widget; the business receives no message (the client's conversation stays empty).
+status: active
+priority: high
+tags:
+- online_presence
+- contact_form
+- spam
+- messaging
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
