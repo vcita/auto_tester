@@ -1,0 +1,37 @@
+name: Client Create Paths
+description: Creation of a client through all four channels (new-CRM dialog, API,
+  livesite leave-details, contact-form widget) and verification that each created
+  client is searchable in the CRM, with the inbound channels also delivering the expected
+  emails and a client-portal conversation.
+account_profile:
+  type: isolated
+  slug: client_create_paths
+  cleanup: always
+execution_order:
+- client_creation_channels
+tests:
+- id: client_creation_channels
+  name: Create Client Through All Channels
+  status: active
+  priority: high
+  description: Create a client via the new-CRM dialog, via API, via livesite leave-details,
+    and via the contact-form widget; verify each is searchable in the CRM All tab,
+    that the livesite and widget channels deliver the expected client and business
+    emails, and that the livesite conversation appears in the client portal.
+status: active
+priority: high
+tags:
+- clients
+- crm
+- client_creation
+- livesite
+- contact_form
+- messaging
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
