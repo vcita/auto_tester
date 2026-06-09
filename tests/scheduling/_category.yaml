@@ -9,6 +9,7 @@ description: Tests for scheduling functionality including services, calendar man
 # Subcategory run order defined here (folder names)
 execution_order:
   - services
+  - services_categories
   - appointments
   - multi_booking
   - events
