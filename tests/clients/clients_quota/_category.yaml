@@ -1,0 +1,38 @@
+name: Clients Quota
+description: Exceed and free up the account clients quota — at the 11-client cap the
+  quota system notification and upsell dialogs (new client / import) appear; after
+  deleting a client the new-client dialog quota banner shows and the import wizard
+  opens normally.
+account_profile:
+  type: isolated
+  slug: clients_quota
+  cleanup: always
+  operator_package:
+    clients_credit: 11
+execution_order:
+- exceed_and_free_quota
+tests:
+- id: exceed_and_free_quota
+  name: Exceed And Free Up Clients Quota
+  status: active
+  priority: high
+  description: With 10 clients pre-seeded via API on an 11-client-capped account,
+    create the 11th client in the new CRM to hit the cap; on the dashboard the quota
+    system notification appears and the upsell dialog blocks both new-client creation
+    and client import. After bulk-deleting one client, the new-client dialog shows
+    the quota banner and the import wizard opens.
+status: active
+priority: high
+tags:
+- clients
+- crm
+- quota
+- billing
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10

@@ -1492,6 +1492,12 @@ class TestRunner:
                         f"  [auto-account] {verb} isolated {isolated_account['email']}",
                         flush=True,
                     )
+                    if isolated_account.get("operator_package_id"):
+                        account_factory.delete_operator_package(
+                            self.api_base_url,
+                            isolated_account["operator_token"],
+                            isolated_account["operator_package_id"],
+                        )
                 else:
                     print(
                         f"  [auto-account] Keeping isolated {isolated_account['email']} "
@@ -1522,20 +1528,73 @@ class TestRunner:
             pass
         page.context.clear_cookies()
 
+    def _resolve_operator_package(self, profile: dict) -> Optional[dict]:
+        """Mint a custom operator subscription package if the profile requests one.
+
+        ``operator_package`` in the subcategory account_profile is a quotas dict
+        (e.g. ``{clients_credit: 11}``). Returns the package dict plus the operator
+        token used (for later deletion), or None when no custom package is needed.
+        """
+        quotas = profile.get("operator_package")
+        if not quotas:
+            return None
+        email, password = account_factory.load_operator_credentials(self.config)
+        token = account_factory.get_operator_token(self.api_base_url, email, password)
+        slug = profile.get("slug") or "auto_quota"
+        package = account_factory.create_quota_package(
+            self.api_base_url,
+            token,
+            quotas=dict(quotas),
+            name=f"{slug}_{int(time.time())}",
+            display_name=f"{slug} quota package",
+        )
+        print(
+            f"  [auto-account] Created operator package {package.get('id')} "
+            f"quotas={package.get('quotas')}",
+            flush=True,
+        )
+        return {"operator_token": token, "package": package}
+
     def _create_isolated_account_with_retry(self, subcategory: Category, profile: dict) -> dict:
         category_name = (
             profile.get("slug")
             or (subcategory.path.name if subcategory.path else subcategory.name)
         )
+        operator_pkg = self._resolve_operator_package(profile)
+        package_subscription_id = (
+            operator_pkg["package"]["id"]
+            if operator_pkg
+            else account_factory.PLATINUM_PACKAGE_SUBSCRIPTION_ID
+        )
+        try:
+            return self._create_account_attempts(category_name, package_subscription_id, operator_pkg)
+        except Exception:
+            # The operator package is created before the account; if account creation
+            # fails outright, delete the package so it does not leak (the per-run
+            # cleanup only runs once an account dict exists).
+            if operator_pkg:
+                account_factory.delete_operator_package(
+                    self.api_base_url,
+                    operator_pkg["operator_token"],
+                    operator_pkg["package"].get("id"),
+                )
+            raise
+
+    def _create_account_attempts(self, category_name, package_subscription_id, operator_pkg) -> dict:
         last_error = None
         for attempt in range(4):
             try:
-                return account_factory.create_account(
+                account = account_factory.create_account(
                     self.api_base_url,
                     self.admin_token,
                     self.directory_id,
                     category_name,
+                    package_subscription_id=package_subscription_id,
                 )
+                if operator_pkg:
+                    account["operator_token"] = operator_pkg["operator_token"]
+                    account["operator_package_id"] = operator_pkg["package"].get("id")
+                return account
             except account_factory.AccountCreationError as exc:
                 last_error = exc
                 if "transient forbidden" not in str(exc).lower() or attempt == 3:

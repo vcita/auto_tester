@@ -18,6 +18,7 @@ execution_order:
   - crm_filters
   - client_card
   - crm_bulk_actions
+  - clients_quota
   - crm_selection_logic
   - crm_views
   - crm_tabs_management
