@@ -1,0 +1,32 @@
+# Update payment type during scheduling (isolated account)
+# Migrated from payment-setups.feature scenario "Update payment type during scheduling".
+# Services are created via API; the appointment price type is overridden in the
+# scheduling dialog, and the resulting meeting price is verified.
+
+name: Override Price Type
+description: On a fresh account with six API-created services, schedule an appointment for each while overriding the price type in the scheduling dialog (display free, display for a fee, dont display, and fixed prices with amounts), then verify the resulting meeting price (Free / blank / amount+USD).
+
+account_profile:
+  type: isolated
+  slug: ps_override_price_type
+  cleanup: always
+
+execution_order:
+  - override_price_type
+
+tests:
+  - id: override_price_type
+    name: Override Price Type
+    status: active
+    priority: high
+    description: Schedule appointments for API-created services while overriding the price type at scheduling time, and verify the meeting prices.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - services
+  - payments
+  - migration
+owner: QA Team
+created_at: 2026-06-09

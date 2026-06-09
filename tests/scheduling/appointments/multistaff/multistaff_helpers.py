@@ -41,12 +41,16 @@ def _schedule_button(inner):
 def schedule_appointment(
     page: Page, context: dict, client_name: str, service_name: str,
     additional_staff: list[str] | None = None,
+    price_override: dict | None = None,
 ) -> str:
     """Schedule an appointment via the BO calendar dialog and return the new appointment id.
 
     The id is resolved by snapshotting the business appointments before/after (legacy
     addBookingToContext picked the booking not yet seen). ``additional_staff`` (display
     names) are selected through the additional-staff picker before submitting.
+    ``price_override`` (``{"fee_type": "No Fee"|"Custom price"|"Fixed price",
+    "amount": str|None}``) overrides the service price in the dialog's price panel,
+    mirroring the legacy ``setMeetingPrice``/``selectAppointmentPriceType``.
     """
     before_ids = list_appointment_ids(context)
     open_calendar_page(page)
@@ -61,6 +65,8 @@ def schedule_appointment(
     _fill_address_if_present(page, inner)
     if additional_staff:
         _select_additional_staff(page, inner, additional_staff)
+    if price_override:
+        _apply_price_override(page, inner, price_override)
 
     submit = _schedule_button(inner)
     submit.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -258,18 +264,108 @@ def _row_checked(row) -> bool:
         return False
 
 
-_NEW_APPOINTMENT_BUDGET_MS = 10_000  # bounded poll; the legacy flow waited up to 15s for
-# the created booking to surface (UI create + API propagation), so a 10s read-back poll is
+_NEW_APPOINTMENT_BUDGET_MS = 12_000  # bounded poll; the legacy flow waited up to 15s for
+# the created booking to surface (UI create + API propagation), so a 12s read-back poll is
 # justified and still tighter than legacy.
+_READBACK_POLL_MS = 1_500  # Poll the appointments-list endpoint gently: a tight 250ms loop
+# across several bookings hammers the per-business APPOINTMENTS quota (429
+# APPOINTMENTS_LIMIT_EXCEEDED). A 1.5s interval still resolves the new id (it surfaces in
+# 1-2s) with ~6x fewer calls.
 
 
 def _wait_for_new_appointment(page: Page, context: dict, before_ids: set[str]) -> str:
-    for _ in range(int(_NEW_APPOINTMENT_BUDGET_MS / _SETTLE_MS)):
+    for _ in range(int(_NEW_APPOINTMENT_BUDGET_MS / _READBACK_POLL_MS)):
         new_ids = list_appointment_ids(context) - before_ids
         if new_ids:
             return next(iter(new_ids))
-        page.wait_for_timeout(_SETTLE_MS)
+        page.wait_for_timeout(_READBACK_POLL_MS)
     raise AssertionError("New appointment was not created (no new id appeared in the bookings read-back)")
+
+
+PRICE_PANEL_HEADER = ".dialog-expansion-panel__price .v-expansion-panel-header"
+PRICE_PANEL = ".dialog-expansion-panel__price .v-expansion-panel"
+FEE_TYPE_SELECT = ".fee-type-method-selector"
+PRICE_INPUT = "[data-qa='price-input'] input"
+# FeeTypeGenerator.vue: the "Edit" tax link only renders while chargeTypeIndex===2 and the
+# picker is not yet revealed (shouldShowTaxFlow). Once clicked (enableTaxFlow) the TaxPicker
+# field (tax-picker-button) is shown; for a service whose picker is already revealed the link
+# is absent and the picker shows directly.
+EDIT_TAX_LINK = "[data-qa='edit-tax-link']"
+TAX_PICKER = "[data-qa='tax-picker-button']"
+
+
+def _open_price_panel(page: Page, inner) -> None:
+    """Expand the appointment dialog's price panel if it is collapsed.
+
+    Idempotent: the fee-type selector is the real "panel open" signal, so only click the
+    header when it is not already visible (clicking an already-open header collapses it).
+    """
+    panel = inner.locator(PRICE_PANEL).first
+    panel.wait_for(state="visible", timeout=UI_TIMEOUT)
+    fee_select = inner.locator(FEE_TYPE_SELECT).first
+    if fee_select.is_visible():
+        return
+    inner.locator(PRICE_PANEL_HEADER).first.click()
+    fee_select.wait_for(state="visible", timeout=UI_TIMEOUT)
+
+
+def _select_fee_type(page: Page, inner, fee_type: str) -> None:
+    """Pick a fee type (No Fee / Custom price / Fixed price) in the price panel.
+
+    Each menu item is a Vuetify list item whose accessible name also includes the
+    description line, so match the item's title text rather than the full option name.
+    """
+    select = inner.locator(FEE_TYPE_SELECT).first
+    select.wait_for(state="visible", timeout=UI_TIMEOUT)
+    select.click()
+    title = inner.locator(".v-list-item__title", has_text=fee_type).first
+    title.wait_for(state="visible", timeout=UI_TIMEOUT)
+    title.click()
+
+
+def _select_taxes(page: Page, inner, taxes: list) -> None:
+    """Add tax(es) in the appointment price panel (legacy selectTaxes).
+
+    ``taxes`` is ``[(tax_name, rate), ...]``. The TaxPicker (FeeTypeGenerator.vue) shows an
+    "Edit" link only when the summary/edit view is active; reveal the picker first when that
+    link is present, then open the picker popover and toggle each ``tax-{name}-{rate}``
+    VcCheckbox. The checkbox swallows Playwright's synthetic click (Vue overlay), so it is
+    toggled via its own DOM ``click`` handler. The popover is closed by clicking the picker
+    field again - Escape would close the whole appointment dialog (mirrors the proven
+    product_payments tax-picker flow).
+    """
+    edit_link = inner.locator(EDIT_TAX_LINK).first
+    if edit_link.is_visible():
+        edit_link.click()
+    picker = inner.locator(TAX_PICKER).first
+    picker.wait_for(state="visible", timeout=UI_TIMEOUT)
+    picker.click()
+    for tax_name, rate in taxes:
+        option = inner.locator(f'[data-qa="tax-{tax_name}-{rate}"]').first
+        option.wait_for(state="visible", timeout=UI_TIMEOUT)
+        if not option.is_checked():
+            option.evaluate("el => el.click()")
+    picker.click()
+    page.wait_for_timeout(300)
+
+
+def _apply_price_override(page: Page, inner, override: dict) -> None:
+    """Override the appointment price (fee type / amount / taxes) in the price panel.
+
+    Mirrors the legacy createMeetingDialog.setMeetingPrice / selectAppointmentPriceType /
+    selectTaxes. ``fee_type`` and ``amount`` are optional (a tax-only override leaves the
+    service's default fee type in place).
+    """
+    _open_price_panel(page, inner)
+    if override.get("fee_type"):
+        _select_fee_type(page, inner, override["fee_type"])
+    amount = override.get("amount")
+    if amount is not None:
+        price_input = inner.locator(PRICE_INPUT).first
+        price_input.wait_for(state="visible", timeout=UI_TIMEOUT)
+        price_input.fill(str(amount))
+    if override.get("taxes"):
+        _select_taxes(page, inner, override["taxes"])
 
 
 def open_meeting_page(page: Page, appointment_id: str):

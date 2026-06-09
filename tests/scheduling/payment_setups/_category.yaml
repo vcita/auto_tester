@@ -1,0 +1,26 @@
+# Payment Setups Subcategory
+# Migrated from automation-js/features/tempo/ServiceSetups/payment-setups.feature (VCITA2-14008).
+# Each legacy scenario runs on its own fresh (isolated) account: service names repeat
+# across scenarios and tax-mode / default-tax are account-global, so per-scenario
+# isolation keeps service search, meeting prices, and payment-request tax math deterministic.
+
+name: Payment Setups
+description: Service payment-setting variants (require/suggest/display-fee/for-a-fee/free/dont-display)
+  across creation, service search, back-office scheduling with price overrides and
+  taxes, payment-request tax math, and client-portal scheduling.
+execution_order:
+- schedule_default
+- override_price_type
+- scheduling_taxes
+- cp_scheduling_taxes
+tests: []
+status: active
+priority: high
+tags:
+- scheduling
+- services
+- payments
+- taxes
+- migration
+owner: QA Team
+created_at: 2026-06-09
