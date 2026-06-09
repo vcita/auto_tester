@@ -30,6 +30,12 @@ POLL = 0.5
 
 ORDER_ROW = "f-ellipsis-tooltip.payment-title"
 
+# Invoice wizard terms section + late-fee toggle (legacy invoiceAndEstimateDialogs
+# termsSectionHeader + lateFeeCheckbox). The terms section is collapsed by default, so
+# it must be expanded before the late-fee checkbox is reachable.
+TERMS_HEADER = ".itemizable-bottom-wrapper .terms-header"
+LATE_FEE_CHECKBOX = "[data-qa='itemizable-bottom-late-fee']"
+
 
 def _app_base(page: Page) -> str:
     match = re.match(r"(https?://[^/]+)", page.url)
@@ -131,10 +137,46 @@ def send_invoice(page: Page, billing, wizard, context: dict) -> None:
     page.wait_for_url("**/app/invoices/**", timeout=NAV_TIMEOUT, wait_until="domcontentloaded")
 
 
+def _late_fee_checkbox_checked(checkbox) -> bool:
+    """True when the late-fee checkbox renders in the checked state. Vuetify hides the
+    real <input> behind a styled control, so fall back to the aria/class markers."""
+    input_el = checkbox.locator("input").first
+    try:
+        if input_el.count() > 0:
+            return input_el.is_checked()
+    except Exception:
+        pass
+    marker = (checkbox.get_attribute("aria-checked") or "").lower()
+    if marker in ("true", "false"):
+        return marker == "true"
+    return "checked" in (checkbox.get_attribute("class") or "").lower()
+
+
+def enable_late_fee_on_wizard(wizard) -> None:
+    """Ensure the invoice's late-fee toggle is on (legacy setLateFeeCheckbox).
+
+    When late fees are configured in settings the wizard renders the terms section
+    expanded with the toggle already checked, so this is idempotent: it expands the
+    terms section only when the checkbox isn't already reachable, and clicks the toggle
+    only when it isn't already checked. Clicking an already-expanded header collapses it
+    and hangs on actionability, so the header is never touched unnecessarily."""
+    checkbox = wizard.locator(LATE_FEE_CHECKBOX).first
+    if not checkbox.is_visible():
+        header = wizard.locator(TERMS_HEADER).first
+        header.wait_for(state="visible", timeout=UI_TIMEOUT)
+        header.click(timeout=UI_TIMEOUT)
+        checkbox.wait_for(state="visible", timeout=UI_TIMEOUT)
+
+    if _late_fee_checkbox_checked(checkbox):
+        return
+    checkbox.click(timeout=UI_TIMEOUT)
+
+
 def create_and_send_invoice(page: Page, context: dict, *, name: str, client_name: str,
                             billing_address: str | None = None,
                             new_items: list[dict] | None = None,
-                            existing_items: list[str] | None = None) -> None:
+                            existing_items: list[str] | None = None,
+                            enable_late_fee: bool = False) -> None:
     """Create + send an invoice with new (custom) and/or existing items via the UI."""
     _, wizard = open_new_invoice(page, client_name)
     set_title(wizard, name)
@@ -151,6 +193,8 @@ def create_and_send_invoice(page: Page, context: dict, *, name: str, client_name
         )
     if billing_address:
         set_billing_address(wizard, billing_address)
+    if enable_late_fee:
+        enable_late_fee_on_wizard(wizard)
     send_invoice(page, billing_scope(page), wizard, context)
 
 
