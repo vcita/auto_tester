@@ -1,0 +1,33 @@
+name: Categories and Services
+description: On a fresh account, manage service categories and services from the Services
+  index settings page - create a category, create a require-to-pay event service and
+  a service inside a category, move a service between categories, rename/move/delete
+  categories, delete/rename/clone services, and verify the category->service mapping
+  and service payment details at each stage.
+account_profile:
+  type: isolated
+  slug: services_categories
+  cleanup: always
+execution_order:
+- manage_categories_services
+tests:
+- id: manage_categories_services
+  name: Manage Categories and Services
+  status: active
+  priority: high
+  description: Full create/rename/move/clone/delete flow for categories and services
+    with ordered mapping assertions.
+status: active
+priority: high
+tags:
+- scheduling
+- services
+- categories
+- migration
+owner: QA Team
+created_at: 2026-06-08
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
