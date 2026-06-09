@@ -2,6 +2,7 @@ name: Settings
 description: Business settings pages (business info, etc.)
 execution_order:
   - business_info
+  - staff_profile
 tests: []
 status: active
 priority: high
