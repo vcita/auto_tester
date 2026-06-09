@@ -40,6 +40,15 @@ REQUEST_TIMEOUT = 30
 MAX_RETRIES = 2
 RETRY_BACKOFF = 2
 
+# Operator portal credentials for the integration sandbox-WL directory (the same
+# directory auto_tester provisions accounts on). Mirrors automation-js
+# clients-quota.feature, which hard-codes these in the step table. Overridable via
+# env for other directories/environments.
+OPERATOR_LOGIN_PATH = "/operator_api/v1/authentications/login"
+OPERATOR_PACKAGES_PATH = "/operator_api/v1/packages"
+DEFAULT_OPERATOR_EMAIL = "auto+wl@vmeetme.com"
+DEFAULT_OPERATOR_PASSWORD = "1234.Com"
+
 AUTOMATION_FEATURE_FLAGS = [
     "hide_register_wizard",
     "hide_payment_success_message",
@@ -76,17 +85,118 @@ def load_directory_id(config: Optional[dict] = None) -> Optional[str]:
     return None
 
 
+def load_operator_credentials(config: Optional[dict] = None) -> tuple[str, str]:
+    """Resolve operator-portal credentials (env override, then config, then default).
+
+    Used to mint custom subscription packages (e.g. constrained client quotas).
+    Defaults to the integration sandbox-WL operator that owns the directory
+    auto_tester provisions accounts on.
+    """
+    email = os.environ.get("VCITA_OPERATOR_EMAIL")
+    password = os.environ.get("VCITA_OPERATOR_PASSWORD")
+    target = (config or {}).get("target") or {}
+    email = email or target.get("operator_email") or DEFAULT_OPERATOR_EMAIL
+    password = password or target.get("operator_password") or DEFAULT_OPERATOR_PASSWORD
+    return email, password
+
+
+def get_operator_token(api_base_url: str, email: str, password: str) -> str:
+    """Log in to the operator portal and return a bearer token.
+
+    Mirrors automation-js api/operatorPortal.js get_operator_token.
+    """
+    url = f"{api_base_url.rstrip('/')}{OPERATOR_LOGIN_PATH}"
+    try:
+        resp = requests.post(
+            url, json={"email": email, "password": password}, timeout=REQUEST_TIMEOUT
+        )
+    except requests.RequestException as exc:
+        # Convert transport errors (timeout/connection) into the non-fatal
+        # AccountCreationError the runner's isolated-account path handles, instead
+        # of crashing the whole category run with an unhandled exception.
+        raise AccountCreationError(f"Operator login request failed for {email}: {exc}") from exc
+    if not resp.ok:
+        raise AccountCreationError(
+            f"Operator login failed for {email}: HTTP {resp.status_code} {resp.text[:200]}"
+        )
+    token = (resp.json() or {}).get("data")
+    if not token:
+        raise AccountCreationError(f"Operator login for {email} returned no token: {resp.text[:200]}")
+    return token
+
+
+def create_quota_package(
+    api_base_url: str,
+    operator_token: str,
+    quotas: dict,
+    name: Optional[str] = None,
+    display_name: str = "Auto quota package",
+) -> dict:
+    """Create an operator subscription package with the given quotas.
+
+    Returns the package dict (includes ``id`` for ``package_subscription_id`` and
+    ``uid`` for later deletion). Mirrors automation-js create_package.
+    """
+    package_name = name or f"auto_quota_{int(time.time())}"
+    url = f"{api_base_url.rstrip('/')}{OPERATOR_PACKAGES_PATH}"
+    headers = {"Authorization": f"Bearer {operator_token}"}
+    payload = {"name": package_name, "display_name": display_name, "quotas": quotas}
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+    except requests.RequestException as exc:
+        # Fail gracefully through the runner's isolated-account path. Note: if the
+        # server already persisted the package before a client-side timeout, its id
+        # is unrecoverable here and the package may be left until orphan cleanup.
+        raise AccountCreationError(f"Operator package creation request failed: {exc}") from exc
+    if not resp.ok:
+        raise AccountCreationError(
+            f"Operator package creation failed: HTTP {resp.status_code} {resp.text[:200]}"
+        )
+    package = (resp.json() or {}).get("data") or {}
+    if not package.get("id"):
+        raise AccountCreationError(f"Operator package creation returned no id: {resp.text[:200]}")
+    return package
+
+
+def delete_operator_package(
+    api_base_url: str, operator_token: str, package_id: int
+) -> bool:
+    """Best-effort delete of an operator package by numeric id. Failures are logged,
+    not fatal. Mirrors automation-js operatorPortal.delete_package (deletes by id)."""
+    if not package_id:
+        return False
+    url = f"{api_base_url.rstrip('/')}{OPERATOR_PACKAGES_PATH}/{package_id}"
+    headers = {"Authorization": f"Bearer {operator_token}"}
+    try:
+        resp = requests.delete(url, headers=headers, timeout=REQUEST_TIMEOUT)
+        if resp.ok:
+            return True
+        logger.warning(
+            "Delete operator package %s returned HTTP %d: %s",
+            package_id, resp.status_code, resp.text[:200],
+        )
+        return False
+    except Exception as exc:
+        logger.warning("Delete operator package %s failed: %s", package_id, exc)
+        return False
+
+
 def create_account(
     api_base_url: str,
     admin_token: str,
     directory_id: str,
     category_name: str,
     country_name: str = COUNTRY,
+    package_subscription_id: int = PLATINUM_PACKAGE_SUBSCRIPTION_ID,
 ) -> dict:
     """
     Create a business account for a single category.
 
     POST /admin/users/ with admin token.
+
+    ``package_subscription_id`` defaults to the unlimited Platinum package. Pass a
+    custom operator-created package id (see :func:`create_quota_package`) to
+    provision an account with constrained quotas (e.g. a 11-client cap).
 
     Returns dict with: email, password, business_id, auth_token, name, pivot_uid, raw_response.
     Raises FatalTokenError on 401, AccountCreationError on other failures.
@@ -102,7 +212,7 @@ def create_account(
         "directory_id": directory_id,
         "country_name": country_name,
         "time_zone": DEFAULT_TIME_ZONE,
-        "package_subscription_id": PLATINUM_PACKAGE_SUBSCRIPTION_ID,
+        "package_subscription_id": package_subscription_id,
     }
     payload = {"generate_api_token": True, "options": json.dumps(options)}
 
