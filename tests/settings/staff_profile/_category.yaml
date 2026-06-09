@@ -1,0 +1,43 @@
+name: Staff Profile
+description: Staff profile settings page — admin edits own profile and another staff's
+  profile, with read-back assertions (fields, country, default homepage, password-field
+  visibility, settings tiles count, email unchanged).
+account_profile:
+  type: isolated
+  slug: staff_profile
+  cleanup: always
+execution_order:
+- edit_own_profile
+- edit_other_staff
+tests:
+- id: edit_own_profile
+  name: Edit Own Profile
+  status: active
+  priority: high
+  description: Admin opens own profile settings, verifies current display name (dynamic,
+    via API) and default homepage Dashboard, updates all fields (country Albania,
+    names, mobile, professional title, default homepage Calendar), and verifies the
+    saved values persist plus the password field is displayed.
+- id: edit_other_staff
+  name: Edit Other Staff Profile
+  status: active
+  priority: high
+  description: Admin opens a second (role user) staff's profile, verifies 3 settings
+    tiles and current display name/email/default homepage Dashboard, updates all fields
+    (country Canada, names, mobile, professional title, default homepage Inbox), and
+    verifies the saved values persist, email unchanged, and the password field is
+    not displayed.
+status: active
+priority: high
+tags:
+- settings
+- staff_profile
+- maestro
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-09'
+  pass_rate: 100.0%
+  iterations: 10
