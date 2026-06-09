@@ -41,7 +41,7 @@ Regardless of what the changelog shows, proceed to MCP debugging (Step 2).
 **You must use Playwright MCP to simulate the test and observe what actually happens.** Do not skip this even if you think you understand the issue. See **heal.mdc** § MANDATORY THIRD STEP (Debug with MCP) and § 3. Step-by-Step Debugging with MCP.
 
 - **Same account:** Log in with credentials from heal request/config; verify visible user matches before reproducing steps. See heal.mdc § Use the SAME account as the failed test.
-- **Wait strategy:** Use event-based waits with long timeouts (30–45s); do not add retry loops. See **heal.mdc** § CRITICAL: Wait Strategy When Healing and **project.mdc** § Cross-Cutting Execution Principles.
+- **Wait strategy:** Use state-based waits capped at 5 seconds (`timeout=5000`); do not add retry loops or raise timeouts to mask flakiness. See **heal.mdc** § CRITICAL: Wait Strategy When Healing and **project.mdc** § Cross-Cutting Execution Principles.
 - **UI interaction patterns:** Hover before hidden buttons, inspect DOM with MCP, complete full flow in MCP before updating code. See **heal.mdc** § 3.5. Key UI Interaction Patterns.
 - **Matter entity:** When fixing selectors that refer to matter entity labels, use entity-agnostic patterns. See **project.mdc** § Matter Entity Name Agnosticism.
 
@@ -101,6 +101,33 @@ Before updating the changelog, ensure the fixed test adheres to project and phas
 
 ---
 
+## STEP 5.6: Scope & Quality Guardrail (After the Fix)
+
+Before documenting, verify the fix did not reduce scope or weaken quality versus the pre-heal test:
+
+- Re-check `steps.md`, `script.md`, and `test.py` together; they must agree, and `test.py` must still perform every assertion the docs promise.
+- Confirm no user-facing assertion, setup path, edge case, or validation intent was removed to make the test pass.
+- Confirm no in-scope UI action was replaced by an API shortcut, and no UI path the test is meant to validate was bypassed. See **project.mdc** § Real User Actions Rule.
+- If an assertion was removed as redundant, document in `changelog.md` which remaining assertion preserves the same behavior coverage.
+- Do not weaken a selector (role/label/`data-qa` → fragile position/text) just to make it green; prefer the strongest stable selector. See **prefer-data-qa-selectors**.
+- Never mark a heal complete if stability was achieved by shrinking scope or weakening assertions.
+
+---
+
+## STEP 5.7: Wait & Duration Audit (After the Fix)
+
+Before documenting, re-scan the edited `test.py` and helpers for wasted time, and fix or explicitly justify each finding:
+
+- **Wasted retries**: flag any retry/reload loop above 2 retries; reduce to ≤2, or justify the bounded count against a real async readiness signal. Never fix flakiness with blind "retry the action" loops. See **heal.mdc** § No Retries for Actions and **project.mdc** § Cross-Cutting Execution Principles.
+- **Fixed sleeps**: replace any `page.wait_for_timeout()`/`sleep()` used to wait for an action to complete with an explicit condition wait on a real readiness signal. See **heal.mdc** § CRITICAL: Wait Strategy When Healing.
+- **Oversized timeouts**: flag any `timeout=`/wait above the project 5-second cap; lower it to ≤5s, or document why a longer bounded poll is genuinely required (asynchronous product indexing/eventual consistency only). Never fix timing by increasing a timeout.
+- **Avoidable duration**: remove redundant navigation/reloads, repeated logins, and UI setup that can be API setup for out-of-scope prerequisites; shorten any action that can be performed faster without losing coverage.
+- Never trade scope or quality for speed — if a speedup would cost either, skip it and surface the trade-off.
+
+If this audit changes any wait, timeout, or retry, re-run the category (STEP 7) to confirm it still passes before completing the heal.
+
+---
+
 ## STEP 6: Document the Fix
 
 See **heal.mdc** § 6. Update changelog.md for format and examples.
@@ -139,6 +166,8 @@ Use this to confirm the protocol was followed. For the full list and details, se
 - [ ] Issue classified (product bug → halt and report; test bug → fix)
 - [ ] Fix validated in MCP (A–Z); files updated in order (steps → script → test.py)
 - [ ] Test adheres to rules (no reload/goto to internal URLs; see project.mdc § Real User Actions)
+- [ ] **Scope & quality did not decline** - no removed assertions/edge cases, no in-scope UI action swapped for API, no weakened selectors (STEP 5.6)
+- [ ] **Wait & duration audit passed** - no wasted retries (≤2), no fixed sleeps for action completion, no timeouts above the 5s cap (or justified), no avoidable duration (STEP 5.7)
 - [ ] changelog.md, heal request, and failed run log updated
 - [ ] **Category re-run with runner** — pass required for healing to be complete
 - [ ] If unresolved after 5 attempts: debug script run and UNRESOLVED documented; heal request kept

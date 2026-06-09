@@ -166,13 +166,24 @@ Clean up resources created during <subcategory> tests.
 | Test ID in YAML | same as folder name | `create_invoice` |
 | Display name | Title Case | `Create Invoice` |
 
-## Reduce Waits And Duration (Without Scope Or Quality Loss)
+## Scope & Quality Guardrail (Design-Time)
+
+Scaffolding sets the scope ceiling for the eventual test — if a behavior is missing from `steps.md`, it will be missing from `test.py`. Before finishing the scaffold, verify scope and quality are fully captured:
+
+- Capture every behavior the subcategory is meant to cover. If you are scaffolding from an existing source (a spec, a legacy test, or a feature), do not drop any action, assertion, edge case, or data expectation.
+- Every state-changing action (create/update/delete/move) MUST have a verification step that checks real data/state, never a toast.
+- Declare in-scope UI actions as UI steps; only push prerequisites outside the tested behavior to API setup/cleanup.
+- Keep steps entity-agnostic unless the scenario specifically asserts a displayed label.
+- The runtime scope & quality check (docs agree with code, no weakened selectors/assertions) is performed when the test is built (`implement_test` / **build.mdc**) and when it is healed (`heal_test`); this design-time guardrail makes sure the scope exists to verify.
+
+## Wait & Duration Awareness (Design-Time)
 
 Design each subcategory so the eventual test runs fast, without giving up coverage:
 
 - Prefer `Call:` reusable functions and API setup for prerequisites outside the tested behavior, so the test spends time only on the behavior it verifies.
 - Keep steps minimal and avoid redundant navigation, but never drop a verification step or an in-scope UI action to shorten the flow.
 - Leave timing/wait details to Phase 2 (`script.md`); do not encode fixed sleeps or implementation waits in `steps.md`.
+- The full **Wait & Duration Audit** (no wasted retries, no fixed sleeps for action completion, no timeouts above the 5s cap, no avoidable duration) is mandatory at build time (**build.mdc** / `implement_test`) and heal time (`heal_test`); design steps so that audit can pass without dropping coverage.
 
 ## Common Mistakes to Avoid
 
