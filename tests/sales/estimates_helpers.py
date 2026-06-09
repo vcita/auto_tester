@@ -462,12 +462,97 @@ def open_cp_estimate_page(page: Page, context: dict, portal_token: str):
     return cp_page, cp_context
 
 
+def create_estimate_api(context: dict, *, title: str, client_id: str, items: list,
+                        billing_address: str = "susa, persia", currency: str = "USD") -> dict:
+    """Create an estimate via API with free-form line items and return {uid, title}.
+
+    Mirrors the legacy automation-js `user creates new estimate via API` setup
+    (POST /platform/v1/estimates). ``items`` is a list of
+    {"title", "amount", "description", "quantity"} dicts."""
+    now = time.gmtime()
+    estimate_date = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", now)
+    due_date = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() + 30 * 86400))
+    payload = {
+        "title": title,
+        "client_id": client_id,
+        "address": billing_address,
+        "currency": currency,
+        "due_date": due_date,
+        "estimate_date": estimate_date,
+        "items": items,
+        "send_email": False,
+    }
+    response = _api(context, "POST", "/platform/v1/estimates", json=payload)
+    estimate = (response.get("data") or response).get("estimate") or response.get("estimate")
+    uid = estimate.get("id") or estimate.get("uid")
+    if not uid:
+        raise AssertionError(f"Estimate API response did not include an id: {response}")
+    return {"uid": uid, "title": estimate.get("title") or title}
+
+
+# Client-portal estimate action selectors (verified live on integration).
+_CP_ACTION = {
+    "approve": {"button": 'button[data-qa="approve"]', "confirm": "button.approve-button-text"},
+    "decline": {"button": 'button[data-qa="estimate-decline"]', "confirm": "button.decline-button-text"},
+}
+
+
+def cp_click(locator, *, timeout: int = UI_TIMEOUT) -> None:
+    """Click a client-portal (Vue) element with a bounded timeout.
+
+    The CP runs inside an Angular->Vue iframe where overlays/animations can
+    transiently intercept pointer events. We wait for visibility, then click with
+    an explicit (bounded) timeout, falling back to a forced click on intercept so
+    a transient overlay can never stall on Playwright's 30s default."""
+    locator.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    try:
+        locator.scroll_into_view_if_needed(timeout=timeout)
+    except Exception:
+        pass
+    try:
+        locator.click(timeout=timeout)
+    except Exception:
+        locator.click(timeout=timeout, force=True)
+
+
+def cp_perform_estimate_action(cp_page: Page, action: str) -> None:
+    """Approve or decline the estimate shown on the open CP estimate detail page.
+
+    Clicks the action button, waits for the confirmation dialog, and confirms.
+    ``action`` is 'approve' or 'decline'. The estimate detail page must already be
+    open (e.g. after assert_cp_estimate)."""
+    selectors = _CP_ACTION[action]
+    cp_frame = cp_page.frame_locator("#cp_iframe")
+    cp_click(cp_frame.locator(selectors["button"]).first)
+    dialog = cp_frame.locator(".dialog-containter")
+    dialog.first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    cp_click(cp_frame.locator(selectors["confirm"]).first)
+
+
+def assert_cp_estimate_status(cp_page: Page, expected_status: str) -> None:
+    """Wait until the CP estimate detail shows the expected status text.
+
+    e.g. 'Declined on' after a decline, 'Approved on' after an approve. The status
+    label renders asynchronously after the confirmation toast."""
+    cp_frame = cp_page.frame_locator("#cp_iframe")
+    body = cp_frame.locator("body")
+    deadline = time.time() + NAV_TIMEOUT / 1000
+    text = ""
+    while time.time() < deadline:
+        text = body.first.inner_text(timeout=NAV_TIMEOUT)
+        if expected_status in text:
+            return
+        cp_page.wait_for_timeout(500)
+    raise AssertionError(
+        f"CP estimate status '{expected_status}' not found. Body:\n{text[:600]}"
+    )
+
+
 def assert_cp_estimate(cp_page: Page, *, title: str, price: str, client: str,
                        items: list, status_actions: list) -> None:
     cp_frame = cp_page.frame_locator("#cp_iframe")
     estimate_link = cp_frame.locator("span.payment-title", has_text=re.compile(re.escape(title)))
-    estimate_link.first.wait_for(state="visible", timeout=NAV_TIMEOUT)
-    estimate_link.first.click()
+    cp_click(estimate_link.first)
 
     # Wait until the entity page has actually rendered the selected estimate's title
     # (the detail pane loads asynchronously after navigation).
