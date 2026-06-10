@@ -3,6 +3,7 @@ description: Business settings pages (business info, etc.)
 execution_order:
   - business_info
   - staff_profile
+  - upgrade_page
 tests: []
 status: active
 priority: high

@@ -1561,10 +1561,13 @@ class TestRunner:
             or (subcategory.path.name if subcategory.path else subcategory.name)
         )
         operator_pkg = self._resolve_operator_package(profile)
+        # An operator-minted quota package wins; otherwise honor an explicit
+        # package_subscription_id in the profile (e.g. 28 = Trial for upgrade tests
+        # that must start below the target plan), defaulting to unlimited Platinum.
         package_subscription_id = (
             operator_pkg["package"]["id"]
             if operator_pkg
-            else account_factory.PLATINUM_PACKAGE_SUBSCRIPTION_ID
+            else profile.get("package_subscription_id", account_factory.PLATINUM_PACKAGE_SUBSCRIPTION_ID)
         )
         try:
             return self._create_account_attempts(category_name, package_subscription_id, operator_pkg)
