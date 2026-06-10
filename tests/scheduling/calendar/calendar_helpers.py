@@ -11,6 +11,13 @@ from tests.scheduling.appointments.appointment_helpers import open_calendar_page
 from tests.scheduling.calendar.calendar_api import get_service_color_id, get_sso_token, resolve_partner_base_url, staff_uid
 
 UI_TIMEOUT = 5_000
+# The New Appointment editor opens on a spinner while it fetches client/service/staff data.
+# A healthy load is ~1s, but under integration load the fetch is occasionally slow (several
+# seconds) rather than stuck. The open-retry recovery recreates the editor with a full page
+# reload, which restarts the fetch from scratch, so a 5s window would misclassify a slow load
+# as a stall and destroy a request that was about to resolve. Give the fetch a real window so
+# only a genuine hang trips the reload recovery.
+APPOINTMENT_EDITOR_READY_TIMEOUT = 15_000
 VIEW_OPTIONS = {
     "Month": "option-month",
     "Week": "option-week",
@@ -29,20 +36,7 @@ THREE_DAY_COLUMN = {"left": 0, "middle": 1, "right": 2}
 
 
 def schedule_appointment_from_calendar(page: Page, context: dict, params: dict[str, str]) -> None:
-    slot_date = None
-    for attempt in range(3):
-        angular, vue = navigate_calendar(page, params["display"], params.get("navigate_to"))
-        choose_calendar_slot(vue, params["display"], params["timeslot"], params.get("timeslot_end"))
-        slot_date = _slot_date(params["display"], params.get("navigate_to", "current"), params["timeslot"])
-        vue.locator('[data-qa="option-new_appointment"]').click(timeout=UI_TIMEOUT)
-        try:
-            _select_client(angular, params["client_name"])
-            break
-        except PlaywrightTimeoutError:
-            if attempt == 2:
-                raise
-            page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
-            open_calendar_page(page)
+    angular, vue, slot_date = _open_appointment_editor(page, params)
 
     service_picker = vue.locator('[data-qa="service-picker-modal"]:visible')
     service_picker.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -60,6 +54,49 @@ def schedule_appointment_from_calendar(page: Page, context: dict, params: dict[s
     if params.get("client_confirmation") == "Checked":
         open_calendar_page(page)
     context.setdefault("calendar_bookings", {})[params["meeting_identifier"]] = params
+
+
+def _open_appointment_editor(page: Page, params: dict[str, str]):
+    """Open the New Appointment editor and return ``(angular, vue, slot_date)`` once ready.
+
+    The editor normally renders in ~1s. Under integration load its data fetch occasionally
+    stalls, leaving the dialog body blank so the client-search field never appears. A stalled
+    fetch does not resolve, so reopening in place just re-hits it; a full page reload resets
+    the request and is the reliable recovery. Retry the open (bounded to 2 retries), reloading
+    to a clean calendar before each retry. The reload tolerates its own slow load so a heavy
+    reload cannot abort recovery.
+    """
+    last_error: PlaywrightTimeoutError | None = None
+    for attempt in range(3):
+        if attempt:
+            _reset_calendar_after_stalled_editor(page)
+        try:
+            angular, vue = navigate_calendar(page, params["display"], params.get("navigate_to"))
+            choose_calendar_slot(vue, params["display"], params["timeslot"], params.get("timeslot_end"))
+            slot_date = _slot_date(params["display"], params.get("navigate_to", "current"), params["timeslot"])
+            vue.locator('[data-qa="option-new_appointment"]').click(timeout=UI_TIMEOUT)
+            _wait_for_appointment_dialog_ready(angular)
+            _select_client(angular, params["client_name"])
+            return angular, vue, slot_date
+        except PlaywrightTimeoutError as error:
+            last_error = error
+    raise last_error or PlaywrightTimeoutError("New Appointment dialog did not finish loading")
+
+
+def _reset_calendar_after_stalled_editor(page: Page) -> None:
+    """Reload to a clean calendar after a stalled appointment-editor open.
+
+    The blank-spinner stall does not clear on its own, so the editor's stalled data request
+    must be reset with a full page reload before retrying; a same-session reopen would re-hit
+    the same stalled request. The reload is best-effort: a slow reload under load must not
+    abort recovery, so its timeout is swallowed and the calendar is reopened regardless.
+    """
+    _remove_open_angular_dialogs(page)
+    try:
+        page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
+    except PlaywrightError:
+        pass
+    open_calendar_page(page)
 
 
 def schedule_event_from_calendar(page: Page, context: dict, params: dict[str, str]) -> None:
@@ -283,10 +320,30 @@ def drag_calendar_item(page: Page, title: str, display: str, direction: str, new
     target = _slot_locator(vue, display, new_timeslot)
     item.wait_for(state="visible", timeout=UI_TIMEOUT)
     target.wait_for(state="visible", timeout=UI_TIMEOUT)
-    _reschedule_item_through_calendar_action(vue, title, display, direction, new_timeslot)
+    _reschedule_and_confirm(page, vue, title, display, direction, new_timeslot)
     _remove_open_angular_dialogs(page)
     page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
     open_calendar_page(page)
+
+
+def _reschedule_and_confirm(page: Page, vue, title: str, display: str, direction: str, new_timeslot: str) -> None:
+    """Post the reschedule action and confirm the scheduler moved the item before reloading.
+
+    The reschedule reaches the scheduler via postMessage and is applied to its in-memory
+    dataSource before the backend persists it; reloading before that round-trip lands shows
+    the item at its old slot (the cause of intermittent drag failures). Wait for the moved
+    start to appear in the dataSource, and re-post once if the first message was dropped. The
+    action targets an absolute slot, so re-posting is idempotent. Bounded to 2 attempts.
+    """
+    last_error: AssertionError | None = None
+    for _ in range(2):
+        target = _reschedule_item_through_calendar_action(vue, title, display, direction, new_timeslot)
+        try:
+            _wait_for_scheduler_item_start(page, vue, title, target)
+            return
+        except AssertionError as error:
+            last_error = error
+    raise last_error or AssertionError(f"Calendar item {title} did not move to {new_timeslot}")
 
 
 def _draggable_calendar_item(vue, title: str):
@@ -335,6 +392,50 @@ def _remove_open_angular_dialogs(page: Page) -> None:
                 }
             }"""
         )
+
+
+def _force_dismiss_scheduling_dialog(page: Page) -> None:
+    """Strip a scheduling editor that refused to close through its own UI controls.
+
+    Under integration load a past-time appointment editor occasionally stays open after
+    submit/cancel, and its overlay then intercepts the next calendar slot click. As a last
+    resort (after the UI close controls have been tried), remove the Vuetify dialog content
+    and active overlay (plus the Angular md-dialog equivalents) across frames and clear the
+    body scroll lock so the calendar is interactive again. Only v-dialog overlays are
+    targeted, so the scheduler's own v-menu popups are left intact.
+    """
+    for frame in page.frames:
+        try:
+            frame.evaluate(
+                """() => {
+                    const remove = (selector) => document.querySelectorAll(selector).forEach((node) => node.remove());
+                    ['.v-dialog__content', '.v-overlay--active', 'md-dialog', 'md-backdrop', '.md-scroll-mask'].forEach(remove);
+                    for (const el of [document.documentElement, document.body]) {
+                        if (!el) continue;
+                        el.style.removeProperty('overflow');
+                        el.style.removeProperty('pointer-events');
+                        el.classList.remove('overflow-y-hidden');
+                    }
+                }"""
+            )
+        except PlaywrightError:
+            pass
+
+
+def _dismiss_open_scheduling_dialog(vue) -> None:
+    """Close any appointment/event editor a previous step left open before a fresh action.
+
+    A past-time appointment can leave its editor open after submit, and that overlay would
+    intercept the next slot click. Reuse the layered close (which escalates to a forced
+    removal) so the calendar is interactive again. No-op when nothing is open.
+    """
+    dialog = vue.get_by_role("dialog").first
+    try:
+        if not dialog.is_visible():
+            return
+    except PlaywrightError:
+        return
+    _close_active_dialog(vue, dialog)
 
 
 def _reschedule_item_through_calendar_action(vue, title: str, display: str, direction: str, new_timeslot: str) -> datetime:
@@ -766,6 +867,7 @@ def switch_logged_in_staff(page: Page, context: dict, staff: dict) -> None:
 def navigate_calendar(page: Page, display: str, direction: str | None = None):
     open_calendar_page(page)
     angular, vue = get_calendar_frames(page)
+    _dismiss_open_scheduling_dialog(vue)
     wait_for_calendar_idle(vue)
     _click_calendar_today(vue)
     _select_view(vue, display)
@@ -942,6 +1044,22 @@ def _slot_locator(vue, display: str, timeslot: str):
     return vue.locator(f'.smart-scheduler-cell[data-qa*="{timeslot}"]').first
 
 
+def _wait_for_appointment_dialog_ready(angular) -> None:
+    """Wait one load window for the New Appointment editor to finish loading.
+
+    The editor opens on a loading spinner while it fetches client/service data; the
+    client-search field is the first interactive element and renders only once the spinner
+    clears, so its visibility marks the dialog ready. A healthy editor renders in ~1s and
+    returns immediately; the window is widened to the editor-load budget so a slow-but-healthy
+    fetch under integration load completes here instead of being misread as a stall and
+    destroyed by the reload-reset recovery in ``_open_appointment_editor``. A genuine hang
+    never clears within that budget and falls through to the reload recovery.
+    """
+    angular.get_by_role("textbox", name="Search by name, email or tag").wait_for(
+        state="visible", timeout=APPOINTMENT_EDITOR_READY_TIMEOUT
+    )
+
+
 def _select_client(angular, client_name: str) -> None:
     search = angular.get_by_role("textbox", name="Search by name, email or tag")
     search.wait_for(state="visible", timeout=UI_TIMEOUT)
@@ -1114,7 +1232,25 @@ def _select_view(vue, display: str) -> None:
 
 
 def _choose_select_option(vue, select_locator, option_text: str) -> None:
+    """Open a Vuetify select and click an option, scoped to the freshly opened menu.
+
+    The staff/service options are fetched after the editor opens, so a global text click can
+    fire before the menu renders the option (the cause of intermittent staff-selection
+    timeouts). Scroll the field in, open it, wait for the active menu, then click the option
+    inside that menu so a slow-populating list is waited out; fall back to the global text
+    match if the active-menu shape is not present.
+    """
+    select_locator.scroll_into_view_if_needed(timeout=UI_TIMEOUT)
     select_locator.click(timeout=UI_TIMEOUT)
+    menu = vue.locator(".menuable__content__active").last
+    try:
+        menu.wait_for(state="visible", timeout=2_000)
+        option = menu.get_by_text(option_text, exact=True).last
+        option.wait_for(state="visible", timeout=UI_TIMEOUT)
+        option.click(timeout=UI_TIMEOUT)
+        return
+    except PlaywrightTimeoutError:
+        pass
     vue.get_by_text(option_text, exact=True).last.click(timeout=UI_TIMEOUT)
 
 
@@ -1258,10 +1394,19 @@ def _close_active_dialog(vue, dialog) -> None:
     try:
         if close_icon.count():
             close_icon.click(force=True, timeout=1_000)
+            dialog.wait_for(state="hidden", timeout=1_000)
+            return
     except PlaywrightTimeoutError:
         pass
     if dialog.is_visible():
         vue.locator("body").press("Escape")
+        try:
+            dialog.wait_for(state="hidden", timeout=1_000)
+            return
+        except PlaywrightTimeoutError:
+            pass
+    if dialog.is_visible():
+        _force_dismiss_scheduling_dialog(vue.page)
 
 
 def _click_dialog_close_control(vue) -> bool:
