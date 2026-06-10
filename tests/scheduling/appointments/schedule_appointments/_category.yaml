@@ -1,0 +1,52 @@
+name: Schedule Appointments
+description: Back-office appointment scheduling - meeting states, inline new client/staff,
+  additional recipients, reschedule/cancel, and arrival window with client emails
+account_profile:
+  type: isolated
+  slug: schedule_appointments
+  cleanup: always
+execution_order:
+- arrival_window
+- meeting_states
+- additional_recipients
+- reschedule_cancel
+tests:
+- id: arrival_window
+  name: Appointment With Arrival Window
+  status: active
+  priority: high
+  description: Verify arrival-window resolution (account default, service override,
+    in-dialog preset/custom, reschedule override) on the detail page and the client
+    email
+- id: meeting_states
+  name: Schedule Appointments With Different Meeting States
+  status: active
+  priority: high
+  description: Schedule from BO creating a new client inline and assigning staff;
+    verify INVITED (client confirmation), SCHEDULED (future all-day), and COMPLETED
+    (past) meeting states
+- id: additional_recipients
+  name: Additional Recipients
+  status: active
+  priority: high
+  description: Schedule appointments with an additional recipient (typed email and
+    chosen from the existing list) and verify the recipient on the detail page
+- id: reschedule_cancel
+  name: Reschedule Cancel
+  status: active
+  priority: high
+  description: Schedule a past appointment (COMPLETED), reschedule to next week (SCHEDULED),
+    then cancel (CANCELLED)
+status: active
+priority: high
+tags:
+- scheduling
+- appointments
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-10'
+  pass_rate: 100.0%
+  iterations: 10

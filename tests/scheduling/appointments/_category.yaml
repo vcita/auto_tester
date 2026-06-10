@@ -19,6 +19,7 @@ execution_order:
   - cancel_custom_appointment
   - appointments_list
   - multistaff
+  - schedule_appointments
 
 # Execution order - tests run sequentially in this order
 tests:
