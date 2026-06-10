@@ -1,0 +1,23 @@
+# Schedule Events (grouping subcategory)
+# Migrated from automation-js/features/tempo/scheduling-events.feature (VCITA2-14026).
+# Each legacy scenario runs on a fresh automatic account. The point_of_sale feature
+# flag conflicts across scenarios (the online scenario denies it, the POS scenario
+# needs it), so every scenario is its own isolated child subcategory with its own
+# account + Background.
+
+name: Schedule Events
+description: Event scheduling, registration and unregistration flows migrated from scheduling-events.feature - schedule an event from the back office and register multiple clients (with the client-portal registration conversation), and unregister attendees from the back office and the client portal before paying the remaining attendee online and via POS. Each scenario uses its own isolated account.
+
+execution_order:
+  - register_clients
+  - unregister_online
+  - unregister_pos
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - events
+  - migration
+owner: QA Team
+created_at: 2026-06-10

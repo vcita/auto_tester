@@ -1,0 +1,27 @@
+# Register clients to an event (isolated account)
+# Migrated from scheduling-events.feature scenario 1
+# "create a single event and register multiple clients to it" (VCITA2-14026).
+
+name: Register Clients To Event
+description: On a fresh account, schedule a require-to-pay event from the back office (next month, assigned to a created staff member), assert the event instance details (location, date, state, price, currency, staff, registration availability, attendance summary), register two clients, assert the attendee list, and assert the registered client's client-portal conversation includes the "Event Registration" title.
+
+account_profile:
+  type: isolated
+  slug: schedevt_reg
+  cleanup: always
+
+tests:
+  - id: register_clients
+    name: Schedule event and register multiple clients
+    status: active
+    priority: high
+    description: Schedule a require-to-pay event via the back office assigned to a created staff, assert the event details and empty attendance, register two clients via the client picker, assert both appear as attendees, and assert the registration conversation in the client portal.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - events
+  - migration
+owner: QA Team
+created_at: 2026-06-10

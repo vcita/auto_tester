@@ -1,0 +1,32 @@
+# Unregister from BO + CP, then pay via POS (isolated account)
+# Migrated from scheduling-events.feature scenario 2B
+# "create event and pays with POS" (VCITA2-14026).
+#
+# point_of_sale stays enabled (the default), so the remaining attendee is paid through
+# Point of Sale (the online take-payment variant lives in the sibling unregister_online).
+
+name: Unregister POS
+description: On a fresh account with point_of_sale enabled, register three clients to an API-scheduled require-to-pay event, assert the attendee table and counter, unregister one attendee from the back office (Canceled by staff), self-cancel another from the client portal (Canceled by client), then pay for the remaining attendee through Point of Sale and assert the paid/unpaid attendee table.
+
+account_profile:
+  type: isolated
+  slug: schedevt_pos
+  cleanup: always
+
+tests:
+  - id: unregister_pos
+    name: Unregister from BO and CP then pay via POS
+    status: active
+    priority: high
+    description: Register silvan/judi/nir, assert 3 unpaid registered attendees; unregister judi (BO) -> Canceled by staff, counter 2; silvan self-cancels in CP -> Canceled by client; pay nir's $100 through Point of Sale -> nir paid/registered, silvan & judi unpaid/unregistered.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - events
+  - payments
+  - pos
+  - migration
+owner: QA Team
+created_at: 2026-06-10

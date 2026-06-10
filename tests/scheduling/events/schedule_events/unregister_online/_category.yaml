@@ -1,0 +1,28 @@
+name: Unregister Online
+description: On a fresh account with point_of_sale denied, register three clients
+  to an API-scheduled require-to-pay event, assert the attendee table and counter,
+  unregister one attendee from the back office (Canceled by staff), self-cancel another
+  from the client portal (Canceled by client), then record an online payment for the
+  remaining attendee and assert the paid/unpaid attendee table.
+account_profile:
+  type: isolated
+  slug: schedevt_online
+  cleanup: always
+tests:
+- id: unregister_online
+  name: Unregister from BO and CP then pay online
+  status: active
+  priority: high
+  description: Register silvan/judi/nir, assert 3 unpaid registered attendees; unregister
+    judi (BO) -> Canceled by staff, counter 2; silvan self-cancels in CP -> Canceled
+    by client; record an online $100 payment for nir -> nir paid/registered, silvan
+    & judi unpaid/unregistered.
+status: active
+priority: high
+tags:
+- scheduling
+- events
+- payments
+- migration
+owner: QA Team
+created_at: 2026-06-10
