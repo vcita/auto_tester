@@ -1,6 +1,6 @@
 # Client Approves Estimate In CP — Script
 
-Reuses `tests/sales/estimates_helpers.py` (shared with the Estimates subcategory).
+Reuses `tests/sales/estimates/estimates_helpers.py` (shared with the Estimates subcategory).
 All CP selectors below were verified live on integration during migration.
 
 ## Setup (API)

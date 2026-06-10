@@ -362,7 +362,14 @@ def send_estimate(wizard) -> None:
 def open_bo_estimate(page: Page, context: dict, estimate_uid: str):
     app_base = (context.get("base_url") or context.get("app_base_url") or "").rstrip("/")
     page.goto(f"{app_base}/app/payments/estimates/{estimate_uid}", wait_until="domcontentloaded")
-    page.wait_for_timeout(2500)
+    billing_scope(page)
+    # Wait for the estimate detail to actually render (a price always appears) rather
+    # than a blind sleep, capped at the iframe-load NAV_TIMEOUT.
+    deadline = time.time() + NAV_TIMEOUT / 1000
+    while time.time() < deadline:
+        if "$" in _collect_text(page):
+            break
+        page.wait_for_timeout(250)
     return billing_scope(page)
 
 

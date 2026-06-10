@@ -4,7 +4,7 @@
 
 from playwright.sync_api import Page
 
-import estimates_helpers as eh
+from tests.sales.estimates import estimates_helpers as eh
 
 
 def test_cp_approve_estimate(page: Page, context: dict) -> None:
