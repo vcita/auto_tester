@@ -1,0 +1,31 @@
+name: CP Estimates
+description: A client views a pending estimate in the client portal, declines or approves
+  it, and the back-office reflects REJECTED / APPROVED
+tests:
+- id: cp_decline_estimate
+  name: Client Declines Estimate In CP
+  status: active
+  priority: high
+  description: API-create a pending estimate, view it in the client portal, decline
+    it, and verify the CP shows "Declined on ..." and the back-office shows REJECTED
+- id: cp_approve_estimate
+  name: Client Approves Estimate In CP
+  status: active
+  priority: high
+  description: API-create a pending estimate (service + saved item, total 120), view
+    it in the client portal, approve it, and verify the CP shows "Approved on ..."
+    and the back-office shows APPROVED
+status: active
+priority: high
+tags:
+- sales
+- estimates
+- client_portal
+- migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
