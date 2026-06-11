@@ -15,6 +15,7 @@ scheduling-appointments.feature scenarios need that multistaff did not exercise:
 from __future__ import annotations
 
 import re
+import time
 from datetime import date, datetime, timedelta
 
 from playwright.sync_api import Page
@@ -210,25 +211,50 @@ def _create_client_inline(page: Page, outer, new_client: dict) -> None:
     dialog.get_by_role("button", name="Save").first.click(timeout=UI_TIMEOUT)
 
 
-def _fill_dynamic_email(page: Page, dialog, email: str, *, attempts: int = 10) -> None:
-    """Enter ``email`` into the new-client autocomplete field, retrying until the value sticks.
+_EMAIL_FIELD = 'input[name="email"]'
+# The new-client email is an AngularJS md-autocomplete "dynamic field" that perpetually animates
+# ("blinks"), so Playwright fill()/type never pass the visibility+stability actionability gate and
+# time out, while char-by-char typing is swallowed by the autocomplete. We instead set the value
+# straight on the attached node and fire the input/change events that drive ng-model, re-asserting
+# until it survives a digest. That needs more than the 5s UI cap (legacy used longSleep + a
+# wait-retry loop for exactly this field), so it gets its own documented dynamic-field budget.
+_DYN_FIELD_TIMEOUT = 15_000
+_SET_INPUT_VALUE_JS = """(node, value) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(node, value);
+    node.dispatchEvent(new Event('input', { bubbles: true }));
+    node.dispatchEvent(new Event('change', { bubbles: true }));
+}"""
 
-    The field re-renders on focus/first input (it injects an ``#autocomplete-email`` input), which
-    detaches the element mid-type and drops most keystrokes (``page.keyboard.type`` left only the
-    first 1-2 chars, failing the dialog's email validation). ``fill`` sets the value atomically;
-    re-resolving the visible input and verifying ``input_value`` each round mirrors the legacy
-    ``_enterText`` -> ``_validateTextInput`` retry loop.
+
+def _fill_dynamic_email(page: Page, dialog, email: str) -> None:
+    """Set ``email`` on the new-client email field via JS, re-asserting until the value sticks.
+
+    The field is an AngularJS ``md-autocomplete`` that never settles into a stable, visible state,
+    so ``fill``/``type`` time out on actionability and char-by-char input is eaten by the
+    autocomplete. Setting ``value`` on the attached node and dispatching ``input``/``change`` drives
+    ``ng-model`` directly (no actionability gate); we re-set whenever the read-back drifts and only
+    return once the value reads back as ``email`` on two consecutive checks (it provably survived a
+    digest before Save). Mirrors legacy ``enterTextToDynamicField`` (enter + validate + retry).
     """
-    for _ in range(attempts):
-        field = dialog.locator('input[name="email"]:visible').first
+    field = dialog.locator(_EMAIL_FIELD).first
+    field.wait_for(state="attached", timeout=UI_TIMEOUT)
+    deadline = time.time() + _DYN_FIELD_TIMEOUT / 1000
+    confirmations = 0
+    while time.time() < deadline:
         try:
-            field.fill(email, timeout=UI_TIMEOUT)
-            page.wait_for_timeout(_SETTLE_MS)
-            if field.input_value(timeout=UI_TIMEOUT) == email:
-                return
+            node = dialog.locator(_EMAIL_FIELD).first
+            if node.input_value(timeout=UI_TIMEOUT) == email:
+                confirmations += 1
+                if confirmations >= 2:
+                    return
+            else:
+                confirmations = 0
+                node.evaluate(_SET_INPUT_VALUE_JS, email)
         except PlaywrightTimeoutError:
-            page.wait_for_timeout(_SETTLE_MS)
-    raise AssertionError(f"new-client email did not stick after {attempts} attempts (wanted {email!r})")
+            confirmations = 0
+        page.wait_for_timeout(_SETTLE_MS)
+    raise AssertionError(f"new-client email did not stick within {_DYN_FIELD_TIMEOUT}ms (wanted {email!r})")
 
 
 def _select_assigned_staff(page: Page, inner, name: str) -> None:
