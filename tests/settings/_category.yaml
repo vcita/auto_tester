@@ -4,6 +4,7 @@ execution_order:
   - business_info
   - staff_profile
   - upgrade_page
+  - roles_permissions
 tests: []
 status: active
 priority: high

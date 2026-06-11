@@ -1,0 +1,39 @@
+name: Roles & Permissions
+description: Roles & Permissions settings — open the non-editable built-in role page
+  (view mode), and manage a staff member's role (open Edit staff permissions, verify
+  name + role, change role and verify it persists in the staff list).
+account_profile:
+  type: isolated
+  slug: roles_permissions
+  cleanup: always
+execution_order:
+- view_role_page
+- staff_role
+tests:
+- id: view_role_page
+  name: Open Non-Editable Role Page
+  status: active
+  priority: high
+  description: Open the built-in Administrator role page and verify it opens in view
+    mode (no Save button).
+- id: staff_role
+  name: Staff Role Management
+  status: active
+  priority: high
+  description: Open a role=User staff's Edit staff permissions page, verify the staff
+    name and current role (User), change the role to Manager, and verify the staff's
+    role updated to Manager in the staff list.
+status: active
+priority: high
+tags:
+- settings
+- roles_permissions
+- spotlights
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
