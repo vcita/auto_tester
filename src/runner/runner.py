@@ -198,6 +198,14 @@ class TestRunner:
         """
         return self.discovery.scan()
     
+    def resolve_team_selection(self, team: str) -> List[str]:
+        """Return the account-boundary category paths owned by a team.
+
+        Used by `run --team <team>` to run every domain a team owns, each with
+        its own fresh account (per-domain isolation preserved).
+        """
+        return self.discovery.get_team_category_paths(team)
+
     def get_category(self, category_name: str) -> Optional[Category]:
         """
         Get a specific category by name.

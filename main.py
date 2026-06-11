@@ -79,6 +79,15 @@ def cmd_list(args):
             else:
                 console.print(f"[red]Category not found: {args.category}[/red]")
                 return
+
+        team = getattr(args, "team", None)
+        if team:
+            from src.models import normalize_team
+            want = normalize_team(team) or team.strip().lower()
+            categories = [c for c in categories if (c.team or "").lower() == want]
+            if not categories:
+                console.print(f"[yellow]No tests found for team: {team}[/yellow]")
+                return
         
         console.print("\n[bold]Test Discovery Results[/bold]\n")
         print_discovery_tree(categories)
@@ -151,6 +160,13 @@ def cmd_health(args):
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     category = (getattr(args, "category", None) or "payments").strip().lower()
 
+    team = getattr(args, "team", None)
+    if team:
+        console.print(
+            f"[dim]--team {team}: the health snapshot currently supports only the "
+            f"payments category; team filtering is not yet applied here.[/dim]"
+        )
+
     if category != "payments":
         console.print(
             "[yellow]Only 'payments' is supported for now. "
@@ -203,10 +219,22 @@ def cmd_run(args):
         # Run tests
         # Check for selection (multiple categories/subcategories)
         selection = getattr(args, 'selection', None)
+        team = getattr(args, 'team', None)
+        if team and (args.category or selection):
+            console.print("[red]Error: --team cannot be combined with --category or --selection.[/red]")
+            sys.exit(1)
         if selection and args.category:
             console.print("[red]Error: --selection and --category cannot be used together. Use --selection for multiple categories/subcategories, or --category for a single category.[/red]")
             sys.exit(1)
-        if selection:
+        if team:
+            # Run every domain owned by the team (each gets its own fresh account)
+            team_selection = runner.resolve_team_selection(team)
+            if not team_selection:
+                console.print(f"[red]No domains found for team: {team}[/red]")
+                sys.exit(1)
+            console.print(f"[dim]Team '{team}' -> {', '.join(team_selection)}[/dim]")
+            result = runner.run_all(selection=team_selection)
+        elif selection:
             # Run selected categories/subcategories
             result = runner.run_all(selection=selection)
         elif args.category:
@@ -750,6 +778,10 @@ def main():
         help="Run only the selected category/subcategory paths (e.g., 'clients scheduling/events'). Each path can be a category (e.g., 'clients') or a subcategory path (e.g., 'scheduling/events'). Mutually exclusive with --category."
     )
     run_parser.add_argument(
+        "--team",
+        help="Run every domain owned by this team (one of: backstage, maestro, salsa, spotlights, tango, tempo). Each domain gets its own fresh account. Mutually exclusive with --category/--selection."
+    )
+    run_parser.add_argument(
         "--env",
         default="integration",
         help="Target environment for per-category account creation. "
@@ -780,6 +812,10 @@ def main():
         action="store_true",
         help="List available functions instead of tests"
     )
+    list_parser.add_argument(
+        "--team",
+        help="List only tests owned by this team (backstage, maestro, salsa, spotlights, tango, tempo)."
+    )
     
     # Status command - show test status
     status_parser = subparsers.add_parser("status", help="Show test status and results")
@@ -790,6 +826,10 @@ def main():
         "--category", "-c",
         default="payments",
         help="Category health to generate (currently only: payments)"
+    )
+    health_parser.add_argument(
+        "--team",
+        help="Owning team filter (backstage, maestro, salsa, spotlights, tango, tempo). The health snapshot currently supports only the payments category."
     )
     
     # Init command - create a new test
