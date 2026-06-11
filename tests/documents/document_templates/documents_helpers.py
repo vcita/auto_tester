@@ -126,7 +126,8 @@ def assert_link_accessible(page: Page, link: str, file_name: str) -> None:
                 f"Grabbed link returned HTTP {response.status} for {link!r}"
             )
         body = (visitor.locator("body").inner_text(timeout=UI_TIMEOUT) or "").lower()
-        if "not found" in body or "error" in body and "page" in body:
+        error_markers = ("not found", "page not found", "404", "access denied", "unauthorized")
+        if any(marker in body for marker in error_markers):
             raise AssertionError(f"Grabbed link {link!r} shows an error page")
     finally:
         context.close()
