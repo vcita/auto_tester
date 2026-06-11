@@ -1,0 +1,18 @@
+name: Upgrade Page
+description: Upgrade-page (Frontage) credit-card upgrade flow via Recurly. Migrated
+  from automation-js features/maestro/upgrade_page.feature (2 scenarios). Each scenario
+  uses its own isolated Trial account because the upgrade must start below the target
+  plan, and one scenario sets a long country name.
+execution_order:
+- upgrade_in_frontage
+- upgrade_long_country
+tests: []
+status: active
+priority: high
+tags:
+- settings
+- upgrade
+- maestro
+- migration
+owner: QA Team
+created_at: 2026-06-11

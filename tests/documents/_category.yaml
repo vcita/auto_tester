@@ -1,0 +1,12 @@
+name: Documents
+description: Back-office documents features. Migrated from automation-js
+  features/steps/document-templates-auth.feature.
+execution_order:
+- document_templates
+tests: []
+status: active
+priority: high
+tags:
+- documents
+owner: QA Team
+created_at: 2026-06-11

@@ -12,6 +12,7 @@ execution_order:
 - invoice_tax_include
 - invoice_late_fee
 - invoice_late_fee_ui
+- attach_document
 tests:
 - id: create_invoice
   name: Create Invoice

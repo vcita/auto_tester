@@ -1,0 +1,26 @@
+# Payments Emails (grouping subcategory)
+# Migrated from automation-js/features/salsa/payments-emails.feature (VCITA2-14027)
+# Each legacy scenario verifies that a back-office payment action sends the client a
+# specific email. The point_of_sale feature flag conflicts across scenarios (S1/S3
+# deny it, the POS scenarios need it), so every scenario is its own isolated child
+# subcategory with its own account + Background (client + prerequisites via API).
+
+name: Payments Emails
+description: Client-facing payment emails migrated from payments-emails.feature - payment-request link emails (appointment + invoice, non-POS and POS), payment confirmation emails (record + close-balance, non-POS and POS), package-assigned email, and estimate email + client-portal estimate page. Each scenario uses its own isolated account; outbound email is verified via the internal automation message log (tests/email_api.py).
+
+execution_order:
+  - send_request_emails
+  - send_request_emails_pos
+  - payment_confirmation_emails
+  - payment_confirmation_emails_pos
+  - package_assigned
+  - estimate_mail_cp
+
+status: active
+priority: high
+tags:
+  - payments
+  - emails
+  - migration
+owner: QA Team
+created_at: 2026-06-11

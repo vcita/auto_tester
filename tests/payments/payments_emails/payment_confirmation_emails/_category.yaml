@@ -1,0 +1,29 @@
+name: Payment Confirmation Emails
+description: On a fresh account (point_of_sale denied) with a "suggest to pay" $100
+  service, an API appointment, and a $10 product assigned to the client, record a
+  $30 payment for the appointment (Payment Confirmation email) and close the client's
+  balance via record/ACH with send-receipt (a second Payment Confirmation email).
+account_profile:
+  type: isolated
+  slug: pe_confirm
+  cleanup: always
+tests:
+- id: confirmation_emails
+  name: Payment confirmation emails (record + close balance)
+  status: active
+  priority: high
+  description: Verify paying the appointment and closing the client balance each send
+    the client a "Payment Confirmation" email.
+status: active
+priority: high
+tags:
+- payments
+- emails
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

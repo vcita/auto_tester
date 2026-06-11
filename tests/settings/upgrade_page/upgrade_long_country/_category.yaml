@@ -1,0 +1,31 @@
+name: Upgrade Long Country
+description: Upgrade a Trial account whose business country is a long name ("Bolivia,
+  Plurinational State of") to the Platinum Single (enterprise_single) plan via Recurly.
+  Migrated from automation-js features/maestro/upgrade_page.feature (scenario 2).
+account_profile:
+  type: isolated
+  slug: upglongco
+  cleanup: always
+  package_subscription_id: 28
+  country_name: Bolivia, Plurinational State of
+tests:
+- id: upgrade
+  name: Upgrade Account With Long Country Name
+  status: active
+  priority: high
+  description: Upgrade a Trial account (long country name) to enterprise_single and
+    assert the success-page package is "vcita Platinum Single (Annual)".
+status: active
+priority: high
+tags:
+- settings
+- upgrade
+- maestro
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

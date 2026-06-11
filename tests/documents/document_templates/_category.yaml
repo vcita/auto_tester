@@ -1,0 +1,35 @@
+name: Document Templates
+description: Upload documents to My Documents (standard templates) and grab a public
+  document link, verifying a client can access it.
+account_profile:
+  type: isolated
+  slug: document_templates
+  cleanup: always
+execution_order:
+- add_standard_template
+- grab_document_link
+tests:
+- id: add_standard_template
+  name: Add Standard Document Template
+  status: active
+  priority: high
+  description: Upload a document to My Documents and verify it appears in the standard
+    template list.
+- id: grab_document_link
+  name: Grab Document Link
+  status: active
+  priority: high
+  description: Upload a document, grab its public link, and verify a client can access
+    the grabbed link.
+status: active
+priority: high
+tags:
+- documents
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
