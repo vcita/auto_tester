@@ -2,6 +2,7 @@ name: Online Presence
 description: Online Presence widgets (contact form widget, etc.)
 execution_order:
   - contact_form_widget
+  - client_portal_actions
 tests: []
 status: active
 priority: high

@@ -19,7 +19,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Table parsers and context helpers when scenarios use table assertions or `[context.*]`.
 3. Run the original automation-js test before or during creation when it is runnable.
    - Use the old run to observe real UI behavior, timing, generated data, popups, tabs, and legacy helper side effects.
-   - If the new test gets stuck or the UI path is unclear, pause and ask the user for a hint on what to press, a photo, a screenshot, or any other clue that can reveal the intended path.
+   - If the new test gets stuck or the UI path is unclear, **run the original legacy test FIRST to establish ground truth** (see "When You're Stuck Building A Test" below) before concluding anything about the product; only after that, pause and ask the user for a hint (what to press, a photo, a screenshot) if the path is still unclear.
    - Use the old run evidence to build the mapping and avoid replacing a legacy UI action with an API shortcut by mistake.
 4. Create `migration_mapping.md` before implementation.
    - List every original scenario, action, assertion, setup, and edge case.
@@ -68,11 +68,51 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - **Open PR**: `gh pr create --base master` with a summary table (legacy→migrated scope), stability evidence, and the wait-audit result. Report the PR URL.
    - **Update tracker**: use the `update-migration-coverage-tracker` skill to upsert the Google Sheet row and refresh the Confluence dashboard with real run evidence and current progress totals (feature/scenario bars, tracked/validated counts, latest scope/Jira/PR). Set the row `Status` to **`In review`** at this point — the PR is open but not merged, so it is **not** `Merged` yet. Never mark a row `Merged` from closeout.
    - The only time to pause is a genuine blocker (push rejected, PR conflict, missing tracker credentials) — fix it or report the specific blocker, do not ask for permission to run the closeout itself.
+   - **Do not ask the user to confirm an obvious next step.** Once the stability gate passes, the path is not a decision — it is the closeout. This includes *reversing an earlier wrong call*: if you previously set the ticket/tracker to `Blocked` or called a feature "obsolete" and then proved the test stable, correcting the ticket and tracker and proceeding to PR is obvious and required — just do it, do not present it as a multiple-choice question. Reserve questions for genuine forks with no clearly-correct answer (e.g. two valid scope interpretations), never for "should I do the obviously-correct thing now?"
    - **After the PR is merged** (separate follow-up, once the PR lands on `master`): rerun the `update-migration-coverage-tracker` upsert for the same `--feature` with `--status Merged` to flip the row to its final state. This is the only step that should produce a `Merged` status.
 10. After stabilization changes, re-check `steps.md`, `script.md`, and `test.py` together:
    - Make sure the phase docs do not claim assertions that were removed from executable code.
    - If an assertion is intentionally removed as redundant or out of scope, document why behavior coverage is still preserved.
    - Re-run the migration comparison after those changes.
+
+## When You're Stuck Building A Test (Establish Ground Truth First)
+
+If a migrated test fails in a way that looks like the feature or UI "isn't there" — a
+selector is missing, a button does nothing, an editor/dialog never opens — **do NOT
+conclude the feature is obsolete, removed, or "redesigned away" until you have run the
+original legacy test.** The legacy `.feature` is the ground truth, and running it is
+cheap (~1 min) and decisive.
+
+1. **Run the original first**, from `automation-js`:
+   `nvm use 22 && node index <feature-path> integration --headless`.
+2. **If the legacy PASSES**, the feature works — the gap is in *your migration or test
+   environment*, not the product. Investigate these causes in order before changing the
+   diagnosis:
+   - **Timing / flaky interaction (check this first — it is the most common cause).**
+     A click that drives an iframe (re)load can land before the framework attaches its
+     handler, or the wait can expire before the inner frame's canvas renders. The control
+     *is* there; the single click or single wait just lost the race. Poll/re-click the
+     trigger until the target frame's readiness signal appears, within a bounded budget —
+     do not assume the selector is dead. *(Proven case: `client-portal-actions` — the
+     "Edit portal actions" click drives an Angular -> Vue iframe reload. A single click
+     intermittently timed out at `add_action`, which looked like a missing editor; a
+     click-retry loop made it 10/10 stable on the **default directory 970**. The feature
+     was never obsolete and there was no directory dependency.)*
+   - **Account directory / whitelabel mismatch.** The legacy auto-account may be created on
+     a specific directory that serves a *different* (often older) UI build than the
+     auto_tester default directory, so the same control can exist on one directory and be
+     absent on another. Read the legacy run log for `Creating automatic account ... on
+     directory <X>` (e.g. `recurly`) and match it before assuming the selector is dead.
+     **Confirm this with evidence (selector truly absent after the frame is fully loaded),
+     not just a timeout** — a timeout usually means the timing flake above, not a redesign.
+   - **Feature-flag / rollout differences** between the legacy account and the auto_tester account.
+   - **Wrong/stale selector vs a genuine redesign** that only applies to your directory.
+3. **If the legacy FAILS too**, only then is the feature genuinely broken/obsolete
+   upstream. Capture that as the finding (with the legacy run output as evidence) and set
+   the tracker row to `Blocked` / cancel the candidate with proof.
+4. **Never cancel a candidate or call a feature "obsolete/redesigned" based only on the
+   migrated test failing.** That conclusion requires a legacy run that *also* fails. A
+   passing legacy run means the work is a solvable migration gap, not a dead feature.
 
 ## Reduce Waits And Duration (Without Scope Or Quality Loss)
 
