@@ -22,6 +22,7 @@ from tests.products.products_account import create_tax_via_api
 # Legacy payment_setting -> charge_type (automation-js api/service.js _setPaymentType)
 CHARGE_TYPE = {
     "require to pay": "paid_force",
+    "suggest to pay": "paid",
     "display a fee": "paid_non_secured",
     "display for a fee": "discuss",
 }

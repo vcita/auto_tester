@@ -1,0 +1,31 @@
+name: Estimate Mail and CP Page
+description: On a fresh account with client "first last" and product product21 ($10),
+  create an estimate via API with send_email=true, verify the client receives the
+  "New estimate from <business>" email, then open the CP estimate page from that email
+  link and verify the estimate details (title, price, client, item, pending_client_action).
+account_profile:
+  type: isolated
+  slug: pe_estimate
+  cleanup: always
+tests:
+- id: estimate_mail_cp
+  name: Estimate mail and CP page
+  status: active
+  priority: high
+  description: Create estimate (send_email), verify estimate email, open CP from the
+    email link, assert the estimate page.
+status: active
+priority: high
+tags:
+- payments
+- emails
+- estimates
+- client-portal
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

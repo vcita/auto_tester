@@ -1,0 +1,30 @@
+name: Payment Confirmation Emails (POS)
+description: On a fresh account (point_of_sale enabled) with a require-to-pay $100
+  service, an API appointment, and a $10 product assigned to the client, record the
+  appointment's payment request via POS (Payment Confirmation email) and record all
+  the client's open requests via POS (a second Payment Confirmation email).
+account_profile:
+  type: isolated
+  slug: pe_confirm_pos
+  cleanup: always
+tests:
+- id: confirmation_emails_pos
+  name: Payment confirmation emails via POS
+  status: active
+  priority: high
+  description: Verify recording the appointment request and recording the client's
+    open requests via POS each send the client a "Payment Confirmation" email.
+status: active
+priority: high
+tags:
+- payments
+- emails
+- pos
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

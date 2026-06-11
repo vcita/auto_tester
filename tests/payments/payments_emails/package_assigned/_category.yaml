@@ -1,0 +1,29 @@
+name: Package Assigned Email
+description: On a fresh account with a "suggest to pay" $100 service and a specific-service
+  package ("package", 2 credits, $150), assign the package to the client and verify
+  the client receives the 'Your new "package" package information and details' email.
+account_profile:
+  type: isolated
+  slug: pe_package
+  cleanup: always
+tests:
+- id: package_assigned_email
+  name: Package assigned email
+  status: active
+  priority: high
+  description: Assign the package to the client (API) and verify the package-information
+    email is sent.
+status: active
+priority: high
+tags:
+- payments
+- emails
+- packages
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
