@@ -186,6 +186,12 @@ def cmd_health(args):
         sys.exit(1)
 
 
+def _is_team_group(runner, category_name: str) -> bool:
+    """True when the given --category target is a team folder (no account of its own)."""
+    category = runner.get_category(category_name)
+    return bool(category and getattr(category, "is_team_group", False))
+
+
 def cmd_run(args):
     """Run tests."""
     config = load_config()
@@ -237,6 +243,15 @@ def cmd_run(args):
         elif selection:
             # Run selected categories/subcategories
             result = runner.run_all(selection=selection)
+        elif args.category and _is_team_group(runner, args.category):
+            # `--category <team>` targets a team folder: run each of its domains
+            # with its own fresh account (same as --team), preserving isolation.
+            team_selection = runner.resolve_team_selection(args.category)
+            if not team_selection:
+                console.print(f"[red]No domains found for team: {args.category}[/red]")
+                sys.exit(1)
+            console.print(f"[dim]Team '{args.category}' -> {', '.join(team_selection)}[/dim]")
+            result = runner.run_all(selection=team_selection)
         elif args.category:
             # Run specific category (optionally only a subcategory)
             subcategory = getattr(args, 'subcategory', None)

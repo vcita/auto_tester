@@ -206,6 +206,18 @@ class TestRunner:
         """
         return self.discovery.get_team_category_paths(team)
 
+    @staticmethod
+    def _strip_leading_team_group(chain: Optional[List[Category]]) -> Optional[List[Category]]:
+        """Drop a leading team-group from a resolved chain.
+
+        Team folders are organizational only and never own an account, so the
+        account boundary is the first non-team segment (the domain). Stripping
+        the team group makes chain[0] the domain, which owns the account/setup.
+        """
+        if chain and len(chain) >= 2 and chain[0].is_team_group:
+            return chain[1:]
+        return chain
+
     def get_category(self, category_name: str) -> Optional[Category]:
         """
         Get a specific category by name.
@@ -276,7 +288,7 @@ class TestRunner:
             total_tests = 0
             category_chains: List[Optional[List[Category]]] = []
             for path in selection:
-                chain = self._resolve_category_path(path)
+                chain = self._strip_leading_team_group(self._resolve_category_path(path))
                 category_chains.append(chain)
                 if chain:
                     total_tests += len(chain[-1].tests) if chain[-1].tests else 0
@@ -304,7 +316,7 @@ class TestRunner:
                     ))
                     continue
                 category = chain[0]
-                path_for_display = "/".join((c.path.name for c in chain if c.path))
+                path_for_display = chain[-1].path.as_posix() if chain[-1].path else chain[-1].name
                 category_result = self._run_category_internal(
                     category,
                     index + 1,
@@ -315,20 +327,25 @@ class TestRunner:
                     category_result.category_name = path_for_display
                 result.category_results.append(category_result)
         else:
-            # Run all top-level categories (original behavior)
-            total_tests = sum(len(c.tests) for c in categories)
+            # Run all account boundaries (domains). Team folders are
+            # organizational only, so their per-domain children are the
+            # account/run units; legacy top-level domains run as themselves.
+            boundaries = self.discovery.get_account_boundaries()
+            total_tests = sum(len(c.tests) for c in boundaries)
             self.events.emit(RunnerEvent.RUN_STARTED, {
-                "categories": [c.name for c in categories],
-                "total_categories": len(categories),
+                "categories": [c.path.as_posix() if c.path else c.name for c in boundaries],
+                "total_categories": len(boundaries),
                 "total_tests": total_tests,
                 "run_id": run_id,
             })
-            for index, category in enumerate(categories):
+            for index, category in enumerate(boundaries):
                 category_result = self._run_category_internal(
                     category,
                     index + 1,
-                    len(categories),
+                    len(boundaries),
                 )
+                if category.path and category_result:
+                    category_result.category_name = category.path.as_posix()
                 result.category_results.append(category_result)
         
         result.completed_at = datetime.now()
@@ -364,7 +381,7 @@ class TestRunner:
         # Support path: xxx/yyy/zzz -> run setup of xxx, then setup of yyy, then setup and tests of zzz
         category_chain: Optional[List[Category]] = None
         if "/" in category_name:
-            category_chain = self._resolve_category_path(category_name)
+            category_chain = self._strip_leading_team_group(self._resolve_category_path(category_name))
             if not category_chain:
                 return CategoryResult(
                     category_name=category_name,
@@ -381,7 +398,7 @@ class TestRunner:
                 )
             category = category_chain[0]
             total_tests = len(category_chain[-1].tests)
-            path_for_display = "/".join((c.path.name for c in category_chain if c.path))
+            path_for_display = category_chain[-1].path.as_posix() if category_chain[-1].path else category_chain[-1].name
             subcategory_name = None  # path overrides --subcategory
         else:
             category = self.get_category(category_name)
@@ -475,6 +492,9 @@ class TestRunner:
             category_name=category.name,
             category_path=category.path,
         )
+        # Storage key: full relative path (e.g. "tempo/scheduling") so run
+        # history lands under the team-nested folder, not a stray top-level dir.
+        category_key = category.path.as_posix() if category.path else category.name
         # Track subcategory run dirs we save to (so we can copy parent video there)
         self._saved_subcategory_paths = []
 
@@ -606,7 +626,7 @@ class TestRunner:
                         context=context,
                         index=0,
                         total=len(category.tests),
-                        category_name=category.name,
+                        category_name=category_key,
                     )
                     test_end_offset = time_module.time() - video_start_time
                     video_timestamps.append(("_setup", test_start_offset, test_end_offset, setup_result.status))
@@ -638,7 +658,7 @@ class TestRunner:
                     for i in range(1, len(category_chain)):
                         parent_cat = category_chain[i - 1]
                         subcat = category_chain[i]
-                        path_str = "/".join((c.path.name for c in category_chain[: i + 1] if c.path))
+                        path_str = subcat.path.as_posix() if subcat.path else subcat.name
                         if skip_parent_setups:
                             continue
                         if self._requires_isolated_account(subcat):
@@ -786,7 +806,7 @@ class TestRunner:
                                     context=context,
                                     index=index + 1,
                                     total=total_items,
-                                    category_name=category.name,
+                                    category_name=category_key,
                                 )
                                 test_end_offset = time_module.time() - video_start_time
                                 video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
@@ -811,7 +831,7 @@ class TestRunner:
                                 context=context,
                                 index=index + 1,
                                 total=total_items,
-                                category_name=category.name,
+                                category_name=category_key,
                             )
                             test_end_offset = time_module.time() - video_start_time
                             video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
@@ -861,7 +881,7 @@ class TestRunner:
                         "title": page.title(),
                         "context": {k: ("***" if k == "password" else v) for k, v in context.items()},
                     }
-                    run_dir = self.storage.get_current_run_dir(category.name)
+                    run_dir = self.storage.get_current_run_dir(category_key)
                     run_dir.mkdir(parents=True, exist_ok=True)
                     context_path = run_dir / "until_test_context.json"
                     with open(context_path, "w", encoding="utf-8") as f:
@@ -942,14 +962,14 @@ class TestRunner:
         try:
             # Save category result to storage (will move video to _runs folder)
             self.storage.save_category_result(
-                category=category.name,
+                category=category_key,
                 result=result,
                 video_path=final_video_path,
             )
 
             # Copy parent video into each subcategory run dir so video is visible there too
             if final_video_path is not None and getattr(self, "_saved_subcategory_paths", None):
-                parent_video = self.storage.get_current_run_dir(category.name) / "video.webm"
+                parent_video = self.storage.get_current_run_dir(category_key) / "video.webm"
                 if parent_video.exists():
                     for subcat_path in self._saved_subcategory_paths:
                         subcat_run_dir = self.storage.get_current_run_dir(subcat_path)
@@ -1005,7 +1025,7 @@ class TestRunner:
                 context=context,
                 index=0,
                 total=0,
-                category_name=category.name,
+                category_name=category.path.as_posix() if category.path else category.name,
             )
             result.teardown_result = teardown_result
 
@@ -1024,7 +1044,7 @@ class TestRunner:
         for cat in reversed(category_chain):
             if not (cat.teardown and cat.teardown.is_valid):
                 continue
-            path_str = cat.path.name if cat.path else cat.name
+            path_str = cat.path.as_posix() if cat.path else cat.name
             test_name = f"{cat.name}/_teardown" if cat != category_chain[0] else "_teardown"
             test_start_offset = time_module.time() - video_start_time
             teardown_result = self._run_single_test(
@@ -1234,8 +1254,8 @@ class TestRunner:
 
         print(f"\n    >>> Subcategory: {subcategory.name}")
         
-        # Build category path: parent/subcategory (e.g., "scheduling/appointments")
-        category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+        # Build category path: full relative path (e.g., "tempo/scheduling/appointments")
+        category_path = subcategory.path.as_posix() if subcategory.path else f"{parent_category.name}/{subcategory.name}"
         
         # Run subcategory setup if exists (unless skip_setup, e.g. path mode already ran it)
         if not skip_setup and subcategory.setup and subcategory.setup.is_valid:
@@ -1632,8 +1652,8 @@ class TestRunner:
     ) -> None:
         """Run subcategory teardown if it exists."""
         if subcategory.teardown and subcategory.teardown.is_valid:
-            # Build category path: parent/subcategory (e.g., "scheduling/appointments")
-            category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+            # Build category path: full relative path (e.g., "tempo/scheduling/appointments")
+            category_path = subcategory.path.as_posix() if subcategory.path else f"{parent_category.name}/{subcategory.name}"
             
             test_start_offset = time_module.time() - video_start_time
             teardown_result = self._run_single_test(
