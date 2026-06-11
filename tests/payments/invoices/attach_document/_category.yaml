@@ -1,0 +1,31 @@
+name: Attach Document to Invoice
+description: Upload a document to My Documents, then create invoices (saved draft
+  and sent) with the document attached and verify the attachment shows on each invoice.
+account_profile:
+  type: isolated
+  slug: attach_document
+  cleanup: always
+execution_order:
+- attach_to_invoice
+tests:
+- id: attach_to_invoice
+  name: Attach Document to Saved and Sent Invoice
+  status: active
+  priority: high
+  description: Upload pic.jpg to My Documents; create and save a draft invoice with
+    the document attached and verify it is attached; create and send an invoice with
+    the document attached and verify it is attached.
+status: active
+priority: high
+tags:
+- payments
+- invoices
+- documents
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
