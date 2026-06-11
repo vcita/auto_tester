@@ -1,0 +1,60 @@
+name: Invoices
+team: salsa
+description: Invoice creation, lifecycle, tax/EU compliance, late fees, copy, and
+  document attachment owned by Salsa.
+# Runs in its own throwaway account so the create -> edit -> send -> cancel -> view
+# chain is free of tax/setting state set by sibling payments subcategories, and a
+# flake here can't cascade skips across the rest of the payments boundary. The
+# nested subcategories below already declare their own isolated accounts.
+# NOTE: slug avoids the word "invoice" -- the account API rejects any
+# business_name containing it (HTTP 403 "contains invalid term").
+account_profile:
+  type: isolated
+  slug: inv_lifecycle
+  cleanup: passed
+execution_order:
+- create_invoice
+- edit_invoice
+- send_invoice
+- cancel_invoice
+- view_download_invoice
+- eu_strict_invoices
+- invoice_items_copy
+- invoice_tax_include
+- invoice_late_fee
+- invoice_late_fee_ui
+- attach_document
+tests:
+- id: create_invoice
+  name: Create Invoice
+  status: draft
+  priority: high
+  description: Create a new invoice with line items and tax
+- id: edit_invoice
+  name: Edit Invoice
+  status: draft
+  priority: high
+  description: Update invoice line items and totals
+- id: send_invoice
+  name: Record Invoice Payment
+  status: draft
+  priority: high
+  description: Record a cash payment from the invoice action menu
+- id: cancel_invoice
+  name: Cancel Invoice
+  status: draft
+  priority: high
+  description: Void or cancel invoice and verify status
+- id: view_download_invoice
+  name: View and Download Invoice
+  status: draft
+  priority: low
+  description: Verify invoice public view availability and download flow
+status: active
+priority: high
+owner: QA Team
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

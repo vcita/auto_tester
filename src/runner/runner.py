@@ -25,6 +25,13 @@ from .storage import RunStorage
 from . import account_factory, env_config
 from .browser_config import get_browser_viewport, get_browser_window_size_arg
 
+# Isolated-account creation can hit a genuinely transient 403 when the
+# environment rate-limits new-business creation. Retry at a steady interval for
+# a bounded budget to ride out a brief throttle. (Permanent 403s that carry
+# field validation errors fail fast in account_factory and never reach here.)
+FORBIDDEN_RETRY_BUDGET_SECONDS = 180
+FORBIDDEN_RETRY_INTERVAL_SECONDS = 30
+
 # For --debug-test: pause after each minor action (human-in-the-loop debugging)
 def _get_step_callback_for_debug():
     from tests.debug_utils import step_callback_with_enter
@@ -497,6 +504,9 @@ class TestRunner:
         category_key = category.path.as_posix() if category.path else category.name
         # Track subcategory run dirs we save to (so we can copy parent video there)
         self._saved_subcategory_paths = []
+        # Reset per-boundary: set when restoring the parent session after an
+        # isolated subcategory fails, so the boundary stops instead of crashing.
+        self._parent_session_restore_failed = False
 
         # Emit category started
         self.events.emit(RunnerEvent.CATEGORY_STARTED, {
@@ -857,8 +867,27 @@ class TestRunner:
                                 debug_test=debug_test,
                             )
                             if subcat_failed:
+                                # An isolated subcategory ran in its own throwaway account,
+                                # so its failure cannot corrupt the shared boundary state.
+                                # Record it but keep running the remaining siblings instead
+                                # of cascading skips across the whole boundary.
+                                if self._requires_isolated_account(subcategory):
+                                    result.stopped_early = True
+                                    # If restoring the parent session failed, the shared
+                                    # page is unusable for siblings -- stop this boundary
+                                    # cleanly rather than running them on a dead session.
+                                    if getattr(self, "_parent_session_restore_failed", False):
+                                        self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
+                                        break
+                                    continue
                                 result.stopped_early = True
                                 self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
+                                break
+                            # Even when the isolated subcategory passed, a failed parent
+                            # session restore leaves the shared page unusable for siblings.
+                            if getattr(self, "_parent_session_restore_failed", False):
+                                result.stopped_early = True
+                                self._skip_remaining_items(execution_plan[index + 1:], result, subcategory.name)
                                 break
 
                     # Run teardown if exists (always, even on failure, unless until_test or debug_test was reached)
@@ -1536,18 +1565,38 @@ class TestRunner:
             if restore_parent_session and not getattr(result, "until_test_reached", False) and not getattr(result, "debug_test_reached", False):
                 self._restore_parent_session(page, context)
 
-    def _restore_parent_session(self, page, context: dict) -> None:
+    def _restore_parent_session(self, page, context: dict) -> bool:
+        """Re-log into the parent boundary account after an isolated subcategory.
+
+        Runs in a ``finally`` block, so it must never raise: a transient
+        navigation timeout here previously crashed the entire run. Retry once,
+        and on persistent failure log it and return False so the caller can stop
+        the boundary cleanly instead of aborting every remaining boundary.
+        """
         username = context.get("username")
         password = context.get("password")
         base_url = context.get("base_url") or self.app_base_url
         if not (username and password and base_url):
-            return
-
-        self._clear_browser_session(page)
+            return True
 
         from tests._functions.login.test import fn_login
 
-        fn_login(page, context, username=username, password=password, base_url=base_url)
+        last_error = None
+        for attempt in range(2):
+            try:
+                self._clear_browser_session(page)
+                fn_login(page, context, username=username, password=password, base_url=base_url)
+                return True
+            except Exception as exc:  # noqa: BLE001 - must not propagate from finally
+                last_error = exc
+
+        print(
+            f"  [auto-account] Failed to restore parent session after isolated "
+            f"subcategory: {last_error}",
+            flush=True,
+        )
+        self._parent_session_restore_failed = True
+        return False
 
     def _clear_browser_session(self, page) -> None:
         try:
@@ -1612,8 +1661,9 @@ class TestRunner:
             raise
 
     def _create_account_attempts(self, category_name, package_subscription_id, operator_pkg) -> dict:
+        deadline = time.monotonic() + FORBIDDEN_RETRY_BUDGET_SECONDS
         last_error = None
-        for attempt in range(4):
+        while True:
             try:
                 account = account_factory.create_account(
                     self.api_base_url,
@@ -1628,16 +1678,16 @@ class TestRunner:
                 return account
             except account_factory.AccountCreationError as exc:
                 last_error = exc
-                if "transient forbidden" not in str(exc).lower() or attempt == 3:
+                remaining = deadline - time.monotonic()
+                if "transient forbidden" not in str(exc).lower() or remaining <= 0:
                     raise
-                wait_seconds = 15 * (attempt + 1)
+                wait_seconds = min(FORBIDDEN_RETRY_INTERVAL_SECONDS, remaining)
                 print(
                     f"  [auto-account] Isolated account creation was transiently forbidden; "
-                    f"retrying in {wait_seconds}s",
+                    f"retrying in {int(wait_seconds)}s (~{int(remaining)}s budget left)",
                     flush=True,
                 )
                 time.sleep(wait_seconds)
-        raise last_error
     
     def _run_subcategory_teardown(
         self,

@@ -1,0 +1,10 @@
+name: Dashboard
+team: spotlights
+description: New-dashboard widgets (quick actions, app widgets manager) owned by Spotlights.
+execution_order:
+- quick_actions_widget
+- app_widgets_manager
+tests: []
+status: active
+priority: high
+owner: QA Team

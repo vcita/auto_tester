@@ -1,0 +1,13 @@
+name: Sales
+team: salsa
+description: Estimates, orders, ad-hoc sale/refund, and sales widget owned by Salsa.
+execution_order:
+- estimates
+- cp_estimates
+- adhoc_sale_refund
+- orders_filter
+- sales_widget
+tests: []
+status: active
+priority: high
+owner: QA Team

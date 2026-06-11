@@ -160,12 +160,21 @@ def cmd_health(args):
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     category = (getattr(args, "category", None) or "payments").strip().lower()
 
+    # Health currently covers only the payments domain, which Salsa owns. Accept
+    # `--team salsa` as a synonym; reject other teams with a clear message
+    # instead of silently ignoring the flag.
     team = getattr(args, "team", None)
     if team:
-        console.print(
-            f"[dim]--team {team}: the health snapshot currently supports only the "
-            f"payments category; team filtering is not yet applied here.[/dim]"
-        )
+        from src.models import normalize_team
+        normalized_team = normalize_team(team) or team.strip().lower()
+        if normalized_team != "salsa":
+            console.print(
+                f"[yellow]Health snapshots currently cover only the payments "
+                f"domain (owned by 'salsa'); nothing to generate for team "
+                f"'{team}'.[/yellow]"
+            )
+            return
+        category = "payments"
 
     if category != "payments":
         console.print(

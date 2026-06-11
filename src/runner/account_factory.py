@@ -533,6 +533,13 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
         raise AccountCreationError(f"HTTP {status} for {category_name}: {detail}")
 
     if status == 403:
+        # A 403 carrying field-level validation errors (e.g. a business_name with a
+        # reserved term) is a permanent rejection, not a rate-limit blip. Surface it
+        # as a hard error so the caller fails fast instead of retrying for minutes.
+        if isinstance(body, dict) and body.get("errors"):
+            raise AccountCreationError(
+                f"HTTP {status} invalid request for {category_name}: {body.get('errors')}"
+            )
         raise AccountCreationError(f"HTTP {status} transient forbidden for {category_name}: {detail}")
 
     if status >= 500:
