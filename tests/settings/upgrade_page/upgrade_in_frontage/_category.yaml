@@ -1,0 +1,31 @@
+name: Upgrade In Frontage
+description: Start a Trial account, open the upgrade page, and upgrade to the Platinum
+  Single (enterprise_single) plan with a credit card via Recurly. Migrated from automation-js
+  features/maestro/upgrade_page.feature (scenario 1).
+account_profile:
+  type: isolated
+  slug: upgfront
+  cleanup: always
+  package_subscription_id: 28
+tests:
+- id: upgrade
+  name: Upgrade Account In Frontage
+  status: active
+  priority: high
+  description: Upgrade a Trial account to enterprise_single and assert the success-page
+    package is "vcita Platinum Single (Annual)" and the business plan is "Platinum
+    Single".
+status: active
+priority: high
+tags:
+- settings
+- upgrade
+- maestro
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10

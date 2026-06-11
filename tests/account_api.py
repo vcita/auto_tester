@@ -206,6 +206,40 @@ def wait_for_business_country(context: dict, expected_country: str, timeout_s: i
     )
 
 
+def get_business_admin(context: dict) -> dict:
+    """Read the business object via the admin API (mirrors legacy get_business_data,
+    which reads plan/package metadata with admin auth)."""
+    response = requests.get(
+        f"{resolve_api_base_url(context)}/platform/v1/businesses/{pivot_uid(context)}",
+        headers=admin_headers(),
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    data = response.json().get("data") or {}
+    return data.get("business") or data
+
+
+def wait_for_business_plan(context: dict, expected_plan: str, timeout_s: int = 15) -> str:
+    """Poll the admin business API until meta.plan.plan_name == expected_plan.
+
+    The plan change after an upgrade is eventually consistent: billing writes the
+    new subscription asynchronously, so a read immediately after the success page
+    can still echo the previous (Trial) plan. Bounded poll mirrors the legacy
+    `business ... has plan` assertion (admin read of meta.plan.plan_name).
+    """
+    deadline = time.monotonic() + timeout_s
+    actual = ""
+    while time.monotonic() < deadline:
+        plan = (get_business_admin(context).get("meta") or {}).get("plan") or {}
+        actual = plan.get("plan_name") or ""
+        if actual == expected_plan:
+            return actual
+        time.sleep(0.5)
+    raise AssertionError(
+        f"business plan expected {expected_plan!r}, got {actual!r} after read-back"
+    )
+
+
 def last_category_uid(context: dict) -> str:
     response = account_request(
         context, "GET", f"/platform/v1/categories?business_id={pivot_uid(context)}"
