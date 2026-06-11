@@ -258,14 +258,32 @@ def _fill_dynamic_email(page: Page, dialog, email: str) -> None:
 
 
 def _select_assigned_staff(page: Page, inner, name: str) -> None:
-    """Pick an existing staff in the dialog's assigned-staff (.staff-selection) dropdown."""
+    """Pick an existing staff in the dialog's assigned-staff (.staff-selection) dropdown.
+
+    The option click can be swallowed by the Vuetify ripple overlay, silently leaving the
+    default (owner) staff selected (~1/10 under stress). So we fall back to ``dispatch_event``
+    and re-open/re-select until the select's displayed text reflects ``name``.
+    """
     select = inner.locator(".staff-selection").first
     select.wait_for(state="visible", timeout=UI_TIMEOUT)
-    select.click(timeout=UI_TIMEOUT)
-    option = inner.locator(".menuable__content__active .v-list-item", has_text=name).first
-    option.wait_for(state="visible", timeout=UI_TIMEOUT)
-    option.click(timeout=UI_TIMEOUT)
-    page.wait_for_timeout(_SETTLE_MS)
+    deadline = time.time() + 2 * UI_TIMEOUT / 1000
+    while time.time() < deadline:
+        try:
+            select.click(timeout=UI_TIMEOUT)
+            menu = inner.locator(".menuable__content__active").last
+            menu.wait_for(state="visible", timeout=UI_TIMEOUT)
+            option = menu.locator(".v-list-item", has_text=name).first
+            option.wait_for(state="visible", timeout=UI_TIMEOUT)
+            try:
+                option.click(timeout=UI_TIMEOUT)
+            except Exception:  # noqa: BLE001 - Vuetify ripple overlay can swallow the click
+                option.dispatch_event("click")
+            page.wait_for_timeout(_SETTLE_MS)
+            if name in (select.inner_text(timeout=UI_TIMEOUT) or ""):
+                return
+        except PlaywrightTimeoutError:
+            page.wait_for_timeout(_SETTLE_MS)
+    raise AssertionError(f"assigned staff {name!r} did not stick in the dialog dropdown")
 
 
 def _date_input(inner):

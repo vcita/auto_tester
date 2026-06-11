@@ -1,5 +1,13 @@
 # Changelog — Schedule Appointments With Different Meeting States
 
+## 2026-06-11 — Stabilize assigned-staff selection
+
+- Fixed flaky assigned-staff selection (`_select_assigned_staff`). The Vuetify ripple
+  overlay can swallow the option click (Playwright still reports it as clicked), silently
+  leaving the default owner staff selected (~1/10 under stress, surfaced as the
+  "expected assigned staff 'user_staff'" assertion). Now falls back to `dispatch_event`
+  and re-opens/re-selects until the select's displayed text reflects the chosen staff.
+
 ## 2026-06-11 — Stabilize inline new-client email field
 
 - Fixed flaky inline new-client creation (`_fill_dynamic_email` in
