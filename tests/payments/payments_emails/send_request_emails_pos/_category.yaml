@@ -1,0 +1,31 @@
+name: Send Payment Request Emails (POS)
+description: On a fresh account (point_of_sale enabled) with require-to-pay $100 services,
+  send the appointment payment-request link via POS checkout ("New payment request
+  from <business>"), schedule + invoice a second appointment ("New invoice from <business>"),
+  then send the invoice payment-request link by email ("New payment request from <business>"
+  again).
+account_profile:
+  type: isolated
+  slug: pe_req_pos
+  cleanup: always
+tests:
+- id: request_emails_pos
+  name: Send payment-request emails via POS
+  status: active
+  priority: high
+  description: Verify the POS send-link, invoice, and invoice send-link each send
+    the client the expected email (2 payment-request emails + 1 invoice email).
+status: active
+priority: high
+tags:
+- payments
+- emails
+- pos
+- migration
+owner: QA Team
+created_at: 2026-06-11
+stability:
+  status: stable
+  last_stress_test: '2026-06-11'
+  pass_rate: 100.0%
+  iterations: 10
