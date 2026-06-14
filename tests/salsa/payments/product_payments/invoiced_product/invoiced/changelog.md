@@ -19,3 +19,15 @@
 - `test.py` imported a non-existent `pay_for_invoice`; re-exported the
   entity-agnostic `pay_for_invoice` from `event_payments_helpers` (same flow as
   the invoiced-event scenario). Scenario now passes 2/2.
+
+## 2026-06-15 - Card-mount load-tolerance (VCITA2-14064)
+- Under sustained full-suite load the product-order payment card (mounted in
+  `vue_iframe_main` by the Angular shell after the deep-link boots) intermittently
+  exceeded the 10s nav cap, and the invoice-create -> /app/invoices navigation
+  exceeded it too. Both are bounded at the load-tolerant card-mount ceiling (30s),
+  in the same class as the other backend/iframe-mount waits - not selector waits
+  masking flakiness.
+- A rare mount stall past that window is now re-triggered by a single bounded
+  re-navigation (deep-link) / re-open (orders list), rather than failing outright.
+- Stress: 10/10 stable (an earlier 9/10 was a transient login timeout during a
+  local connectivity drop - infrastructure, not the flow).

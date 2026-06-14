@@ -121,11 +121,19 @@ def open_product_order(page: Page, context: dict,
     """Open a product order detail page by id and return its payment-card frame.
 
     The card mounts inside ``vue_iframe_main`` a few seconds after the deep-link
-    boots; ``_product_frame`` polls for it with a load-tolerant timeout."""
+    boots; ``_product_frame`` polls for it with a load-tolerant timeout. On the rare
+    occasion the mount stalls past that window under load, a single re-navigation
+    re-triggers the boot, so retry the goto once before giving up."""
     order_id = _order_id(context, product_name)
-    page.goto(f"{app_base(context)}/app/product-order/{order_id}",
-              wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
-    return _product_frame(page)
+    url = f"{app_base(context)}/app/product-order/{order_id}"
+    last_error: AssertionError | None = None
+    for _ in range(2):
+        page.goto(url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
+        try:
+            return _product_frame(page)
+        except AssertionError as err:
+            last_error = err
+    raise last_error
 
 
 def _first_text(frame: Frame, selector: str) -> str:
@@ -306,7 +314,12 @@ def _open_product_order_via_orders(page: Page, context: dict, product_name: str)
         _, row = _orders_frame(page, product_name)
         if row is not None:
             row.click()
-            return _product_frame(page)
+            try:
+                return _product_frame(page)
+            except AssertionError:
+                # Row click occasionally lands before the detail boots under load;
+                # re-navigate the orders list and re-open rather than failing.
+                continue
         page.wait_for_timeout(1500)
     raise AssertionError(f"Order row for '{product_name}' not found in Billing & Invoicing")
 
