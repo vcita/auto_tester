@@ -10,10 +10,18 @@ import time
 from playwright.sync_api import Page
 
 from tests._functions.login.test import fn_login
+from tests.account_api import enable_features
 from tests.salsa.payments.product_payments.product_payments_api import (
     seed_assign_taxes,
     seed_background,
 )
+
+# The "Create and search product" scenario drives the new Products settings page
+# (/app/settings/products) via the Add product dialog. That page is gated by the
+# import_products feature flag - without it the route falls back to billing/taxes
+# settings and the products list never renders. Enable it before login so the
+# settings page resolves (mirrors the import_products subcategories).
+PRODUCTS_SETTINGS_FLAG = "import_products"
 
 
 def setup_create_search(page: Page, context: dict) -> None:
@@ -22,7 +30,8 @@ def setup_create_search(page: Page, context: dict) -> None:
     if not (username and password):
         raise ValueError("Isolated account username and password are missing from context")
 
-    print("  Setup Step 1: Log in to isolated account")
+    print("  Setup Step 1: Enable products settings page, then log in to isolated account")
+    enable_features(context, PRODUCTS_SETTINGS_FLAG)
     fn_login(page, context, username=username, password=password)
 
     print("  Setup Step 2: Seed client first last + $10 product payable_item1 (API)")

@@ -75,7 +75,7 @@ def _store(context: dict) -> dict:
     return context["product_payments"]
 
 
-def _order_id(context: dict, product_name: str | None = None) -> str:
+def _order_record(context: dict, product_name: str | None = None) -> dict:
     store = _store(context)
     if product_name in (None, "this"):
         order = store["last_order"]
@@ -84,10 +84,23 @@ def _order_id(context: dict, product_name: str | None = None) -> str:
         if not order:
             raise AssertionError(f"No product order for '{product_name}' in context")
         store["last_order"] = order
-    return order["id"]
+    return order
 
 
-def _product_frame(page: Page, timeout_ms: int = NAV_TIMEOUT) -> Frame:
+def _order_id(context: dict, product_name: str | None = None) -> str:
+    return _order_record(context, product_name)["id"]
+
+
+# The product-order detail card renders inside vue_iframe_main, mounted by the
+# Angular shell after the deep-link boots. A cold mount is ~5s, but under
+# sustained multi-account load (full-suite / stress runs) it intermittently
+# exceeds the 10s NAV_TIMEOUT, leaving the pane blank ("card did not load").
+# Bound the card-mount wait well above that load ceiling (same class as the
+# backend-index waits elsewhere), not as a selector wait masking flakiness.
+CARD_MOUNT_TIMEOUT = 30000
+
+
+def _product_frame(page: Page, timeout_ms: int = CARD_MOUNT_TIMEOUT) -> Frame:
     """Frame hosting the product-order payment card (state / take-payment / actions)."""
     markers = [PRODUCT_STATUS, TAKE_PAYMENT_BTN, PS_MORE_ACTIONS]
     deadline = time.monotonic() + timeout_ms / 1000
@@ -105,7 +118,10 @@ def _product_frame(page: Page, timeout_ms: int = NAV_TIMEOUT) -> Frame:
 
 def open_product_order(page: Page, context: dict,
                        product_name: str | None = None) -> Frame:
-    """Open a product order detail page by id and return its payment-card frame."""
+    """Open a product order detail page by id and return its payment-card frame.
+
+    The card mounts inside ``vue_iframe_main`` a few seconds after the deep-link
+    boots; ``_product_frame`` polls for it with a load-tolerant timeout."""
     order_id = _order_id(context, product_name)
     page.goto(f"{app_base(context)}/app/product-order/{order_id}",
               wait_until="domcontentloaded", timeout=PAGE_TIMEOUT)
@@ -316,7 +332,11 @@ def invoice_product(page: Page, context: dict, invoice_name: str,
     textarea.fill(billing_address)
     wizard.locator(FROM_FOLD).first.click()
     wizard.locator(INVOICE_SEND_BTN).first.click()
-    page.wait_for_url("**/app/invoices/**", timeout=NAV_TIMEOUT, wait_until="domcontentloaded")
+    # Creating the invoice and routing to /app/invoices is a backend write + SPA
+    # navigation that intermittently exceeds the 10s NAV_TIMEOUT under suite load;
+    # bound it at the load-tolerant card-mount ceiling.
+    page.wait_for_url("**/app/invoices/**", timeout=CARD_MOUNT_TIMEOUT,
+                      wait_until="domcontentloaded")
 
 
 # Billing & Invoicing order-type filter (mirrors legacy filterByPaymentType)

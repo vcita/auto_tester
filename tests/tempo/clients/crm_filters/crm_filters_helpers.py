@@ -27,6 +27,10 @@ INDEX_TIMEOUT_SECONDS = 5
 # so it is intentionally above the 5s UI cap.
 FIELD_INDEX_TIMEOUT_SECONDS = 30
 INDEX_RELOAD_ATTEMPTS = 3
+# The Client Card settings page loads a nested Angular -> Vue iframe chain before
+# the "Add client field" control renders. That multi-iframe page-load gate (like
+# the backend-index waits above) legitimately exceeds the 5s micro-interaction cap.
+SETTINGS_READY_TIMEOUT = 30_000
 
 
 # --------------------------------------------------------------------------- #
@@ -96,11 +100,12 @@ def create_client_field_via_ui(page: Page, label: str, field_type_label: str,
     `object_type: client`, so client fields (incl. dropdowns) must be created here."""
     app_base = page.url.split("/app/")[0]
     page.goto(f"{app_base}/app/settings/client_card", wait_until="domcontentloaded",
-              timeout=CLIENTS_PAGE_TIMEOUT)
+              timeout=SETTINGS_READY_TIMEOUT)
     inner = _settings_vue_frame(page)
 
+    # Gated on the nested Angular -> Vue settings iframes finishing their load.
     add_btn = inner.get_by_role("button", name=re.compile("Add client field", re.I)).first
-    add_btn.wait_for(state="visible", timeout=UI_TIMEOUT)
+    add_btn.wait_for(state="visible", timeout=SETTINGS_READY_TIMEOUT)
     add_btn.click()
 
     dialog = inner.locator(".client-card-field-dialog").first
@@ -273,11 +278,27 @@ def remove_filter(page: Page, filter_name: str) -> None:
 
 
 def clear_all_filters(page: Page) -> None:
-    clear_action = _active(page).get_by_text("Clear all", exact=True)
-    if clear_action.count() == 0:
-        return
-    clear_action.first.click()
-    expect(_active(page).get_by_text("Clear all", exact=True)).to_have_count(0, timeout=UI_TIMEOUT)
+    # Bounded + retried: a single unbounded click here could hang on the default
+    # 30s actionability timeout when the "Clear all" control briefly re-renders
+    # after a filter change. Re-resolve and click until the filters clear.
+    for _ in range(INDEX_RELOAD_ATTEMPTS):
+        clear_action = _active(page).get_by_text("Clear all", exact=True)
+        if clear_action.count() == 0:
+            wait_for_clients_table(page)
+            return
+        try:
+            target = clear_action.first
+            target.wait_for(state="visible", timeout=UI_TIMEOUT)
+            target.click(timeout=UI_TIMEOUT)
+            expect(_active(page).get_by_text("Clear all", exact=True)).to_have_count(
+                0, timeout=UI_TIMEOUT
+            )
+            wait_for_clients_table(page)
+            return
+        except (PlaywrightTimeoutError, AssertionError):
+            continue
+    if _active(page).get_by_text("Clear all", exact=True).count() > 0:
+        raise AssertionError("Clear all filters did not clear the active filters")
     wait_for_clients_table(page)
 
 
@@ -387,6 +408,32 @@ def select_view(page: Page, view_name: str) -> None:
     item.wait_for(state="visible", timeout=UI_TIMEOUT)
     item.click()
     wait_for_clients_table(page)
+
+
+def select_view_until_counter(page: Page, view_name: str, expected_counter: str) -> None:
+    """Select a preset view and wait for its client counter to settle.
+
+    The "Recently active" view is driven by the asynchronous last-activity index,
+    which can lag the just-seeded appointment by a beat. Re-select + reload the
+    view until the counter matches, mirroring the index-reload pattern used by
+    ``assert_filtered_clients``/``add_column`` (bounded to INDEX_RELOAD_ATTEMPTS).
+    """
+    expected = expected_counter.upper()
+    actual = ""
+    for attempt in range(INDEX_RELOAD_ATTEMPTS):
+        select_view(page, view_name)
+        deadline = time.monotonic() + INDEX_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            actual = filtered_counter(page)
+            if actual.upper() == expected:
+                return
+            time.sleep(0.5)
+        if attempt < INDEX_RELOAD_ATTEMPTS - 1:
+            page.reload(wait_until="domcontentloaded", timeout=CLIENTS_PAGE_TIMEOUT)
+            wait_for_clients_table(page)
+    raise AssertionError(
+        f"Expected counter {expected_counter!r} for view {view_name!r}, got {actual!r}"
+    )
 
 
 def select_tab(page: Page, tab_name: str) -> None:

@@ -2,6 +2,7 @@ import time
 
 from playwright.sync_api import Page
 
+from tests.account_api import create_appointment_via_api, create_service_via_api
 from tests.tempo.clients.crm_filters.crm_filters_helpers import (
     add_first_name_filter,
     add_open_payments_filter,
@@ -19,7 +20,7 @@ from tests.tempo.clients.crm_filters.crm_filters_helpers import (
     save_custom_view,
     save_fixed_as_new_view,
     select_tab,
-    select_view,
+    select_view_until_counter,
 )
 
 TAG = "tag4"
@@ -46,13 +47,23 @@ def test_create_edit_filters(page: Page, context: dict) -> None:
     product = create_product(context, f"payable_item1_{ts}", 10)
     assign_product(context, c3["id"], product.get("id") or product.get("uid"), 10)
 
+    # Make first3 the single "Recently active" client. The "Recently active" view
+    # filters on last-activity time, which is driven by a real interaction (an
+    # appointment) and not by an open payment in this environment - confirmed by
+    # the sibling recently_active migration (a freshly created client is NOT
+    # recently active until it gets a booking). Seeding an appointment for first3
+    # (which keeps its open payment for the later Open-payments filter) makes the
+    # "1 CLIENTS" assertion deterministic in the fresh isolated account.
+    print("  Step 2b: Seeding an appointment for first3 (drives 'Recently active')...")
+    service = create_service_via_api(context, f"crm_recent_active_{ts}")
+    create_appointment_via_api(context, service, c3)
+
     print("  Step 3: Opening clients list...")
     open_clients_list(page)
 
     print("  Step 4: Selecting 'Recently active' view...")
-    select_view(page, "Recently active")
+    select_view_until_counter(page, "Recently active", "1 CLIENTS")
     assert_displayed_filters(page, ["Last activity time"])
-    assert_counter(page, "1 CLIENTS")
 
     print("  Step 5: Selecting 'All' tab...")
     select_tab(page, "All")

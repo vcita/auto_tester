@@ -18,6 +18,13 @@ REQUEST_TIMEOUT = 30
 ACCOUNT_API_TIMEOUT = 5
 APPOINTMENT_LEAD_DAYS = 30
 
+# Brief server-side transients happen under load: the gateway occasionally 429s and
+# endpoints can 5xx for a few seconds. Retry a couple of times with linear backoff
+# before failing (at most TRANSIENT_RETRY_MAX_ATTEMPTS requests total).
+TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+TRANSIENT_RETRY_MAX_ATTEMPTS = 3
+TRANSIENT_RETRY_BACKOFF_SECONDS = 2.0
+
 
 def admin_headers() -> dict:
     admin_token = os.environ.get("VCITA_ADMIN_TOKEN")
@@ -137,19 +144,28 @@ def account_headers(context: dict) -> dict:
 def account_request(context: dict, method: str, path: str, **kwargs) -> dict:
     base_url = kwargs.pop("base_url", None) or resolve_api_base_url(context)
     headers = kwargs.pop("headers", None) or account_headers(context)
-    response = requests.request(
-        method,
-        f"{base_url}{path}",
-        headers=headers,
-        timeout=ACCOUNT_API_TIMEOUT,
-        **kwargs,
-    )
-    if not response.ok:
-        raise requests.HTTPError(
-            f"{response.status_code} {response.reason} for {path}: {response.text[:500]}",
-            response=response,
+    url = f"{base_url}{path}"
+
+    attempt = 0
+    response = None
+    while True:
+        response = requests.request(
+            method, url, headers=headers, timeout=ACCOUNT_API_TIMEOUT, **kwargs
         )
-    return response.json() if response.text else {}
+        if response.ok:
+            return response.json() if response.text else {}
+        attempt += 1
+        if (
+            response.status_code not in TRANSIENT_STATUS_CODES
+            or attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS
+        ):
+            break
+        time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS * attempt)
+
+    raise requests.HTTPError(
+        f"{response.status_code} {response.reason} for {path}: {response.text[:500]}",
+        response=response,
+    )
 
 
 def pivot_uid(context: dict) -> str:
@@ -257,16 +273,18 @@ def first_staff_uid(context: dict) -> str:
     original owner (e.g. seeding an owner-assigned appointment) stay deterministic
     regardless of staff-list ordering once more staff exist.
     """
+    account_uid = pivot_uid(context)
     cached = context.get("account_first_staff_uid")
-    if cached:
+    if cached and context.get("account_first_staff_uid_pivot") == account_uid:
         return cached
     response = account_request(
-        context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}/staffs?status=all"
+        context, "GET", f"/platform/v1/businesses/{account_uid}/staffs?status=all"
     )
     staffs = response.get("data", {}).get("staff", [])
     if not staffs:
         raise ValueError("No staff returned for auto account")
     context["account_first_staff_uid"] = staffs[0].get("id") or staffs[0].get("uid")
+    context["account_first_staff_uid_pivot"] = account_uid
     return context["account_first_staff_uid"]
 
 

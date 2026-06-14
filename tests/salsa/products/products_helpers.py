@@ -18,7 +18,10 @@ from playwright.sync_api import Page, expect
 UI_TIMEOUT = 5000
 # File analysis (upload -> "Add taxes") and import execution (-> success) are async
 # backend jobs the wizard polls; bounded above the 5s UI cap for that processing.
-IMPORT_JOB_TIMEOUT = 15000
+# Under stress-test load the Excel-analysis job intermittently exceeded 15s, so this
+# is bounded at 30s (same class as the backend-index waits elsewhere), not a selector
+# wait used to mask flakiness.
+IMPORT_JOB_TIMEOUT = 30000
 
 PRODUCTS_URL_PATH = "/app/settings/products"
 
@@ -70,11 +73,32 @@ def products_url(context: dict) -> str:
     return f"{base}{PRODUCTS_URL_PATH}"
 
 
+# The products settings page is gated by the import_products feature flag. Right
+# after the flag is enabled the session can still serve the fallback billing/taxes
+# settings tab for a beat (the Import action is then absent), and under cumulative
+# suite load the page itself boots slowly. Reload-retry until the Import action
+# renders rather than failing on the first cold load.
+PRODUCTS_PAGE_RETRIES = 3
+PRODUCTS_LIST_TIMEOUT = 10000
+
+
 def open_products_page(page: Page, context: dict) -> None:
     """Navigate to the products settings page and wait for the Import action."""
-    page.goto(products_url(context), wait_until="domcontentloaded")
-    frame = _require_frame(page, IMPORT_BUTTON, timeout=IMPORT_JOB_TIMEOUT)
-    frame.locator(IMPORT_BUTTON).first.wait_for(state="visible", timeout=UI_TIMEOUT)
+    last_error: Exception | None = None
+    for _ in range(PRODUCTS_PAGE_RETRIES):
+        page.goto(products_url(context), wait_until="domcontentloaded")
+        frame = _frame_with(page, IMPORT_BUTTON, timeout=PRODUCTS_LIST_TIMEOUT)
+        if frame is not None:
+            try:
+                frame.locator(IMPORT_BUTTON).first.wait_for(state="visible", timeout=UI_TIMEOUT)
+                return
+            except Exception as err:
+                last_error = err
+        page.wait_for_timeout(1500)
+    raise AssertionError(
+        "Products settings page did not render the Import action (feature flag not "
+        f"active yet or page on fallback tab) after {PRODUCTS_PAGE_RETRIES} attempts: {last_error!r}"
+    )
 
 
 def _wizard_step(page: Page) -> str:

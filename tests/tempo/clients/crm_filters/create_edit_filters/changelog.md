@@ -27,3 +27,20 @@
 - Confirm the `Recently active` built-in view shows exactly the expected
   `Last activity time` chip.
 - Confirm the open-payment propagates to the `Open payments` CRM index.
+
+## 2026-06-14 — Isolated account + deterministic "Recently active"
+- Subcategory now runs in its own isolated (fresh) account, matching the legacy
+  fresh-per-scenario account. In the shared clients boundary account the
+  accumulated sibling activity inflated the `Recently active` count to
+  `4 CLIENTS`; a fresh account is required for the `1 CLIENTS` assertion.
+- The `Recently active` view filters on last-activity time, which is driven by a
+  real interaction (an appointment), not by an open payment in this environment
+  (confirmed by the sibling `recently_active` migration). `create_edit_filters`
+  now seeds an appointment for the open-payment client (`first3`) so it is the
+  single recently-active client; `first3` keeps its open payment for the later
+  Open-payments filter.
+- Added `select_view_until_counter` (reload + re-select, bounded to 3 attempts)
+  for the index-lag-sensitive `Recently active` counter, and hardened
+  `clear_all_filters` with a bounded, retried click (avoids the default 30s
+  actionability hang on a re-rendering "Clear all" control). Validated 4/4 clean
+  subcategory runs + a full `clients` boundary run.

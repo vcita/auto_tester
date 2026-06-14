@@ -1281,6 +1281,25 @@ class TestRunner:
                 restore_parent_session=restore_parent_session,
             )
 
+        # Grouping subcategory: a container that owns no tests of its own, only
+        # nested child subcategories (each typically isolated with its own account).
+        # The boundary loop only reaches a boundary's direct children, so without
+        # this recursion a pure group's nested children never run in a full suite.
+        if subcategory.subcategories and not subcategory.tests:
+            return self._run_group_subcategory_inline(
+                group=subcategory,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=parent_category,
+                until_test=until_test,
+                debug_test=debug_test,
+                skip_setup=skip_setup,
+            )
+
         print(f"\n    >>> Subcategory: {subcategory.name}")
         
         # Build category path: full relative path (e.g., "tempo/scheduling/appointments")
@@ -1431,6 +1450,91 @@ class TestRunner:
         
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
+
+    def _run_group_subcategory_inline(
+        self,
+        group: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+        parent_category: Category,
+        until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
+        skip_setup: bool = False,
+    ) -> tuple[bool, str]:
+        """Run a grouping subcategory: a container whose children are nested
+        subcategories (each usually isolated with its own account).
+
+        The boundary-level loop only reaches a boundary's *direct* children, so a pure
+        group's nested children would otherwise never run in a full suite. This mirrors
+        that loop, including the isolated-failure (non-cascade) semantics: an isolated
+        child fails inside its own throwaway account, so siblings keep running.
+
+        Returns ``(hard_failed, first_failed_name)`` where ``hard_failed`` is True only
+        for a non-contained failure (a non-isolated child failed, or the shared parent
+        session could not be restored) that should stop the surrounding boundary.
+        """
+        print(f"\n    >>> Group: {group.name} ({len(group.subcategories)} nested subcategories)")
+
+        # A pure group rarely has its own _setup, but honor it if present.
+        if not skip_setup and group.setup and group.setup.is_valid:
+            category_path = group.path.as_posix() if group.path else f"{parent_category.name}/{group.name}"
+            setup_result = self._run_single_test(
+                test_path=self.tests_root / group.path / "_setup",
+                test_name=f"{group.name}/_setup",
+                test_type="setup",
+                page=page,
+                context=context,
+                index=0,
+                total=0,
+                category_name=category_path,
+            )
+            result.test_results.append(setup_result)
+            if setup_result.status == "failed":
+                result.stopped_early = True
+                return True, f"{group.name}/_setup"
+
+        hard_failed = False
+        first_failed_name = None
+        for item in build_execution_plan(group):
+            if not isinstance(item, Category):
+                # Pure groups own no direct tests; ignore any stray plan entries.
+                continue
+            subcat_failed, failed_test_name = self._run_subcategory_inline(
+                subcategory=item,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=group,
+                until_test=until_test,
+                debug_test=debug_test,
+            )
+            if getattr(result, "until_test_reached", False) or getattr(result, "debug_test_reached", False):
+                return subcat_failed, failed_test_name
+            if subcat_failed:
+                result.stopped_early = True
+                first_failed_name = first_failed_name or failed_test_name
+                if self._requires_isolated_account(item):
+                    # Contained failure: only stop if the shared session is now dead.
+                    if getattr(self, "_parent_session_restore_failed", False):
+                        hard_failed = True
+                        break
+                    continue
+                # A non-isolated child failing is a genuine cascade within the group.
+                hard_failed = True
+                break
+            if getattr(self, "_parent_session_restore_failed", False):
+                hard_failed = True
+                break
+
+        print(f"    <<< Group: {group.name} completed")
+        return hard_failed, first_failed_name
 
     def _requires_isolated_account(self, category: Category) -> bool:
         profile = getattr(category, "account_profile", None) or {}

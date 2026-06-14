@@ -22,6 +22,13 @@ PROVIDER_MOCK_CONNECT = '[data-qa="provider-name-mock"] .connection-button'
 PROVIDERS_SAVE = '[data-qa="providers-dialog-save"]'
 GATEWAY_CONNECT_TIMEOUT = 15000
 GATEWAY_SAVE_SETTLE_TIMEOUT = 5000
+# The providers dialog renders inside the Angular child_app iframe, which the shell
+# mounts a few seconds after the menu item is clicked. A clean mount is well under
+# 5s, but under sustained suite/stress load the child_app boot intermittently
+# exceeds the FAST_UI_TIMEOUT cap, leaving the dialog "not loaded". Bound the mount
+# wait above that load ceiling (same class as the product card-mount wait), not as
+# a selector wait masking flakiness.
+PROVIDERS_DIALOG_TIMEOUT = 30000
 
 PROVIDERS_MARKER = (
     '[data-qa^="provider-name-"], [data-qa="providers-dialog-save"], a:has-text("click here")'
@@ -56,7 +63,7 @@ def _open_providers_dialog(page: Page):
             item.click(timeout=FAST_UI_TIMEOUT)
         except Exception:
             item.evaluate("(el) => el.click()")
-    return _providers_frame(page, timeout=FAST_UI_TIMEOUT)
+    return _providers_frame(page, timeout=PROVIDERS_DIALOG_TIMEOUT)
 
 
 def _js_click_all(frame, selector: str) -> int:

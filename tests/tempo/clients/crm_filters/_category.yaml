@@ -1,11 +1,19 @@
 # CRM Filters Subcategory
 # Migrated from automation-js/features/steps/crm-filters-create-and-edit.feature (VCITA2-13790)
-# The two tests share one account: create_edit_filters creates the 4 base clients
-# (+ open payment); custom_field_filtering reuses them and adds 2 more, so the
-# exact client-count assertions stay valid. Order matters.
+# Runs in its own isolated (fresh) account, matching the legacy fresh-per-scenario
+# account: in the shared clients boundary account accumulated sibling activity
+# inflated the "Recently active" count, breaking the exact client-count assertions.
+# The two tests share that isolated account: create_edit_filters creates the 4 base
+# clients (+ open payment, + an appointment that drives "Recently active");
+# custom_field_filtering reuses them and adds 2 more. Order matters.
 
 name: CRM Filters
 description: Create/edit/remove CRM filters and views, and display/filter by custom fields
+
+account_profile:
+  type: isolated
+  slug: crm_filters
+  cleanup: passed
 
 tests:
   - id: create_edit_filters
