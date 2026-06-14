@@ -75,16 +75,18 @@ def fn_login(page: Page, context: dict, **params) -> None:
     for attempt in range(3):
         try:
             if attempt > 0:
-                # The iframe reloaded under us: let it settle before retrying.
+                # The iframe reloaded under us: let it settle before retrying. The app
+                # polls, so networkidle rarely fully settles - cap it low; the email-field
+                # visibility + input_value re-check below is the real readiness guard.
                 try:
-                    page.wait_for_load_state("networkidle", timeout=30000)
+                    page.wait_for_load_state("networkidle", timeout=8000)
                 except Exception:
                     pass
                 page.wait_for_timeout(1500)
 
             ctx = _get_login_context(page)
             email_field = ctx.locator('input[type="email"]').first
-            email_field.wait_for(state="visible", timeout=60000)
+            email_field.wait_for(state="visible", timeout=30000)
 
             # Re-resolve right before filling in case the iframe was just swapped.
             ctx = _get_login_context(page)
