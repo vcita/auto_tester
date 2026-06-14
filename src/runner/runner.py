@@ -1447,7 +1447,25 @@ class TestRunner:
         
         # Extract subcategory results and save them separately
         self._save_subcategory_result(subcategory, parent_category, result, category_path)
-        
+
+        # Mixed node: this subcategory owns both direct tests (run above) and nested
+        # subcategories. Without recursing here those nested children never run, since
+        # the boundary loop only reaches the boundary's direct children.
+        if subcategory.subcategories:
+            child_failed, child_failed_name = self._run_child_subcategories(
+                parent=subcategory,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                until_test=until_test,
+                debug_test=debug_test,
+            )
+            print(f"    <<< Subcategory: {subcategory.name} completed")
+            return child_failed, child_failed_name
+
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
 
@@ -1497,11 +1515,46 @@ class TestRunner:
                 result.stopped_early = True
                 return True, f"{group.name}/_setup"
 
+        hard_failed, first_failed_name = self._run_child_subcategories(
+            parent=group,
+            page=page,
+            context=context,
+            result=result,
+            video_timestamps=video_timestamps,
+            video_start_time=video_start_time,
+            time_module=time_module,
+            until_test=until_test,
+            debug_test=debug_test,
+        )
+
+        print(f"    <<< Group: {group.name} completed")
+        return hard_failed, first_failed_name
+
+    def _run_child_subcategories(
+        self,
+        parent: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+        until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
+    ) -> tuple[bool, Optional[str]]:
+        """Run every nested subcategory of ``parent`` (skipping its own direct tests),
+        applying the isolated-failure (non-cascade) semantics: an isolated child fails
+        inside its own throwaway account, so siblings keep running; a non-isolated child
+        failing (or a dead shared session) cascades and stops the surrounding boundary.
+
+        Shared by pure groups and mixed nodes (a subcategory that owns both tests and
+        nested subcategories) so neither silently skips its nested children.
+        """
         hard_failed = False
-        first_failed_name = None
-        for item in build_execution_plan(group):
+        first_failed_name: Optional[str] = None
+        for item in build_execution_plan(parent):
             if not isinstance(item, Category):
-                # Pure groups own no direct tests; ignore any stray plan entries.
+                # Direct tests (if any) were already run by the caller.
                 continue
             subcat_failed, failed_test_name = self._run_subcategory_inline(
                 subcategory=item,
@@ -1511,7 +1564,7 @@ class TestRunner:
                 video_timestamps=video_timestamps,
                 video_start_time=video_start_time,
                 time_module=time_module,
-                parent_category=group,
+                parent_category=parent,
                 until_test=until_test,
                 debug_test=debug_test,
             )
@@ -1532,8 +1585,6 @@ class TestRunner:
             if getattr(self, "_parent_session_restore_failed", False):
                 hard_failed = True
                 break
-
-        print(f"    <<< Group: {group.name} completed")
         return hard_failed, first_failed_name
 
     def _requires_isolated_account(self, category: Category) -> bool:

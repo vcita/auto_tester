@@ -9,6 +9,10 @@ import time
 from playwright.sync_api import Page, expect
 
 UI_TIMEOUT = 5000
+# Save-draft triggers a backend write plus an angularjs+Vue wizard iframe remount
+# before landing on /app/invoices/; under suite load that nav exceeds 5s. Matches the
+# NAV_TIMEOUT used by the sibling invoice helpers (invoice_billing_ui.py).
+NAV_TIMEOUT = 20000
 
 
 def _get_billing_scope(page: Page):
@@ -244,7 +248,7 @@ def test_create_invoice(page: Page, context: dict) -> None:
     save_draft.wait_for(state="visible", timeout=UI_TIMEOUT)
     save_draft.click()
 
-    page.wait_for_url("**/app/invoices/**", timeout=UI_TIMEOUT, wait_until="domcontentloaded")
+    page.wait_for_url("**/app/invoices/**", timeout=NAV_TIMEOUT, wait_until="domcontentloaded")
     billing_scope = _get_billing_scope(page)
     _close_templates_popup(billing_scope)
 
