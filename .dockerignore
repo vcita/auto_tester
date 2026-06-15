@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing / Playwright artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+playwright-report/
+
+# Project-specific run output (regenerated; never needed in the image)
+.temp_videos/
+.temp_screenshots/
+.context/
+.accounts/
+reports/
+runs_index/
+**/_runs/
+.playwright-mcp/
+
+# Local secrets / env
+.env
+*.env.local
+secrets.yaml
+
+# Docker / infra (not needed inside the image)
+Dockerfile*
+.dockerignore
+docker-compose.yml
+helm_chart/
+devspace.yaml
+
+# OS
+.DS_Store
+Thumbs.db

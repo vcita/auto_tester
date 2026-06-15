@@ -1,0 +1,5 @@
+environment: production
+
+# No scheduled auto_tester runs in production yet. Add jobs here once the
+# integration cadence is proven and a production target/account is approved.
+jobs: []

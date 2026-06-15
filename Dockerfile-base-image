@@ -1,0 +1,17 @@
+# Heavy, cached layer. Rebuilt only when BASE_IMAGE_FILES change (see jenkins-variables.yml).
+# Base on the official Playwright Python image so Chromium + its system libs are preinstalled
+# and the version matches playwright==1.40.0 in requirements.txt.
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+
+WORKDIR /auto_tester
+
+# Keep Python from writing .pyc files and turn off output buffering for cleaner container logs.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install Python dependencies first to leverage Docker layer caching.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Ensure the Chromium build matching this Playwright version is present.
+RUN python -m playwright install chromium

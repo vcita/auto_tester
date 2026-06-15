@@ -1,0 +1,41 @@
+# =============================================================================
+# auto_tester CronJob Helm chart (concept copied from vcita/cronjobs)
+# Renders one k8s CronJob per entry in `jobs:` (see values_integration.yaml).
+# =============================================================================
+
+global:
+  # ECR image built by the shipit pipeline. Confirm the exact repo with Infra.
+  image: 184806450101.dkr.ecr.eu-west-1.amazonaws.com/auto_tester
+  image_tag: auto_tester-latest
+
+  # External Secrets Operator - syncs secrets from AWS SSM Parameter Store.
+  external_secret:
+    refreshInterval: "30m"
+    secretStoreRef:
+      kind: SecretStore
+      name: parameter-store
+
+  # No special node pool required; use default scheduling.
+  affinity: {}
+  tolerations: []
+
+# Environment name - used in the SSM path: /<environment>/<release-name>/<secret-name>
+environment: integration
+
+# -----------------------------------------------------------------------------
+# CronJob definitions (per-environment files override this; default is none).
+#
+# Schema per job:
+#   name:                  unique job name (suffixed onto the release name)
+#   schedule:              cron expression
+#   command: []            container command (fully overrides image ENTRYPOINT)
+#   env: [{name,value}]    plain env vars
+#   secrets:               SSM-backed secrets, e.g. {name, as: env|file}
+#   restartPolicy:         Never | OnFailure (default OnFailure)
+#   backoffLimit:          retries
+#   activeDeadlineSeconds: hard timeout
+#   resources:             requests/limits
+#   squad:                 owning squad (alerting)
+#   alerting:              {runbook_url, failure, sequential_failure, timeout, not_executed}
+# -----------------------------------------------------------------------------
+jobs: []

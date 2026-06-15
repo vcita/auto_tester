@@ -1,0 +1,40 @@
+environment: integration
+
+jobs:
+  - name: full-run
+    # Nightly at 02:00. Tune once the suite runtime is known.
+    schedule: "0 2 * * *"
+    # Fully overrides the image ENTRYPOINT. $(TARGET_ENV) is substituted from env below.
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)"]
+    env:
+      - name: TARGET_ENV
+        value: "integration"
+      - name: ENVIRONMENT
+        value: "integration"
+    # SSM JSON at /integration/<release>/auto-tester-creds with keys
+    # VCITA_ADMIN_TOKEN and VCITA_DIRECTORY_ID, injected as env vars.
+    secrets:
+      - name: auto-tester-creds
+        as: env
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 7200 # 2h hard cap for the full suite
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    squad: salsa
+    alerting:
+      runbook_url: "https://myvcita.atlassian.net/wiki/spaces/IT/pages/2170814481/Microservice"
+      failure:
+        priority: P3
+      sequential_failure:
+        priority: P2
+      timeout:
+        priority: P3
+      not_executed:
+        priority: P2
