@@ -1,8 +1,13 @@
+# NOTE: three "integration" values below look redundant but are intentionally
+# separate and may legitimately differ:
+#   - environment (here): the SSM path segment -> /<environment>/<release>/<secret>
+#   - TARGET_ENV (per job): which deployed env the tests run AGAINST (env_config resolves URLs)
+#   - ENVIRONMENT (per job): the runner's own logic env (config/log behavior)
 environment: integration
 
 jobs:
   - name: full-run
-    # Nightly at 02:00. Tune once the suite runtime is known.
+    # Nightly at 02:00 in the CronJob controller's timezone (typically UTC), not local.
     schedule: "0 2 * * *"
     # Fully overrides the image ENTRYPOINT. $(TARGET_ENV) is substituted from env below.
     command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)"]
@@ -17,6 +22,9 @@ jobs:
       - name: auto-tester-creds
         as: env
     restartPolicy: Never
+    # Quoted on purpose: the template guard `if $job.backoffLimit` treats an
+    # integer 0 as falsy and would fall through to k8s' default of 6 retries.
+    # The string "0" renders as backoffLimit: 0 (no retries) for the full suite.
     backoffLimit: "0"
     concurrencyPolicy: Forbid
     activeDeadlineSeconds: 7200 # 2h hard cap for the full suite

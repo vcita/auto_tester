@@ -113,8 +113,9 @@ spec:
               {{- end }}
 
               {{- with $job.secrets }}
-                # envFrom for env-based secrets
-                {{ include "autotester.envFromForSecrets" (dict "secrets" $job.secrets "releaseName" $.Release.Name) | nindent 14 }}
+                # envFrom for env-based secrets (releaseName must match externalSecret.yaml,
+                # which uses autotester.releaseName, so nameOverride stays consistent on both sides)
+                {{ include "autotester.envFromForSecrets" (dict "secrets" $job.secrets "releaseName" (include "autotester.releaseName" $)) | nindent 14 }}
 
                 # merged volumeMounts: user-defined + file-based secrets
                 {{ include "autotester.mergedVolumeMounts" (dict "secrets" $job.secrets "volumeMounts" $job.volumeMounts) | nindent 14 }}
@@ -125,8 +126,8 @@ spec:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
 
-          # merged volumes: user-defined + file-based secrets
-          {{ include "autotester.mergedVolumes" (dict "secrets" $job.secrets "releaseName" $.Release.Name "volumes" $job.volumes) | nindent 10 }}
+          # merged volumes: user-defined + file-based secrets (releaseName must match externalSecret.yaml)
+          {{ include "autotester.mergedVolumes" (dict "secrets" $job.secrets "releaseName" (include "autotester.releaseName" $) "volumes" $job.volumes) | nindent 10 }}
 
           {{- with $job.nodeSelector }}
           nodeSelector:

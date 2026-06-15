@@ -13,5 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Ensure the Chromium build matching this Playwright version is present.
-RUN python -m playwright install chromium
+# The runner launches the real Google Chrome channel (channel='chrome' in
+# src/runner/runner.py), which is NOT bundled in the base image (it ships
+# Chromium). Install Chrome + its OS deps here.
+RUN python -m playwright install --with-deps chrome
