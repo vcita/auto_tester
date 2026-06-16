@@ -146,16 +146,24 @@ def _select_tomorrow_date(inner) -> None:
 # Back-office appointment page
 # --------------------------------------------------------------------------- #
 def open_appointment(page: Page, appointment_id: str) -> None:
-    page.goto(
-        f"{_app_base(page)}/app/appointments/{appointment_id}",
-        wait_until="domcontentloaded",
-        timeout=UI_TIMEOUT,
-    )
-    page.wait_for_url("**/app/appointments/**", timeout=UI_TIMEOUT)
-    outer, _ = _frames(page)
-    outer.get_by_role("heading", name="Appointment").first.wait_for(
-        state="visible", timeout=UI_TIMEOUT
-    )
+    # Full SPA navigation + Angular-iframe boot; gate on a page-boot budget (wait-audit
+    # exception) rather than the 5s element-interaction cap that flaked under load. A test
+    # may open the appointment page several times per iteration, so a bounded reload-retry
+    # (2 attempts) absorbs a one-off stalled boot without a fixed sleep.
+    url = f"{_app_base(page)}/app/appointments/{appointment_id}"
+    last_exc: PlaywrightTimeoutError | None = None
+    for _ in range(OPEN_APPOINTMENT_ATTEMPTS):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=CONVERSATION_NAV_TIMEOUT)
+            page.wait_for_url("**/app/appointments/**", wait_until="domcontentloaded", timeout=CONVERSATION_NAV_TIMEOUT)
+            outer, _ = _frames(page)
+            outer.get_by_role("heading", name="Appointment").first.wait_for(
+                state="visible", timeout=CONVERSATION_NAV_TIMEOUT
+            )
+            return
+        except PlaywrightTimeoutError as exc:
+            last_exc = exc
+    raise last_exc
 
 
 def read_appointment_state(page: Page) -> str:
@@ -238,34 +246,50 @@ def _bulk_cancel_frame(outer):
 # --------------------------------------------------------------------------- #
 # Client conversation timeline
 # --------------------------------------------------------------------------- #
-def read_last_linked_booking_bubble(page: Page, client_id: str, *, attempts: int = 12) -> dict:
+# Opening the client page is a full SPA navigation; gate it on a page-boot budget
+# (wait-audit exception), not the 5s element-interaction cap.
+CONVERSATION_NAV_TIMEOUT = 20_000
+OPEN_APPOINTMENT_ATTEMPTS = 2  # bounded reload-retry for a one-off stalled appointment-page boot
+
+
+def _scan_linked_booking_bubble(page: Page) -> dict | None:
+    """Return the last linked-booking bubble across all frames, or None if absent."""
+    for frame in page.frames:
+        try:
+            bubbles = frame.query_selector_all("div.linked-booking-bubble")
+        except Exception:
+            continue
+        if not bubbles:
+            continue
+        bubble = bubbles[-1]
+        services = [e.inner_text().strip() for e in bubble.query_selector_all("span.msgbl-title")]
+        labels = [e.inner_text().strip() for e in bubble.query_selector_all(".msgbl-text-label")]
+        return {"services": services, "labels": labels, "text": bubble.inner_text().strip()}
+    return None
+
+
+def read_last_linked_booking_bubble(page: Page, client_id: str, *, reloads: int = 4) -> dict:
     """Read the client's last linked-booking conversation bubble.
 
     Returns {"services": [...], "labels": [...], "text": "..."} for the last
-    linked-booking bubble, mirroring the legacy getLastEntityBubbleData. The
-    conversation is rendered in a nested Vue iframe whose id can vary, so this
-    scans every frame for the bubble and polls because the bubble reaches the
-    timeline asynchronously (legacy waited on the same eventual delivery).
-    """
-    page.goto(
-        f"{_app_base(page)}/app/clients/{client_id}",
-        wait_until="domcontentloaded",
-        timeout=UI_TIMEOUT,
-    )
-    page.wait_for_url("**/app/clients/**", timeout=UI_TIMEOUT)
+    linked-booking bubble, mirroring the legacy getLastEntityBubbleData. The bubble
+    reaches the timeline asynchronously (the message propagates mock-communication-app
+    -> communication-gw -> core, exactly as the legacy test waited on).
 
-    for _ in range(attempts):
-        for frame in page.frames:
-            try:
-                bubbles = frame.query_selector_all("div.linked-booking-bubble")
-            except Exception:
-                continue
-            if not bubbles:
-                continue
-            bubble = bubbles[-1]
-            services = [e.inner_text().strip() for e in bubble.query_selector_all("span.msgbl-title")]
-            labels = [e.inner_text().strip() for e in bubble.query_selector_all(".msgbl-text-label")]
-            return {"services": services, "labels": labels, "text": bubble.inner_text().strip()}
-        page.wait_for_timeout(1000)
+    After each navigation the Vue conversation iframe must load and fetch the timeline
+    before the bubble can render, so we poll PATIENTLY within each loaded page (rather
+    than reloading aggressively, which would interrupt that fetch). A bounded number of
+    reloads then re-fetches the feed in case propagation finishes between rounds.
+    """
+    url = f"{_app_base(page)}/app/clients/{client_id}"
+    poll_per_round = 15  # ~15s per loaded page lets the conversation iframe fetch + render
+    for _ in range(reloads):
+        page.goto(url, wait_until="domcontentloaded", timeout=CONVERSATION_NAV_TIMEOUT)
+        page.wait_for_url("**/app/clients/**", wait_until="domcontentloaded", timeout=CONVERSATION_NAV_TIMEOUT)
+        for _ in range(poll_per_round):
+            bubble = _scan_linked_booking_bubble(page)
+            if bubble is not None:
+                return bubble
+            page.wait_for_timeout(1000)
 
     raise AssertionError("Cancelled linked-booking bubble did not appear in the conversation")

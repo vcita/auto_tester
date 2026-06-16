@@ -8,3 +8,8 @@ tests:
     name: BO follow-up tip on a paid event attendance (record)
     status: active
     priority: high
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

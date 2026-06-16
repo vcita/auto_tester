@@ -111,11 +111,29 @@ def pay_via_payment_form(page: Page, context: dict, *, pay_for: str, amount: str
         email_input = cp_frame.locator(PAY_FORM_EMAIL).first
         email_input.wait_for(state="visible", timeout=NAV_TIMEOUT)
         email_input.fill(email)
-        cp_frame.locator(PAY_FORM_FIRST_NAME).first.fill(first_name)
-        cp_frame.locator(PAY_FORM_PAY_BTN).first.click()
+        first_name_input = cp_frame.locator(PAY_FORM_FIRST_NAME).first
+        first_name_input.fill(first_name)
+        # Commit Vue field validation before submitting (blur) so the pay button advances
+        # to the checkout dialog rather than no-opping on a still-validating form.
+        first_name_input.press("Tab")
+        _submit_payment_form(cp_page, cp_frame)
         _select_tip_and_pay(cp_page, tip_option=tip_option)
     finally:
         cp_context.close()
+
+
+def _submit_payment_form(cp_page: Page, cp_frame) -> None:
+    """Click the public make-payment pay button and confirm the checkout dialog opens,
+    re-clicking once if the first submit did not advance the Vue form."""
+    pay_btn = cp_frame.locator(PAY_FORM_PAY_BTN).first
+    dialog = cp_frame.locator(CHECKOUT_DIALOG).first
+    pay_btn.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    pay_btn.click()
+    try:
+        dialog.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    except Exception:
+        pay_btn.click()
+        dialog.wait_for(state="visible", timeout=NAV_TIMEOUT)
 
 
 def close_balance_via_cp(page: Page, context: dict, *, portal_token: str,

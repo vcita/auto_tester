@@ -140,15 +140,20 @@ _SPECIAL_KEYS = {"redeemed_with_package", "package_credit_refunded",
 
 
 def assert_appt_payment_request(page: Page, context: dict, expected: dict,
-                                identifier: str | None = None) -> None:
+                                identifier: str | None = None,
+                                timeout_s: float | None = None) -> None:
     """Open the appointment and assert the payment request matches `expected`.
 
     `meeting_identifier` selects which appointment to read; `redeemed_with_package`
     / `package_credit_refunded` (+ `package_name`) are verified via the
-    payment-status detail caption."""
+    payment-status detail caption.
+
+    `timeout_s` overrides the default NAV_TIMEOUT poll window for transitions whose
+    server-side rollup is slower (e.g. cancel-with-refund -> CANCELLED), as a documented
+    eventual-consistency exception to the element-wait cap."""
     nav = identifier or expected.get("meeting_identifier")
     base = {k: v for k, v in expected.items() if k not in _SPECIAL_KEYS}
-    deadline = time.monotonic() + NAV_TIMEOUT / 1000
+    deadline = time.monotonic() + (timeout_s if timeout_s is not None else NAV_TIMEOUT / 1000)
     actual: dict = {}
     frame = open_appointment(page, context, nav)
     while time.monotonic() < deadline:

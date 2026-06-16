@@ -19,9 +19,14 @@ ACCOUNT_API_TIMEOUT = 5
 APPOINTMENT_LEAD_DAYS = 30
 
 # Brief server-side transients happen under load: the gateway occasionally 429s and
-# endpoints can 5xx for a few seconds. Retry a couple of times with linear backoff
-# before failing (at most TRANSIENT_RETRY_MAX_ATTEMPTS requests total).
+# endpoints can 5xx for a few seconds. Network-level hiccups (read timeouts, dropped
+# connections) are the same class of transient. Retry a couple of times with linear
+# backoff before failing (at most TRANSIENT_RETRY_MAX_ATTEMPTS requests total).
 TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+TRANSIENT_EXCEPTIONS = (
+    requests.exceptions.ReadTimeout,
+    requests.exceptions.ConnectionError,
+)
 TRANSIENT_RETRY_MAX_ATTEMPTS = 3
 TRANSIENT_RETRY_BACKOFF_SECONDS = 2.0
 
@@ -149,12 +154,21 @@ def account_request(context: dict, method: str, path: str, **kwargs) -> dict:
     attempt = 0
     response = None
     while True:
-        response = requests.request(
-            method, url, headers=headers, timeout=ACCOUNT_API_TIMEOUT, **kwargs
-        )
+        attempt += 1
+        try:
+            response = requests.request(
+                method, url, headers=headers, timeout=ACCOUNT_API_TIMEOUT, **kwargs
+            )
+        except TRANSIENT_EXCEPTIONS:
+            # Network-level transient (read timeout / dropped connection). Retry on the
+            # same budget as transient status codes; re-raise once the budget is spent.
+            if attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS:
+                raise
+            time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS * attempt)
+            continue
+
         if response.ok:
             return response.json() if response.text else {}
-        attempt += 1
         if (
             response.status_code not in TRANSIENT_STATUS_CODES
             or attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS

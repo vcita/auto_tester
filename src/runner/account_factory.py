@@ -201,26 +201,29 @@ def create_account(
     Returns dict with: email, password, business_id, auth_token, name, pivot_uid, raw_response.
     Raises FatalTokenError on 401, AccountCreationError on other failures.
     """
-    timestamp = int(time.time())
-    email = build_auto_email(category_name, timestamp)
-    business_name = f"Auto_{normalize_email_category(category_name)}_{timestamp}"
-
-    options = {
-        "email": email,
-        "business_name": business_name,
-        "password": DEFAULT_PASSWORD,
-        "directory_id": directory_id,
-        "country_name": country_name,
-        "time_zone": DEFAULT_TIME_ZONE,
-        "package_subscription_id": package_subscription_id,
-    }
-    payload = {"generate_api_token": True, "options": json.dumps(options)}
-
     url = f"{api_base_url.rstrip('/')}{ADMIN_USERS_PATH}"
     headers = {"Authorization": f"Admin {admin_token}"}
 
     last_error = None
     for attempt in range(1 + MAX_RETRIES):
+        # Mint a fresh email/business_name per attempt. A retry can follow a request
+        # whose client-side timeout hid a server-side success; reusing the same email
+        # then fails hard with "email has already been taken". A fresh timestamp
+        # (retries are seconds apart) sidesteps the collision and leaves the prior
+        # account (if any) for orphan cleanup.
+        timestamp = int(time.time())
+        email = build_auto_email(category_name, timestamp)
+        business_name = f"Auto_{normalize_email_category(category_name)}_{timestamp}"
+        options = {
+            "email": email,
+            "business_name": business_name,
+            "password": DEFAULT_PASSWORD,
+            "directory_id": directory_id,
+            "country_name": country_name,
+            "time_zone": DEFAULT_TIME_ZONE,
+            "package_subscription_id": package_subscription_id,
+        }
+        payload = {"generate_api_token": True, "options": json.dumps(options)}
         try:
             resp = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
             _handle_create_error(resp, category_name)

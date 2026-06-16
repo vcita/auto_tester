@@ -19,17 +19,8 @@ def test_import_with_tax(page: Page, context: dict) -> None:
     tax_name = context["import_tax_name"]
     tax_rate = context["import_tax_rate"]
 
-    print("  Step 1: Open the Import wizard")
-    ph.open_import_wizard(page, context)
-
-    print("  Step 2: Upload products_with_sku.xlsx (3 products)")
-    ph.upload_file(page, EXCEL_FILE)
-
-    print(f"  Step 3: Assign tax {tax_name} ({tax_rate}%) during import")
-    ph.select_tax(page, tax_name, tax_rate)
-
-    print("  Step 4: Import and confirm success")
-    ph.submit_import(page)
+    print(f"  Steps 1-4: Import 3 products with tax {tax_name} ({tax_rate}%), submit")
+    ph.import_via_wizard(page, context, EXCEL_FILE, tax=(tax_name, tax_rate))
 
     print("  Step 5: Reload products list to reflect the import")
     ph.open_products_page(page, context)

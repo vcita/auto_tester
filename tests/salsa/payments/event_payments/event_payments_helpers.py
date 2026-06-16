@@ -169,9 +169,35 @@ def pay_for_event(page: Page, context: dict, amount: str) -> None:
     """Record a Cash payment of `amount` against the attendee payment request.
 
     Requires the `point_of_sale` flag denied so `take_payment` opens the legacy
-    record-payment dialog (mirrors BookingPaymentRequestPage.payForMeeting non-POS)."""
-    frame = open_attendee_payment_request(page, context)
-    _take_payment_record(frame, amount)
+    record-payment dialog (mirrors BookingPaymentRequestPage.payForMeeting non-POS).
+
+    Under load the record dialog occasionally closes without committing the payment
+    (the request stays at its pre-payment state); verify the request actually moved and
+    re-record once if it is completely unchanged after a generous settle window. A
+    payment reflecting only after that window is effectively never, so this cannot
+    double-pay."""
+    for _ in range(2):
+        frame = open_attendee_payment_request(page, context)
+        before = read_event_payment_request(frame)
+        _take_payment_record(frame, amount)
+        if _payment_request_changed(page, context, before):
+            return
+    # Leave the final state for the caller's assertion to report the precise mismatch.
+
+
+def _payment_request_changed(page: Page, context: dict, before: dict,
+                             settle_s: float = 25) -> bool:
+    """Poll the re-opened request until its state/amount differs from `before` (the
+    payment registered). Returns False if nothing changed within `settle_s`."""
+    deadline = time.monotonic() + settle_s
+    while time.monotonic() < deadline:
+        frame = open_attendee_payment_request(page, context)
+        after = read_event_payment_request(frame)
+        if (after.get("amount") != before.get("amount")
+                or after.get("state") != before.get("state")):
+            return True
+        time.sleep(1.0)
+    return False
 
 
 def _take_payment_record(frame: Frame, amount: str) -> None:

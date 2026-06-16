@@ -21,10 +21,12 @@ def test_cancel_refund(page: Page, context: dict) -> None:
     cancel_appointment(page, context, identifier="service", refund=True)
 
     print("  Step 3: Appointment payment request is CANCELLED $100.00")
+    # Cancel-with-refund is the slowest payment-status rollup (refund + cancel must both
+    # settle); poll a bit longer than the default 10s window (eventual-consistency).
     assert_appt_payment_request(page, context, {
         "state": "CANCELLED", "amount": "$100.00",
         "client_full_name": "first last", "service_name": "service",
-    }, identifier="service")
+    }, identifier="service", timeout_s=25)
 
     print("  Step 4: Payment 'Payment for service' was refunded")
     assert_payment_refunded(page, context, "Payment for service", "first")

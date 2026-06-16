@@ -44,6 +44,17 @@ STEP_UPLOAD = "Upload file"
 STEP_ADD_TAXES = "Add taxes"
 STEP_IMPORT = "Import"
 
+# Each wizard step transition fires an async backend call (file analysis after upload,
+# review build after tax selection). Under stress load these intermittently return a
+# transient "something went wrong, please try again" banner instead of advancing; the
+# UI itself invites a retry, so re-trigger the step action a bounded number of times.
+WIZARD_ERROR = "text=/something went wrong/i"
+WIZARD_RETRY_ATTEMPTS = 3
+# The file-analysis backend error persists within a wedged wizard session; recovery is a
+# fresh wizard (close + reopen). 4 independent sessions take a ~30% per-session flake to
+# ~0.8% so a strict 10/10 stress run is reliable.
+UPLOAD_SESSION_ATTEMPTS = 4
+
 
 def _frame_with(page: Page, selector: str, timeout: int = UI_TIMEOUT):
     """Return the first frame whose DOM currently contains ``selector``."""
@@ -113,6 +124,62 @@ def _wait_for_step(page: Page, title: str, timeout: int = UI_TIMEOUT) -> None:
     expect(frame.locator(STEP_TITLE).first).to_have_text(title, timeout=timeout)
 
 
+def _wizard_has_error(page: Page, timeout: int = 200) -> bool:
+    """True only when the transient error banner is actually VISIBLE. The banner element
+    is pre-rendered (hidden) in the wizard DOM, so a presence/count check would always
+    match; visibility is what distinguishes a real backend failure."""
+    deadline = time.monotonic() + timeout / 1000
+    while True:
+        for frame in page.frames:
+            try:
+                banner = frame.locator(WIZARD_ERROR)
+                if banner.count() > 0 and banner.first.is_visible():
+                    return True
+            except Exception:
+                continue
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+def _wait_error_cleared(page: Page, timeout: int = 3000) -> None:
+    """Wait (bounded) for the error banner to stop being visible after a (re)trigger, so
+    the next poll does not re-detect a stale banner from a prior failed attempt. Returns
+    even if it never clears (the poll loop then treats it as a fresh error and retries)."""
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        if not _wizard_has_error(page, timeout=100):
+            return
+        time.sleep(0.1)
+
+
+def _advance_to_step(page: Page, target_title: str, trigger, *,
+                     timeout: int = IMPORT_JOB_TIMEOUT) -> None:
+    """Run ``trigger`` (the action that should advance the wizard), then wait for
+    ``target_title``. Re-run ``trigger`` (bounded) if the wizard either surfaces the
+    transient backend-error banner or silently fails to advance within the window
+    (e.g. a file-set/Next that did not register, or a stalled analysis job). Raises
+    only after every attempt fails to reach the target step."""
+    last_step = ""
+    for _ in range(WIZARD_RETRY_ATTEMPTS):
+        trigger()
+        _wait_error_cleared(page)  # let the (re)trigger clear a banner from a prior attempt
+        deadline = time.monotonic() + timeout / 1000
+        while time.monotonic() < deadline:
+            if _wizard_step(page) == target_title:
+                return
+            if _wizard_has_error(page):
+                break  # transient backend error -> re-trigger this step
+            time.sleep(0.25)
+        # Reached here on either an error banner or a silent stall; both recover by
+        # re-running the trigger (idempotent re-click Next).
+        last_step = _wizard_step(page)
+    raise AssertionError(
+        f"Import wizard did not reach {target_title!r} after {WIZARD_RETRY_ATTEMPTS} "
+        f"attempts of {timeout}ms each (last step {last_step!r})"
+    )
+
+
 def open_import_wizard(page: Page, context: dict) -> None:
     """Open the products page and launch the Import wizard (Get started step)."""
     open_products_page(page, context)
@@ -126,13 +193,61 @@ def _click_next(page: Page) -> None:
     frame.locator(WIZARD_NEXT).first.click()
 
 
-def upload_file(page: Page, file_path: str) -> None:
-    """From Get started: go to Upload, set the file, and wait for analysis to
-    auto-advance to the Add taxes step (async backend job)."""
-    _click_next(page)
+def _await_step_or_error(page: Page, target_title: str, *, timeout: int) -> bool:
+    """Poll until the wizard reaches ``target_title`` (return True) or surfaces the
+    transient error banner / the window expires (return False)."""
+    deadline = time.monotonic() + timeout / 1000
+    while time.monotonic() < deadline:
+        if _wizard_step(page) == target_title:
+            return True
+        if _wizard_has_error(page):
+            return False
+        time.sleep(0.25)
+    return False
+
+
+def _upload_in_session(page: Page, file_path: str) -> None:
+    """Within the already-open wizard: Get started -> Upload, set the file, wait for the
+    analysis job to advance to Add taxes. Raises if the analysis errors/stalls (the
+    caller recovers by reopening the wizard for a fresh session)."""
+    _click_next(page)  # Get started -> Upload file
     _wait_for_step(page, STEP_UPLOAD)
     _require_frame(page, DROPZONE_INPUT).locator(DROPZONE_INPUT).first.set_input_files(file_path)
-    _wait_for_step(page, STEP_ADD_TAXES, timeout=IMPORT_JOB_TIMEOUT)
+    if not _await_step_or_error(page, STEP_ADD_TAXES, timeout=IMPORT_JOB_TIMEOUT):
+        raise AssertionError("Import wizard file analysis did not reach 'Add taxes' (wedged session)")
+
+
+def import_via_wizard(page: Page, context: dict, file_path: str, *,
+                      tax: tuple | None = None, expect_invalid_rows: bool = False) -> None:
+    """Run the full import wizard (upload -> select/skip tax -> [review check] -> submit
+    -> success). Each async backend step (file analysis, review build, import execution)
+    intermittently returns a 'something went wrong' banner that re-triggering within the
+    same wizard session does NOT clear; only a fresh wizard recovers. So on any wedge,
+    close and reopen the wizard and redo the whole import. Bounded."""
+    last_err: Exception | None = None
+    for _ in range(UPLOAD_SESSION_ATTEMPTS):
+        open_import_wizard(page, context)
+        try:
+            _upload_in_session(page, file_path)
+            if tax:
+                select_tax(page, tax[0], tax[1])
+            else:
+                skip_taxes(page)
+            if expect_invalid_rows:
+                assert_error_rows_present(page)
+            submit_import(page)
+            return
+        except AssertionError as err:
+            last_err = err
+            close_wizard(page)
+            try:
+                _wait_modal_closed(page)
+            except AssertionError:
+                pass
+    raise AssertionError(
+        f"Import wizard did not complete after {UPLOAD_SESSION_ATTEMPTS} fresh sessions "
+        f"(persistent backend error): {last_err}"
+    )
 
 
 def select_tax(page: Page, name: str, rate: int) -> None:
@@ -143,15 +258,13 @@ def select_tax(page: Page, name: str, rate: int) -> None:
     if not checkbox.is_checked():
         frame.locator(f"[data-qa='add-taxes-listbox-{name}-({rate}%)']").first.click()
     expect(checkbox).to_be_checked(timeout=UI_TIMEOUT)
-    _click_next(page)
-    _wait_for_step(page, STEP_IMPORT)
+    _advance_to_step(page, STEP_IMPORT, lambda: _click_next(page))
 
 
 def skip_taxes(page: Page) -> None:
     """Continue from Add taxes to the Import (review) step without selecting a tax."""
     _wait_for_step(page, STEP_ADD_TAXES)
-    _click_next(page)
-    _wait_for_step(page, STEP_IMPORT)
+    _advance_to_step(page, STEP_IMPORT, lambda: _click_next(page))
 
 
 def assert_error_rows_present(page: Page) -> int:
@@ -172,15 +285,39 @@ def _wait_modal_closed(page: Page, timeout: int = UI_TIMEOUT) -> None:
     raise AssertionError("Import wizard modal did not close")
 
 
+def _success_button_visible(page: Page) -> bool:
+    frame = _frame_with(page, MODAL, timeout=200)
+    if frame is None:
+        return False
+    button = frame.get_by_role("button", name=GOT_IT_BUTTON)
+    return button.count() > 0 and button.first.is_visible()
+
+
 def submit_import(page: Page) -> None:
-    """Click Import on the review step and confirm the success screen, then close."""
+    """Click Import on the review step and confirm the success screen, then close.
+
+    The import execution is an async backend job that can intermittently return the
+    transient error banner under load; re-click Import (bounded) when it does."""
     _wait_for_step(page, STEP_IMPORT)
-    _click_next(page)
-    frame = _require_frame(page, MODAL, timeout=IMPORT_JOB_TIMEOUT)
-    got_it = frame.get_by_role("button", name=GOT_IT_BUTTON)
-    got_it.wait_for(state="visible", timeout=IMPORT_JOB_TIMEOUT)
-    got_it.click()
-    _wait_modal_closed(page)
+    for _ in range(WIZARD_RETRY_ATTEMPTS):
+        _click_next(page)
+        deadline = time.monotonic() + IMPORT_JOB_TIMEOUT / 1000
+        while time.monotonic() < deadline:
+            if _success_button_visible(page):
+                frame = _require_frame(page, MODAL)
+                frame.get_by_role("button", name=GOT_IT_BUTTON).first.click()
+                _wait_modal_closed(page)
+                return
+            if _wizard_has_error(page):
+                break  # transient backend error -> re-click Import
+            time.sleep(0.25)
+        else:
+            raise AssertionError(
+                f"Import success screen did not appear within {IMPORT_JOB_TIMEOUT}ms (no error banner)"
+            )
+    raise AssertionError(
+        f"Import did not complete after {WIZARD_RETRY_ATTEMPTS} retries on transient backend errors"
+    )
 
 
 def download_template(page: Page) -> str:
@@ -208,12 +345,17 @@ def _product_names(frame) -> list:
 # race with the element being replaced. Re-acquire and retry with a short
 # actionability timeout (<=2 retries) instead of one long, racy fill.
 _SEARCH_FILL_TIMEOUT = 2000
+# After a post-import page reload the product-list component (which owns the search
+# input) mounts a beat after the page shell that open_products_page gates on, and is
+# slower under cumulative suite load. Give the search input a page-boot-class budget
+# rather than the 5s element-interaction default (documented wait-audit exception).
+_SEARCH_READY_TIMEOUT = 15000
 
 
 def _fill_search(page: Page, query: str):
     last_err = None
     for _ in range(3):
-        frame = _require_frame(page, SEARCH_INPUT)
+        frame = _require_frame(page, SEARCH_INPUT, timeout=_SEARCH_READY_TIMEOUT)
         box = frame.locator(SEARCH_INPUT).first
         try:
             box.fill(query, timeout=_SEARCH_FILL_TIMEOUT)

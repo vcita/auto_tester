@@ -70,8 +70,21 @@ def schedule_appointment(
 
     submit = _schedule_button(inner)
     submit.wait_for(state="visible", timeout=UI_TIMEOUT)
-    submit.click(force=True)
+    _submit_appointment(page, inner, outer, submit)
     return _wait_for_new_appointment(page, context, before_ids)
+
+
+def _submit_appointment(page: Page, inner, outer, submit) -> None:
+    """Click Schedule and confirm the dialog accepted it (closed), re-clicking once if the
+    first click was swallowed. A silently-ignored submit creates no appointment, which would
+    otherwise surface only as the opaque 'New appointment was not created' read-back failure."""
+    for _ in range(2):
+        submit.click(force=True)
+        for _ in range(int(UI_TIMEOUT / _SETTLE_MS)):
+            if outer.get_by_role("dialog").count() == 0:
+                return  # dialog closed -> submit accepted
+            page.wait_for_timeout(_SETTLE_MS)
+        submit = _schedule_button(inner)  # still open: re-resolve and retry the click once
 
 
 def _open_new_appointment(page: Page, outer, inner, client_name: str) -> None:
@@ -264,9 +277,11 @@ def _row_checked(row) -> bool:
         return False
 
 
-_NEW_APPOINTMENT_BUDGET_MS = 12_000  # bounded poll; the legacy flow waited up to 15s for
-# the created booking to surface (UI create + API propagation), so a 12s read-back poll is
-# justified and still tighter than legacy.
+_NEW_APPOINTMENT_BUDGET_MS = 35_000  # bounded early-return poll; under heavy stress load the
+# UI create + API propagation occasionally exceeds the legacy 15s window, so a generous ceiling
+# absorbs the slow tail (and the 1.5s-paced read-back avoids the APPOINTMENTS 429 quota). The
+# loop returns the moment the new id surfaces (1-2s on the happy path), so this adds no time
+# except when propagation is genuinely lagging.
 _READBACK_POLL_MS = 1_500  # Poll the appointments-list endpoint gently: a tight 250ms loop
 # across several bookings hammers the per-business APPOINTMENTS quota (429
 # APPOINTMENTS_LIMIT_EXCEEDED). A 1.5s interval still resolves the new id (it surfaces in
@@ -368,17 +383,33 @@ def _apply_price_override(page: Page, inner, override: dict) -> None:
         _select_taxes(page, inner, override["taxes"])
 
 
+# Opening the meeting page is a full SPA navigation + Angular-iframe boot, which under
+# cumulative suite load can exceed the 5s element-interaction cap; gate it on a page-boot
+# budget (documented wait-audit exception) rather than UI_TIMEOUT.
+MEETING_PAGE_TIMEOUT = 20_000
+MEETING_PAGE_ATTEMPTS = 2  # bounded reload-retry for a one-off stalled iframe boot
+
+
 def open_meeting_page(page: Page, appointment_id: str):
-    """Navigate to the appointment meeting page and return the Angular frame locator."""
-    page.goto(
-        f"{_app_base(page)}/app/appointments/{appointment_id}",
-        wait_until="domcontentloaded",
-        timeout=UI_TIMEOUT,
-    )
-    page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=UI_TIMEOUT)
-    outer = page.frame_locator('iframe[title="angularjs"]')
-    outer.locator("div.summary-header h3").wait_for(state="visible", timeout=UI_TIMEOUT)
-    return outer
+    """Navigate to the appointment meeting page and return the Angular frame locator.
+
+    The page is a full SPA + angularjs-iframe boot; under heavy stress load a single
+    boot occasionally stalls past the 20s page-boot budget. A bounded reload-retry
+    (2 attempts) absorbs that one-off stall without a fixed sleep, so a slow boot on
+    one of a test's several meeting reads doesn't fail the whole iteration.
+    """
+    url = f"{_app_base(page)}/app/appointments/{appointment_id}"
+    last_exc: PlaywrightTimeoutError | None = None
+    for _ in range(MEETING_PAGE_ATTEMPTS):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=MEETING_PAGE_TIMEOUT)
+            page.wait_for_selector('iframe[title="angularjs"]', state="visible", timeout=MEETING_PAGE_TIMEOUT)
+            outer = page.frame_locator('iframe[title="angularjs"]')
+            outer.locator("div.summary-header h3").wait_for(state="visible", timeout=MEETING_PAGE_TIMEOUT)
+            return outer
+        except PlaywrightTimeoutError as exc:
+            last_exc = exc
+    raise last_exc
 
 
 def meeting_text(outer, data_qa: str) -> str:

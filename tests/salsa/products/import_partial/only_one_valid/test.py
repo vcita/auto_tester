@@ -15,21 +15,8 @@ def test_only_one_valid(page: Page, context: dict) -> None:
     in review and only the valid product (product 12) is imported."""
     page.set_default_timeout(ph.UI_TIMEOUT)
 
-    print("  Step 1: Open the Import wizard")
-    ph.open_import_wizard(page, context)
-
-    print("  Step 2: Upload products_only_one_valid.xlsx (1 of 3 valid)")
-    ph.upload_file(page, EXCEL_FILE)
-
-    print("  Step 3: Skip taxes -> review step")
-    ph.skip_taxes(page)
-
-    print("  Step 4: Assert invalid rows are flagged in review")
-    error_count = ph.assert_error_rows_present(page)
-    print(f"  [OK] {error_count} invalid row(s) flagged")
-
-    print("  Step 5: Import and confirm success")
-    ph.submit_import(page)
+    print("  Steps 1-5: Import only-one-valid file (skip taxes), flag invalid rows, submit")
+    ph.import_via_wizard(page, context, EXCEL_FILE, expect_invalid_rows=True)
 
     print("  Step 6: Reload products list to reflect the import")
     ph.open_products_page(page, context)

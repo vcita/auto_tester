@@ -1,6 +1,10 @@
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 UI_TIMEOUT = 5_000
+# Page-boot budget (wait-audit exception): a full SPA + angularjs-iframe calendar boot
+# under heavy stress load routinely exceeds the 5s element-interaction cap. Used only for
+# navigation/load waits and the final deterministic New-button backstop.
+NAV_TIMEOUT = 20_000
 
 
 def open_calendar_page(page: Page) -> None:
@@ -21,7 +25,7 @@ def open_calendar_page(page: Page) -> None:
 
     _goto_dashboard_page(page)
     _goto_calendar_page(page)
-    _wait_for_calendar_new_button(page)
+    _wait_for_calendar_new_button(page, timeout=NAV_TIMEOUT)
 
 
 def _open_calendar_via_menu(page: Page) -> None:
@@ -39,27 +43,27 @@ def _open_calendar_via_menu(page: Page) -> None:
 
 
 def _goto_calendar_page(page: Page) -> None:
-    page.goto(f"{_app_base_url(page)}/app/calendar", wait_until="domcontentloaded", timeout=UI_TIMEOUT)
-    page.wait_for_url("**/app/calendar**", timeout=UI_TIMEOUT)
+    page.goto(f"{_app_base_url(page)}/app/calendar", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+    page.wait_for_url("**/app/calendar**", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
 
 
 def _goto_dashboard_page(page: Page) -> None:
-    page.goto(f"{_app_base_url(page)}/app/dashboard", wait_until="domcontentloaded", timeout=UI_TIMEOUT)
-    page.wait_for_url("**/app/dashboard**", timeout=UI_TIMEOUT)
+    page.goto(f"{_app_base_url(page)}/app/dashboard", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+    page.wait_for_url("**/app/dashboard**", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
 
 
 def _reload_calendar_page(page: Page) -> None:
-    page.reload(wait_until="domcontentloaded", timeout=UI_TIMEOUT)
-    page.wait_for_url("**/app/calendar**", timeout=UI_TIMEOUT)
+    page.reload(wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+    page.wait_for_url("**/app/calendar**", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
 
 
-def _wait_for_calendar_new_button(page: Page) -> None:
-    page.wait_for_selector('iframe[title="angularjs"]', timeout=UI_TIMEOUT)
+def _wait_for_calendar_new_button(page: Page, timeout: int = UI_TIMEOUT) -> None:
+    page.wait_for_selector('iframe[title="angularjs"]', timeout=timeout)
     outer_iframe = page.frame_locator('iframe[title="angularjs"]')
     inner_iframe = outer_iframe.frame_locator("#vue_iframe_layout")
     inner_iframe.get_by_role("button", name="New").wait_for(
         state="visible",
-        timeout=UI_TIMEOUT,
+        timeout=timeout,
     )
 
 

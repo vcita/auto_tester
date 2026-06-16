@@ -17,15 +17,25 @@ from tests.account_api import account_token, api_base
 
 REQUEST_TIMEOUT = 20
 UI_TIMEOUT = 5_000
-CLIENTS_PAGE_TIMEOUT = 5_000
-CLIENTS_READY_TIMEOUT = 5_000
+# CLIENTS_PAGE_TIMEOUT (SPA route/navigation) and CLIENTS_READY_TIMEOUT (the CRM list
+# table actually rendering after a cold boot of the POV->clients module) are documented
+# wait-audit exceptions to the 5s micro-interaction cap: a fresh navigation can land on a
+# blank booting shell (skeleton + spinner) for >5s under load. They only delay on a slow
+# boot (wait_for returns the instant the table renders), so the happy path is unaffected.
+CLIENTS_PAGE_TIMEOUT = 15_000
+CLIENTS_READY_TIMEOUT = 15_000
 FILTER_OPTION_TIMEOUT = 5_000
 INDEX_TIMEOUT_SECONDS = 5
-# A just-created custom-field definition takes a few seconds to propagate into
-# the CRM column/filter metadata. This is backend data indexing (same class as
-# the seeker indexing handled with poll-and-reload elsewhere), not a UI wait,
-# so it is intentionally above the 5s UI cap.
-FIELD_INDEX_TIMEOUT_SECONDS = 30
+# A just-created custom-field definition takes time to propagate into the CRM
+# column/filter metadata. This is backend data indexing (same class as the seeker
+# indexing handled with poll-and-reload elsewhere), not a UI wait, so it is
+# intentionally above the 5s UI cap. 90s matches the legacy automation-js
+# `operation_timeout` (runtime/globalContext.js) that its `findInElements`-based
+# column lookup polls within for this exact step.
+FIELD_INDEX_TIMEOUT_SECONDS = 90
+# Per dialog-open, poll the OPEN manage-columns list this long (re-querying, like the
+# legacy findInElements) before falling back to a page reload that re-fetches metadata.
+COLUMN_POLL_SECONDS = 15
 INDEX_RELOAD_ATTEMPTS = 3
 # The Client Card settings page loads a nested Angular -> Vue iframe chain before
 # the "Add client field" control renders. That multi-iframe page-load gate (like
@@ -154,6 +164,19 @@ def assign_product(context: dict, client_id: str, product_id: str, price: float)
 # --------------------------------------------------------------------------- #
 # CRM navigation / readiness
 # --------------------------------------------------------------------------- #
+def _safe_text(locator: Locator) -> str | None:
+    """Read inner_text with the 5s cap, returning None on a transient failure.
+
+    CRM filter chips / rows re-render and detach while filters apply or clear, so an
+    untimed inner_text() can block on Playwright's default 30s actionability wait. Used
+    inside poll loops (assert_displayed_filters / assert_filtered_clients), so a transient
+    read just yields None and the poll retries once the DOM settles."""
+    try:
+        return (locator.inner_text(timeout=UI_TIMEOUT) or "").strip()
+    except PlaywrightTimeoutError:
+        return None
+
+
 def open_clients_list(page: Page) -> None:
     if re.search(r"/app/clients/?$", page.url):
         wait_for_clients_table(page)
@@ -314,7 +337,7 @@ def _filter_chip_by_name(page: Page, filter_name: str):
     for index in range(chips.count()):
         chip = chips.nth(index)
         texts = chip.locator(".vc-tooltip__activator span span")
-        if texts.count() > 0 and texts.first.inner_text().strip() == filter_name:
+        if texts.count() > 0 and _safe_text(texts.first) == filter_name:
             return chip
     return _active(page).locator(f'[data-qa*="active-filter-chip-{filter_name}"]').first
 
@@ -328,7 +351,9 @@ def displayed_filter_names(page: Page) -> list[str]:
     for index in range(chips.count()):
         texts = chips.nth(index).locator(".vc-tooltip__activator span span")
         if texts.count() > 0:
-            names.append(texts.first.inner_text().strip())
+            text = _safe_text(texts.first)
+            if text:
+                names.append(text)
     return names
 
 
@@ -346,8 +371,11 @@ def assert_displayed_filters(page: Page, expected: Iterable[str]) -> None:
 
 def filtered_counter(page: Page) -> str:
     counter = _active(page).locator('[data-qa="summary-text"]').first
-    counter.wait_for(state="visible", timeout=UI_TIMEOUT)
-    return counter.inner_text().strip()
+    try:
+        counter.wait_for(state="visible", timeout=UI_TIMEOUT)
+    except PlaywrightTimeoutError:
+        return ""
+    return _safe_text(counter) or ""
 
 
 def assert_counter(page: Page, expected: str) -> None:
@@ -367,7 +395,8 @@ def visible_client_names(page: Page) -> list[str]:
     if empty_state.count() > 0 and empty_state.first.is_visible():
         return []
     names = view.locator('[data-qa="matter-name"]')
-    return [names.nth(i).inner_text().strip() for i in range(names.count())]
+    read = [_safe_text(names.nth(i)) for i in range(names.count())]
+    return [n for n in read if n]
 
 
 def assert_filtered_clients(page: Page, expected_names: Iterable[str]) -> None:
@@ -446,11 +475,21 @@ def select_tab(page: Page, tab_name: str) -> None:
 
 
 def _click_visible(locator: Locator) -> None:
-    """Wait (bounded) for an element to be visible, then click. Guards against the
-    default 30s actionability timeout when a not-yet-rendered/animating element is
-    targeted, and against clicking a hidden mounted-but-inactive instance."""
-    locator.wait_for(state="visible", timeout=UI_TIMEOUT)
-    locator.click()
+    """Wait (bounded) for an element to be visible, then click with an explicit cap.
+
+    The click is capped at UI_TIMEOUT (never the Playwright default 30s) and retried
+    once: in the CRM views toolbar a just-dismissed save/toast overlay can transiently
+    intercept pointer events, leaving the target visible-but-not-actionable. A single
+    bounded re-resolve+retry clears that transient state instead of hanging 30s."""
+    last_exc: PlaywrightTimeoutError | None = None
+    for _ in range(2):
+        try:
+            locator.wait_for(state="visible", timeout=UI_TIMEOUT)
+            locator.click(timeout=UI_TIMEOUT)
+            return
+        except PlaywrightTimeoutError as exc:
+            last_exc = exc
+    raise last_exc
 
 
 def save_fixed_as_new_view(page: Page, view_name: str) -> None:
@@ -481,7 +520,9 @@ def save_custom_view(page: Page) -> None:
 def _open_manage_columns(page: Page) -> Locator:
     """Multiple manage-columns lists can stay mounted (one per visited view), so
     scope to the visible items only."""
-    _active(page).locator('[data-qa="CrmTable-All-manage-columns-button"]').first.click()
+    button = _active(page).locator('[data-qa="CrmTable-All-manage-columns-button"]').first
+    button.wait_for(state="visible", timeout=UI_TIMEOUT)
+    button.click(timeout=UI_TIMEOUT)
     items = page.locator('[data-qa="manage-columns-draggable-list-items--in-item"]:visible')
     items.first.wait_for(state="visible", timeout=UI_TIMEOUT)
     return items
@@ -495,29 +536,39 @@ def _close_manage_columns(page: Page) -> None:
 
 
 def add_column(page: Page, column: str) -> None:
-    # A newly created custom field may not be in the column list yet; reopen the
-    # dialog and, if still missing, reload the clients page and retry until the
-    # field-index budget is exhausted.
+    # Mirror legacy `getItemFromListByText` (findInElements wrapped in a 90s wait): open
+    # the manage-columns dialog and poll the OPEN list for the freshly-created field,
+    # re-querying the DOM. A page reload (which re-fetches the field metadata) is only a
+    # periodic fallback when the field has not surfaced after COLUMN_POLL_SECONDS, since a
+    # newly created custom field can lag the column metadata under backend-index load.
     deadline = time.monotonic() + FIELD_INDEX_TIMEOUT_SECONDS
     while True:
         items = _open_manage_columns(page)
-        target = items.filter(has_text=column).first
-        if target.count() > 0:
-            # Vuetify hides the real <input>, so a normal check() never becomes
-            # actionable; toggle via the rendered checkbox like the legacy JS click.
-            target.locator(".checkbox-label, label, .v-input--selection-controls__input").first.click()
-            _close_manage_columns(page)
-            return
+        poll_until = min(deadline, time.monotonic() + COLUMN_POLL_SECONDS)
+        while True:
+            target = items.filter(has_text=column).first
+            if target.count() > 0:
+                # Vuetify hides the real <input>, so a normal check() never becomes
+                # actionable; toggle via the rendered checkbox like the legacy JS click.
+                target.locator(
+                    ".checkbox-label, label, .v-input--selection-controls__input"
+                ).first.click(timeout=UI_TIMEOUT)
+                _close_manage_columns(page)
+                return
+            if time.monotonic() >= poll_until:
+                break
+            time.sleep(1)
         _close_manage_columns(page)
         if time.monotonic() >= deadline:
             raise AssertionError(f"Custom field column {column!r} never appeared in manage-columns list")
-        page.reload(wait_until="domcontentloaded")
+        page.reload(wait_until="domcontentloaded", timeout=CLIENTS_PAGE_TIMEOUT)
         wait_for_clients_table(page)
 
 
 def table_columns(page: Page) -> list[str]:
     headers = _active(page).locator(".VcDataTable--header")
-    return [headers.nth(i).inner_text().strip().upper() for i in range(headers.count())]
+    read = [_safe_text(headers.nth(i)) for i in range(headers.count())]
+    return [c.upper() for c in read if c]
 
 
 def assert_column_present(page: Page, column: str) -> None:

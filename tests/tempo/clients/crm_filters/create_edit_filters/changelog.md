@@ -1,5 +1,24 @@
 # Changelog — Create, Edit and Remove CRM Filters
 
+## 2026-06-15 — Stabilize Step 11 save-view click (VCITA2-14064)
+- Flake (stress 3/5): `Timeout 30000ms exceeded` in Step 11 (`save_custom_view`).
+  Root cause: the shared `_click_visible` helper called `locator.click()` with no
+  explicit timeout, so a transiently non-actionable Save split-button (a just-dismissed
+  save/toast overlay briefly intercepting pointer events in the CRM views toolbar) hung
+  on Playwright's default 30s actionability wait, then failed.
+- Fix: `_click_visible` now clicks with an explicit `UI_TIMEOUT` (5s) cap and a single
+  bounded re-resolve+retry. No fixed sleep; converts a 30s hang into a fast bounded retry
+  that clears the transient overlay. No scope/assertion change.
+- Second 30s flake (stress 9/10, Step 11 again): untimed `inner_text()` reads on a filter
+  chip mid-removal during the post-save `assert_displayed_filters([])` poll hit Playwright's
+  default 30s and killed the poll. Fix: the chip/row/counter/column readers now read text via
+  a defensive `_safe_text` (explicit 5s cap, returns None on transient detach) so the enclosing
+  poll retries until the DOM settles. No scope/assertion change.
+  (A first attempt also set a global `page.set_default_timeout(5s)` in `open_clients_list`,
+  but that regressed the sibling `custom_field_filtering` `add_column` reload/manage-columns
+  flow, which legitimately relies on the longer default while the SPA re-fetches field
+  metadata. Reverted — `_safe_text` already caps the reads with explicit timeouts.)
+
 ## 2026-06-03 — Initial migration (VCITA2-13790)
 - Migrated scenario `User creates, edits and removes filters` from
   `automation-js/features/steps/crm-filters-create-and-edit.feature`.
