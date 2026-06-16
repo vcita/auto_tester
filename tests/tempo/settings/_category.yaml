@@ -1,0 +1,9 @@
+name: Settings
+team: tempo
+description: Business settings owned by Tempo.
+execution_order:
+- business_info
+tests: []
+status: active
+priority: high
+owner: QA Team

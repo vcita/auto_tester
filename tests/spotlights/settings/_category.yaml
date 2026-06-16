@@ -1,0 +1,9 @@
+name: Settings
+team: spotlights
+description: Roles and permissions owned by Spotlights.
+execution_order:
+- roles_permissions
+tests: []
+status: active
+priority: high
+owner: QA Team

@@ -1,0 +1,32 @@
+# Pay for event (isolated account)
+# Migrated from event-payments.feature scenario 2 "paying for event" (VCITA2-13856).
+# Denies point_of_sale so take_payment uses the legacy record-payment dialog.
+
+name: Pay For Event
+description: On a fresh account (point_of_sale denied) with a "require to pay" $10 event and one registered client, record a $2 payment (DUE $8 of $10), then a $8 payment (PAID $10), verifying Payments Received and the client-portal receipt conversation.
+
+account_profile:
+  type: isolated
+  slug: evtpay_pay
+  cleanup: always
+
+tests:
+  - id: pay_event
+    name: Pay for event partial then full
+    status: active
+    priority: high
+    description: Record a $2 payment and assert the request is DUE $8.00 (out of $10.00) with one matching payment; record a $8 payment and assert PAID $10.00 with two matching payments; assert the client-portal receipt conversation.
+
+status: active
+priority: high
+tags:
+  - payments
+  - events
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

@@ -53,6 +53,7 @@ class Test:
     # Extended metadata
     tags: list[str] = field(default_factory=list)
     owner: Optional[str] = None
+    team: Optional[str] = None              # Owning team (see models.teams.CANONICAL_TEAMS)
     created_date: Optional[datetime] = None
     last_run: Optional[datetime] = None
     estimated_duration: Optional[int] = None  # seconds
@@ -138,6 +139,8 @@ class Category:
     
     # Optional metadata
     description: Optional[str] = None
+    team: Optional[str] = None              # Owning team (see models.teams.CANONICAL_TEAMS)
+    is_team_group: bool = False             # True for a top-level team folder (no account, organizational only)
     
     # Contents
     tests: list[Test] = field(default_factory=list)

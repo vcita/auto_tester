@@ -1,0 +1,31 @@
+# Cancel and refund paid product (isolated account, point_of_sale denied)
+# Migrated from products.feature scenario 7 "Cancel and refund paid product" (VCITA2-13858).
+
+name: Cancel And Refund Product
+description: On a fresh account (point_of_sale denied) with a $10 payable product assigned to "first last", record a $5 payment then cancel the request with a refund (CANCELLED $10.00) and verify the refunded payment in Payments Received.
+
+account_profile:
+  type: isolated
+  slug: prodpay_refund
+  cleanup: always
+
+tests:
+  - id: cancel_refund
+    name: Cancel and refund a paid product
+    status: active
+    priority: high
+    description: Record a $5 payment, cancel the request with refund and assert CANCELLED $10.00, then assert the "Payment for payable_item1" refund is present in Payments Received.
+
+status: active
+priority: high
+tags:
+  - payments
+  - products
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-14'
+  pass_rate: 100.0%
+  iterations: 10

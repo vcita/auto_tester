@@ -11,17 +11,18 @@ Create a new test subcategory folder with all Phase 1 files. This produces the d
 
 Before running, gather from the user:
 
-1. **Parent category** — e.g. `payments`, `scheduling`, `clients`
-2. **Subcategory name** — snake_case plural noun, e.g. `refunds`, `invoices`
-3. **Tests to include** — list of test IDs with a one-line description each
-4. **Whether `_setup` / `_teardown` are needed** for this subcategory
+1. **Owning team** — one of `backstage`, `maestro`, `salsa`, `spotlights`, `tango`, `tempo`. Determine it by looking up the test's product component on the company **Confluence "Squads responsibilities"** page (the source of truth; pageId `2615410911`) — read it live and map component → squad. See [`../team-taxonomy.md`](../team-taxonomy.md) for how to read the page and the selection order (Confluence > existing sibling > provenance hint > ask). Never scaffold a subcategory outside a team folder, and never assign a team from the legacy folder/provenance alone when the Confluence page says otherwise.
+2. **Parent category (domain)** — e.g. `payments`, `scheduling`, `clients`. This is the account boundary, nested under the team: `tests/<team>/<domain>/`.
+3. **Subcategory name** — snake_case plural noun, e.g. `refunds`, `invoices`
+4. **Tests to include** — list of test IDs with a one-line description each
+5. **Whether `_setup` / `_teardown` are needed** for this subcategory
 
 Check `tests/_functions/_functions.yaml` for reusable functions before writing steps. Use `Call: function_name` instead of duplicating login, client creation, etc.
 
 ## Directory Structure to Create
 
 ```
-tests/<parent>/<subcategory>/
+tests/<team>/<parent>/<subcategory>/
 ├── _category.yaml
 ├── _setup/                    # only if needed
 │   └── steps.md
@@ -34,6 +35,8 @@ tests/<parent>/<subcategory>/
 └── ...
 ```
 
+`<team>` is one of the canonical teams (a non-account "team group"); `<parent>` is the domain (account boundary). If the team or domain folder does not exist yet, create it — and ensure the team root has a group `_category.yaml` (`team: <team>`, `team_group: true`) per [`../team-taxonomy.md`](../team-taxonomy.md).
+
 ## File Templates
 
 ### _category.yaml
@@ -43,6 +46,7 @@ tests/<parent>/<subcategory>/
 # <One-line purpose>
 
 name: <Display Name>
+team: <team>
 description: <What this subcategory tests>
 
 tests:
@@ -63,6 +67,7 @@ created_at: <YYYY-MM-DD>
 ```
 
 **Rules:**
+- `team:` must be one of the canonical teams and match the team folder the subcategory lives under
 - `id` must exactly match the test folder name (snake_case)
 - Test order in `tests:` list defines execution order
 - Valid statuses: `active`, `pending`, `disabled`, `blocked`, `draft`
@@ -149,18 +154,21 @@ Clean up resources created during <subcategory> tests.
 
 ## Workflow
 
-1. **Read** `tests/_functions/_functions.yaml` to know available functions
-2. **Read** the parent category's `_category.yaml` to check for `execution_order` (you may need to add the new subcategory there)
-3. **Create** the subcategory folder and all subfolders
-4. **Write** `_category.yaml` with all test entries
-5. **Write** `steps.md` for each test (and `_setup`/`_teardown` if needed)
-6. **Update** the parent category's `_category.yaml` if it uses `execution_order` — add the new subcategory folder name
-7. **Verify** with `python main.py list --category <parent>` to confirm discovery works
+1. **Determine the team** per [`../team-taxonomy.md`](../team-taxonomy.md) and confirm the target path is `tests/<team>/<parent>/<subcategory>/`
+2. **Read** `tests/_functions/_functions.yaml` to know available functions
+3. **Read** the parent domain's `_category.yaml` (`tests/<team>/<parent>/_category.yaml`) to check for `execution_order` (you may need to add the new subcategory there). If the team/domain does not exist yet, create the team-root group `_category.yaml` (`team:` + `team_group: true`) and the domain `_category.yaml` (`team:` + `execution_order`).
+4. **Create** the subcategory folder and all subfolders under the team
+5. **Write** `_category.yaml` with `team:` and all test entries
+6. **Write** `steps.md` for each test (and `_setup`/`_teardown` if needed)
+7. **Update** the parent domain's `_category.yaml` if it uses `execution_order` — add the new subcategory folder name
+8. **Verify** with `python main.py list --team <team>` (and `--category <team>/<parent>`) to confirm discovery places it under the right team
 
 ## Naming Conventions
 
 | Element | Convention | Example |
 |---------|-----------|---------|
+| Team folder | canonical team, lowercase | `tempo`, `salsa`, `spotlights` |
+| Domain folder | snake_case, under a team | `tempo/scheduling`, `salsa/payments` |
 | Subcategory folder | snake_case, plural | `record_payments`, `invoices` |
 | Test folder | snake_case, verb_noun | `create_invoice`, `record_payment_full` |
 | Test ID in YAML | same as folder name | `create_invoice` |
@@ -187,6 +195,7 @@ Design each subcategory so the eventual test runs fast, without giving up covera
 
 ## Common Mistakes to Avoid
 
+- Do NOT scaffold a domain/subcategory directly under `tests/` — it MUST live under a team folder (`tests/<team>/<domain>/...`) with a `team:` field
 - Do NOT create `script.md` or `test.py` — those require MCP exploration (Phase 2+3)
 - Do NOT include implementation details (selectors, waits, code) in steps.md
 - Do NOT hardcode entity labels ("Properties" vs "Clients") — keep steps entity-agnostic

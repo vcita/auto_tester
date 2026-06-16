@@ -1,6 +1,50 @@
 import json
 
+import pytest
+
 from src.runner import account_factory
+
+
+class _FakeErrorResponse:
+    ok = False
+
+    def __init__(self, status_code: int, body, text: str = ""):
+        self.status_code = status_code
+        self._body = body
+        self.text = text
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("no json body")
+        return self._body
+
+
+def test_handle_create_error_validation_403_fails_fast():
+    resp = _FakeErrorResponse(
+        403,
+        {"errors": {"business_name": ["contains invalid term"]}},
+        text='{"errors":{"business_name":["contains invalid term"]}}',
+    )
+
+    with pytest.raises(account_factory.AccountCreationError) as exc_info:
+        account_factory._handle_create_error(resp, "invoices")
+
+    message = str(exc_info.value)
+    assert "invalid request" in message
+    assert "transient forbidden" not in message
+    # A permanent validation error must not be retried as a transient throttle.
+    assert account_factory._is_retryable_create_error(exc_info.value) is False
+
+
+def test_handle_create_error_plain_403_is_transient():
+    resp = _FakeErrorResponse(403, {"message": "rate limited"}, text="rate limited")
+
+    with pytest.raises(account_factory.AccountCreationError) as exc_info:
+        account_factory._handle_create_error(resp, "invoices")
+
+    message = str(exc_info.value)
+    assert "transient forbidden" in message
+    assert account_factory._is_retryable_create_error(exc_info.value) is True
 
 
 def test_build_auto_email_uses_new_template():
@@ -44,10 +88,14 @@ def test_create_account_posts_admin_payload_for_platinum(monkeypatch):
             recorded_emails.append(email)
 
     def fake_post(url, json, headers, timeout):
-        posted["url"] = url
-        posted["json"] = json
-        posted["headers"] = headers
-        posted["timeout"] = timeout
+        # create_account fires a follow-up POST (timezone) after the create call;
+        # capture only the account-creation request so the assertions below are
+        # not clobbered by the later request's payload.
+        if url.endswith("/admin/users/"):
+            posted["url"] = url
+            posted["json"] = json
+            posted["headers"] = headers
+            posted["timeout"] = timeout
         return FakeResponse()
 
     monkeypatch.setattr(account_factory.time, "time", lambda: 1778566207)

@@ -22,8 +22,9 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - If the new test gets stuck or the UI path is unclear, **run the original legacy test FIRST to establish ground truth** (see "When You're Stuck Building A Test" below) before concluding anything about the product; only after that, pause and ask the user for a hint (what to press, a photo, a screenshot) if the path is still unclear.
    - Use the old run evidence to build the mapping and avoid replacing a legacy UI action with an API shortcut by mistake.
 4. Create `migration_mapping.md` before implementation.
+   - **Resolve the owning team first, from the source of truth**: look up the feature's product component on the company **Confluence "Squads responsibilities"** page (pageId `2615410911`, read it live via the Atlassian MCP) and map component → squad. This is authoritative and **overrides the legacy `automation-js/features/<squad>/...` folder** (e.g. invoices/estimates under `steps`/`tempo` are owned by `salsa`; dashboard widgets generic + quick actions by `spotlights`). Use the legacy squad folder only as a starting hint. See [`../team-taxonomy.md`](../team-taxonomy.md) for how to read the page and the canonical six teams. Record the resolved team in the mapping. If the target domain already exists under a team, keep it consistent; flag genuinely ambiguous or non-product-squad components for confirmation rather than guessing.
+   - Map each legacy step to the team-first auto_tester path `tests/<team>/<domain>/<subcategory>/<test>/`. The domain (not the team) is the account boundary.
    - List every original scenario, action, assertion, setup, and edge case.
-   - Map each legacy step to the auto_tester category/subcategory/test structure.
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
    - Treat `migration_mapping.md` as a local planning artifact. It is important for preventing scope loss, but it should not be committed or included in the PR.
@@ -32,14 +33,16 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - `script.md`: Playwright-oriented HOW, including locator choices and waits.
    - `test.py`: executable code.
    - `changelog.md`: every creation, fix, and validation-relevant decision.
-6. Register the test in `_category.yaml`.
+6. Register the test in `_category.yaml` under the owning team.
+   - Place the test at `tests/<team>/<domain>/...`; if the team or domain folder is new, create the team-root group `_category.yaml` (`team:` + `team_group: true`) and the domain `_category.yaml` (`team:` + `execution_order`) per [`../team-taxonomy.md`](../team-taxonomy.md).
+   - Set the `team:` field on the domain (and on the subcategory if it overrides the parent).
    - Add new subcategories to parent `execution_order` when the parent uses it.
    - Test IDs must match folder names.
 7. Validate before calling the migration done.
    - `PYENV_VERSION=3.11.9 python -m py_compile <edited .py files>`
-   - `PYENV_VERSION=3.11.9 python main.py list --category <category>`
-   - Reference deeply nested isolated subcategories by their full path (e.g. `payments/tips_settings/edit_persist`), not just the leaf name. Confirm the exact path with `python main.py list` before running.
-   - Focused run: `PYENV_VERSION=3.11.9 python main.py run --category <category/subcategory> --env integration --headless`
+   - `PYENV_VERSION=3.11.9 python main.py list --team <team>` (and `--category <team>/<domain>`)
+   - Reference deeply nested isolated subcategories by their full team-prefixed path (e.g. `salsa/payments/tips_settings/edit_persist`), not just the leaf name. Confirm the exact path with `python main.py list` before running.
+   - Focused run: `PYENV_VERSION=3.11.9 python main.py run --category <team>/<domain>/<subcategory> --env integration --headless` (or `--team <team>` to run all of a team's domains)
    - Run the migrated scope successfully 3 times with fresh runner state before stress testing.
    - **Hard gate before stress_test**: after those 3 successful runs, re-check `migration_mapping.md`, `steps.md`, `script.md`, and `test.py` against the legacy `.feature`, step definitions, page objects, API helpers, and assertions.
    - Do not start `stress_test` until scope at least matches the legacy test and quality is at least as strong as the legacy test: no removed user-facing assertions, no lost setup/edge-case coverage, no UI action replaced by API when the UI action is in scope, and no weaker selector/wait strategy than the old flow.

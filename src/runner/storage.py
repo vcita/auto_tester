@@ -25,6 +25,12 @@ class RunStorage:
     
     RUNS_DIR_NAME = "_runs"
     INDEX_DIR_NAME = "runs_index"
+
+    # Relative location of the payments domain under tests/. After the
+    # team-first restructure payments is owned by Salsa (tests/salsa/payments);
+    # the bare legacy path is kept as a fallback so health keeps working
+    # whether or not a tree has been migrated yet.
+    PAYMENTS_REL_CANDIDATES = ("salsa/payments", "payments")
     
     def __init__(self, tests_root: Path, max_runs_per_category: int = 100):
         """
@@ -217,45 +223,56 @@ class RunStorage:
         
         return run_json_path
 
+    def _payments_dir(self) -> Optional[Path]:
+        """Resolve the payments domain directory, or None when it's absent."""
+        for rel in self.PAYMENTS_REL_CANDIDATES:
+            candidate = self.tests_root / rel
+            if candidate.exists():
+                return candidate
+        return None
+
     def _update_payments_health_if_needed(self, category: str) -> None:
-        """Refresh tests/payments/_health.json when payments results change."""
+        """Refresh the payments _health.json when payments results change."""
+        payments_dir = self._payments_dir()
+        if payments_dir is None:
+            return
+        # `category` is the storage key (full relative path, e.g. "salsa/payments"),
+        # so the trigger must match the resolved payments location, not a literal.
+        rel = payments_dir.relative_to(self.tests_root).as_posix().lower()
         normalized_category = category.lower()
-        if normalized_category != "payments" and not normalized_category.startswith("payments/"):
+        if normalized_category != rel and not normalized_category.startswith(f"{rel}/"):
             return
         try:
-            payments_dir = self.tests_root / "payments"
-            if not payments_dir.exists():
-                return
             health_path = payments_dir / "_health.json"
-            health_data = self._build_payments_health_snapshot()
+            health_data = self._build_payments_health_snapshot(payments_dir)
             health_path.write_text(json.dumps(health_data, indent=2), encoding="utf-8")
         except Exception:
             # Health snapshots are best-effort and must never break test runs.
             return
 
     def refresh_payments_health(self) -> Optional[Path]:
-        """Generate tests/payments/_health.json from existing run artifacts."""
-        payments_dir = self.tests_root / "payments"
-        if not payments_dir.exists():
+        """Generate the payments _health.json from existing run artifacts."""
+        payments_dir = self._payments_dir()
+        if payments_dir is None:
             return None
         health_path = payments_dir / "_health.json"
-        health_data = self._build_payments_health_snapshot()
+        health_data = self._build_payments_health_snapshot(payments_dir)
         health_path.write_text(json.dumps(health_data, indent=2), encoding="utf-8")
         return health_path
 
-    def _build_payments_health_snapshot(self) -> Dict:
+    def _build_payments_health_snapshot(self, payments_dir: Path) -> Dict:
         """Build a stable/unstable snapshot for payments category + subcategories."""
-        payments_dir = self.tests_root / "payments"
+        rel = payments_dir.relative_to(self.tests_root).as_posix()
         execution_order = self._get_payments_execution_order(payments_dir)
 
-        parent = self._get_latest_category_health("payments")
+        parent = self._get_latest_category_health(rel)
         subcategories = []
         for subdir in payments_dir.iterdir():
             if not subdir.is_dir() or subdir.name.startswith("_"):
                 continue
             if not (subdir / "_category.yaml").exists():
                 continue
-            path = f"payments/{subdir.name}"
+            path = f"{rel}/{subdir.name}"
             subcategories.append(self._get_latest_category_health(path))
 
         if execution_order:

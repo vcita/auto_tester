@@ -1,0 +1,32 @@
+name: Reassign Primary Staff
+description: Reassign a matter's primary staff and verify the appointment is reassigned
+  and the assignment email is sent
+# Runs in its own throwaway account: the assignment-email check is sensitive to
+# shared-account email load in a full suite run, and isolation keeps a flake here
+# from cascading skips onto the rest of the clients boundary.
+account_profile:
+  type: isolated
+  slug: reassign_primary_staff
+  cleanup: passed
+tests:
+- id: reassign_primary_staff
+  name: Reassign Matter Primary Staff
+  status: active
+  priority: high
+  description: Reassign the matter primary staff to Staff B (reassigning appointments),
+    then verify the appointment is assigned to Staff B and the business receives the
+    assignment email
+status: active
+priority: high
+tags:
+- clients
+- matters
+- staff
+- migration
+owner: QA Team
+created_at: 2026-06-03
+stability:
+  status: stable
+  last_stress_test: '2026-06-12'
+  pass_rate: 100.0%
+  iterations: 10

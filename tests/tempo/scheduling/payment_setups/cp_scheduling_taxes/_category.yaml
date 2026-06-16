@@ -1,0 +1,39 @@
+# CP scheduling with taxes (isolated account)
+# Migrated from payment-setups.feature scenario "CP Scheduling with taxes".
+# Grab a service's public link, book it as an anonymous client through the client-portal
+# scheduler, and verify the calendar page and the client-portal meeting page show the tax.
+
+name: CP Scheduling With Taxes
+description: On a fresh account with a default tax and a taxed service, grab the service public link, open it as an anonymous client, verify the client-portal scheduler calendar shows the service with +Tax at $100.00, book the appointment, and verify the client-portal meeting page shows price 100 USD with +Tax.
+
+account_profile:
+  type: isolated
+  slug: ps_cp_scheduling_taxes
+  cleanup: always
+
+execution_order:
+  - cp_scheduling_taxes
+
+tests:
+  - id: cp_scheduling_taxes
+    name: CP Scheduling With Taxes
+    status: active
+    priority: high
+    description: Grab a taxed service public link, book via the client-portal scheduler as an anonymous client, and verify the scheduler calendar and CP meeting page show the tax.
+
+status: active
+priority: high
+tags:
+  - scheduling
+  - services
+  - payments
+  - taxes
+  - client-portal
+  - migration
+owner: QA Team
+created_at: 2026-06-09
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

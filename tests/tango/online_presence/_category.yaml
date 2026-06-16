@@ -1,0 +1,9 @@
+name: Online Presence
+team: tango
+description: Online Presence widgets owned by Tango.
+execution_order:
+- contact_form_widget
+tests: []
+status: active
+priority: high
+owner: QA Team

@@ -1,0 +1,15 @@
+name: CP Pay-link With Tips
+account_profile:
+  type: isolated
+  slug: tips_cp
+  cleanup: always
+tests:
+  - id: pay_and_close_balance
+    name: CP pay-link with percent tip and CP close-balance with custom tip
+    status: active
+    priority: high
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10
