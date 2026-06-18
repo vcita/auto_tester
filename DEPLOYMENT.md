@@ -2,7 +2,7 @@
 
 This service packages the auto_tester runner so it can run inside the cluster:
 
-- **Primary:** a k8s **CronJob** that runs the full suite against a target env and exits.
+- **Primary:** a set of k8s **CronJobs** (one per team/domain shard) that run their slice of the suite against a target env every 2 hours and exit.
 - **Secondary:** the **GUI** (`python main.py gui`) for triggering/watching runs.
 
 > **Scope note:** In Phase 0 the GUI is **local-only** (via `docker-compose` / `devspace`).
@@ -49,10 +49,42 @@ docker compose run --rm -e VCITA_ADMIN_TOKEN=... -e VCITA_DIRECTORY_ID=... \
 Secrets Operator and injected as env vars (`helm_chart/templates/externalSecret.yaml`).
 Never commit them.
 
-## CronJob
+## CronJobs (sharded nightly run)
 
-Defined in `helm_chart/values_integration.yaml` (job `full-run`):
-`python3 main.py run --headless --env $(TARGET_ENV)`, `squad: salsa`, nightly.
+The ~322-test suite is split across **12 CronJobs** in
+`helm_chart/values_integration.yaml`. Each entry renders one CronJob → one pod,
+and the pods run **in parallel** (the runner is sequential within a pod,
+`parallel_tests: 1`), so every shard only needs to fit under its 1h
+`activeDeadlineSeconds` cap. Shards target tests via `--team`, `--selection`,
+or `--category` (see `main.py cmd_run`).
+
+| Shard (CronJob) | Squad | Targets | ~Tests |
+|---|---|---|---|
+| `salsa-payments-core` | salsa | appointment + product + event payments | 44 |
+| `salsa-payments-billing` | salsa | invoices + payments_emails + tips_checkout | 43 |
+| `salsa-payments-gateways` | salsa | gateways, deposits, fees, refunds, records, pdfs, coupons_checkout | 41 |
+| `salsa-payments-settings` | salsa | all payments settings/misc subcats | 28 |
+| `salsa-commerce` | salsa | products + sales | 18 |
+| `tempo-scheduling-booking` | tempo | appointments + events + multi_booking | 39 |
+| `tempo-scheduling-calendar` | tempo | calendar(+settings) + services(+cats) + payment_setups | 29 |
+| `tempo-clients` | tempo | clients | 43 |
+| `tempo-misc` | tempo | documents + reviews + online_presence + settings | 13 |
+| `maestro` | maestro | `--team maestro` | 8 |
+| `spotlights` | spotlights | `--team spotlights` | 11 |
+| `tango` | tango | `--team tango` | 2 |
+
+Cadence is **every 2 hours** at even hours (`m */2 * * *`). The 2h interval is
+larger than the 1h `activeDeadlineSeconds` cap, so consecutive runs never overlap.
+Within each cycle the shards are staggered one minute apart (HH:00–HH:11) to
+soften the burst of account-creation API calls (avoids 429 throttling); the long
+shards still overlap and finish ~in parallel.
+
+> **Account churn:** every-2h ⇒ up to 12 cycles/day ⇒ ~144 account batches/day
+> (vs ~12 nightly). Make sure `cleanup_accounts` keeps pace and watch for 429s.
+
+> Shard sizes are by **test count** — a proxy for time until we have real
+> in-cluster timings. Rebalance the `jobs:` list after the first scheduled run
+> if any shard approaches its 1h cap.
 
 Validate locally:
 
@@ -61,10 +93,10 @@ helm lint helm_chart -f helm_chart/values_integration.yaml
 helm template auto-tester helm_chart -f helm_chart/values_integration.yaml
 ```
 
-Run on demand from a deployed CronJob:
+Run a single shard on demand from its deployed CronJob:
 
 ```bash
-kubectl create job --from=cronjob/auto-tester-full-run auto-tester-manual-1 -n <namespace>
+kubectl create job --from=cronjob/auto-tester-salsa-payments-core auto-tester-manual-1 -n <namespace>
 ```
 
 ## Onboarding (Infra)

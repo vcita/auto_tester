@@ -4,8 +4,8 @@
 {{- $alertFailurePriority := (($job.alerting).failure).priority -}}
 {{- $alertSequentialFailurePriority := (($job.alerting).sequential_failure).priority -}}
 {{- $alertNotExecutedPriority := (($job.alerting).not_executed).priority -}}
-{{- $alertTimeoutPriority := (($job.alerting).timeout).priority -}}
-
+{{- $alertTimeoutPriority := (($job.alerting).timeout).priority }}
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -135,5 +135,4 @@ spec:
           {{- end }}
 
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
----
 {{- end }}
