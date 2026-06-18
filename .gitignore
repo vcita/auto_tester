@@ -66,12 +66,15 @@ runs_index/
 
 # Local migration planning artifacts
 **/migration_mapping.md
+**/migration_mapping_*.md
+.cursor/migration_mappings/*
 /plan.md
 
 # Keep the directory structure
 !tests/.gitkeep
 !.cursor/heal_requests/.gitkeep
 !.cursor/bug_reports/.gitkeep
+!.cursor/migration_mappings/.gitkeep
 
 # OS
 .DS_Store

@@ -21,13 +21,18 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Use the old run to observe real UI behavior, timing, generated data, popups, tabs, and legacy helper side effects.
    - If the new test gets stuck or the UI path is unclear, **run the original legacy test FIRST to establish ground truth** (see "When You're Stuck Building A Test" below) before concluding anything about the product; only after that, pause and ask the user for a hint (what to press, a photo, a screenshot) if the path is still unclear.
    - Use the old run evidence to build the mapping and avoid replacing a legacy UI action with an API shortcut by mistake.
-4. Create `migration_mapping.md` before implementation.
+4. Create the migration mapping before implementation.
+   - **Location (collision-proof + git-ignored):** write it to `.cursor/migration_mappings/<ISSUE-KEY>.md`
+     (e.g. `.cursor/migration_mappings/VCITA2-14225.md`), which is git-ignored. Do **not** create a
+     root `migration_mapping.md` (a different, committed team-mapping doc already owns that name) and
+     do **not** drop a `migration_mapping.md` inside the test folder (it gets caught by `git add` of the
+     subcategory). One file per migrated ticket so parallel batch migrations never clobber each other.
    - **Resolve the owning team first, from the source of truth**: look up the feature's product component on the company **Confluence "Squads responsibilities"** page (pageId `2615410911`, read it live via the Atlassian MCP) and map component → squad. This is authoritative and **overrides the legacy `automation-js/features/<squad>/...` folder** (e.g. invoices/estimates under `steps`/`tempo` are owned by `salsa`; dashboard widgets generic + quick actions by `spotlights`). Use the legacy squad folder only as a starting hint. See [`../team-taxonomy.md`](../team-taxonomy.md) for how to read the page and the canonical six teams. Record the resolved team in the mapping. If the target domain already exists under a team, keep it consistent; flag genuinely ambiguous or non-product-squad components for confirmation rather than guessing.
    - Map each legacy step to the team-first auto_tester path `tests/<team>/<domain>/<subcategory>/<test>/`. The domain (not the team) is the account boundary.
    - List every original scenario, action, assertion, setup, and edge case.
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
-   - Treat `migration_mapping.md` as a local planning artifact. It is important for preventing scope loss, but it should not be committed or included in the PR.
+   - Treat the mapping as a local planning artifact. It is important for preventing scope loss, but it must not be committed or included in the PR (the `.cursor/migration_mappings/` location is git-ignored for this reason).
 5. Implement in strict auto_tester phase order:
    - `steps.md`: user-facing WHAT, no selectors or code.
    - `script.md`: Playwright-oriented HOW, including locator choices and waits.
@@ -117,6 +122,29 @@ cheap (~1 min) and decisive.
    migrated test failing.** That conclusion requires a legacy run that *also* fails. A
    passing legacy run means the work is a solvable migration gap, not a dead feature.
 
+## Known Crash-Prone Surfaces — Grab Once, Then Derive The Link
+
+The legacy **client-portal-editor Link Builder** (`/app/client-portal-editor` → "Create a Link"
+dialog → Schedule / Pay / Purchase-package actions) is **heavy and crash-prone in headless**
+(repeated `TargetClosedError`), uses portaled Angular `md-select` overlays that are slow/fragile,
+and is **structurally changed from the legacy page objects** — and some legacy paths (e.g. the
+`staffPicker` on `LinkBuilderDialog`) are **broken upstream** (the legacy test fails there too).
+Before sinking many iterations into driving this editor, prefer the **grab-once / derive-the-link**
+pattern, proven across VCITA2-14226/14227/14229:
+
+- The product's shareable links are deterministic URLs on the live-site base:
+  `<CP_VITRAGE>/site/<pivot_uid>/online-scheduling?staff=<uid>` (scheduler, staff-scoped),
+  `…/online-scheduling?service=<uid>` (service-scoped), `…/make-payment?title=<svc>&amount=<n>`
+  (pay link), `…/package` and `…/package?package=<id>` (purchase packages).
+- **Grab one stable link via the UI** (e.g. the services-row "Copy public link" via the proven
+  `cp_scheduling_helpers.grab_service_link`) to obtain the `/site/<token>/…` base, then **derive**
+  the variant you need by swapping the path/query. Keep **accessing** the link and **all assertions**
+  in the UI (`#cp_iframe`). This trades a small amount of grab-step UI coverage for a stable 10/10 test.
+- Always run the **legacy first** for editor/CP flows (see above): if the legacy itself is red, the
+  derived-link migration is *greener than the legacy* — document that in the changelog/PR.
+- Reuse the established CP-pay popup flow (`coupons_checkout_cp`: `open_portal` → mock-gateway popup
+  via `expect_page` → `button[type=submit]` → `[data-qa='payment-success-page']`) rather than re-deriving it.
+
 ## Reduce Waits And Duration (Without Scope Or Quality Loss)
 
 On every migration and stabilization change, actively reduce per-test waits and total run duration — but never buy speed with scope or quality:
@@ -160,6 +188,7 @@ The migration is complete only when all three checks pass:
 - Use `data-qa` selectors first, then roles/labels, then stable text. Use raw CSS only for existing stable project selectors such as CRM table actions. If no stable selector exists, document the fallback in `script.md` and suggest the exact `data-qa` that should be added to the product code.
 - Replace fixed sleeps with condition waits. Poll only for asynchronous product indexing or eventual consistency, and make the expected condition explicit.
 - Keep matter/client terminology entity-agnostic unless the legacy scenario specifically asserts a displayed label.
+- **Never hardcode the legacy auto-account's display name.** The legacy auto-account is literally named `Automation test business`, so legacy tables assert strings like `With Automation test business`. auto_tester account names vary per run, so resolve the dynamic name from the API (e.g. the owner staff `display_name` via the business staff list) and assert against that (`With <owner_display_name>`). Same behavior, account-agnostic. (Proven case: VCITA2-14228 multi-booking summary "providing staff".)
 - Do not preserve a legacy implementation detail when it is only a Selenium workaround; preserve the behavior and assertion instead.
 
 ## Migration Patterns Proven By The PoC

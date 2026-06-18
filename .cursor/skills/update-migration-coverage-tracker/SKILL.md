@@ -156,7 +156,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
 ## Update Workflow
 
 1. Confirm the `tools/migration_tracker/README.md` env vars are set.
-2. Compute the current totals with the Counting Rules above.
+2. Compute the current totals with the Counting Rules above. **The `--ff-total`/`--sc-total` numbers in the example below are illustrative and go stale** — read the live Confluence page's current Summary first (or recompute via the Counting Rules) and pass the **live** totals (as of this writing the live page is `136` feature files / `362` scenarios, not the older `113`/`279`). Passing stale totals with `--refresh-confluence` rewrites the progress bars to the wrong denominator.
 3. Upsert the row and refresh Confluence in one call (matched by `--feature`; updates if present, appends otherwise). Pass the Summary metrics you computed; any Summary row you omit is left unchanged:
 
    ```bash
@@ -171,7 +171,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
      --pr-label "PR #<n>" --pr-url <pr url> \
      --latest-branch "<branch> — PR #<n>" \
      --refresh-confluence \
-     --ff-migrated <n> --ff-total 113 --sc-migrated <n> --sc-total 279 \
+     --ff-migrated <n> --ff-total 136 --sc-migrated <n> --sc-total 362 \   # use the LIVE totals (step 2), not these literals
      --tracked-ff <n> --tracked-sc <n> --validated-scopes <n>
    ```
 
