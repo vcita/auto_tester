@@ -1,0 +1,43 @@
+name: CP Payment Actions
+description: Client payment actions in the client portal. A new client pays a $100
+  service through the public CP make-payment form (the "pay link") via the mock gateway
+  and the payment appears in the back-office Payments Received search; and a client
+  opens the CP payments list with three outstanding requests (product, invoice, package),
+  pays the package item, and the list updates.
+account_profile:
+  type: isolated
+  slug: cp_payment_actions
+  cleanup: always
+execution_order:
+- pay_via_link
+- payments_list
+tests:
+- id: pay_via_link
+  name: Client pays a service via the CP pay link
+  status: active
+  priority: high
+  description: A new client ("steve") opens the public make-payment form for the $100
+    service, pays via the mock gateway, and the back-office Payments Received search
+    (by first name "steve") shows a "Payment for ... <service>" record.
+- id: payments_list
+  name: CP payments list with multiple requests
+  status: active
+  priority: high
+  description: Via API create an invoice ($20 + 10% tax = $22), a product ($10) and
+    a $150 specific package; assign product + package to the client; record a $100
+    partial payment on the package in the back office. The CP payments list then shows
+    3 rows (product2 $10.00 Product, invoice
+status: active
+priority: high
+tags:
+- payments
+- client-portal
+- checkout
+- migration
+owner: QA Team
+created_at: 2026-06-18
+stability:
+  status: stable
+  last_stress_test: '2026-06-18'
+  pass_rate: 100.0%
+  iterations: 10

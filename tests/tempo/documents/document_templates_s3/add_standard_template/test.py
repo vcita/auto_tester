@@ -1,0 +1,34 @@
+"""Upload a document to My Documents (AWS-S3 backend) and verify it appears in the
+standard template list.
+
+Migrates automation-js `document-templates-s3.feature` scenario
+`Adding standard and signature document template (s3)` (standard template; the signature
+variant is commented out in the legacy feature).
+
+Reuses the shared upload/list helpers from the sibling authenticated migration; the s3
+distinction (storage backend) is not observable in the standard template list and is
+asserted in the grab_document_link test instead.
+"""
+import os
+
+from playwright.sync_api import Page
+
+from tests.tempo.documents.document_templates.documents_helpers import (
+    assert_in_standard_templates,
+    upload_to_my_documents,
+)
+
+DOCUMENT = "clientDoc.pdf"
+DOCUMENT_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "resources", DOCUMENT)
+)
+
+
+def test_add_standard_template(page: Page, context: dict) -> None:
+    print(f"  Step 1: Uploading {DOCUMENT} to My Documents (s3 backend)...")
+    upload_to_my_documents(page, DOCUMENT_PATH)
+
+    print("  Step 2: Verifying it appears in the standard template list...")
+    assert_in_standard_templates(page, DOCUMENT)
+
+    print("  [OK] Document template appears in the standard template list")

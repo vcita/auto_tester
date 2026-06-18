@@ -7,6 +7,7 @@ execution_order:
 - pdf_customization
 - coupons
 - coupons_checkout
+- cp_payment_actions
 - invoices
 - record_payments
 - refunds_credits

@@ -1,8 +1,9 @@
 name: Documents
 description: Back-office documents features. Migrated from automation-js
-  features/steps/document-templates-auth.feature.
+  features/steps/document-templates-auth.feature and document-templates-s3.feature.
 execution_order:
 - document_templates
+- document_templates_s3
 tests: []
 status: active
 priority: high

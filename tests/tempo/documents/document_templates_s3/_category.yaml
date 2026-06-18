@@ -1,0 +1,37 @@
+name: Document Templates (S3)
+description: Upload documents to My Documents and grab a public document link when
+  the account uses the AWS-S3 storage backend (default on integration). Verifies the
+  s3 storage signal on the public link. Migrated from automation-js features/steps/document-templates-s3.feature.
+account_profile:
+  type: isolated
+  slug: document_templates_s3
+  cleanup: always
+execution_order:
+- add_standard_template
+- grab_document_link
+tests:
+- id: add_standard_template
+  name: Add Standard Document Template (S3)
+  status: active
+  priority: high
+  description: Upload a document to My Documents (s3 backend) and verify it appears
+    in the standard template list.
+- id: grab_document_link
+  name: Grab Document Link (S3)
+  status: active
+  priority: high
+  description: Upload a document, grab its public link, verify the link carries the
+    AWS-S3 storage signal, and that a client can access it.
+status: active
+priority: high
+tags:
+- documents
+- migration
+team: tempo
+owner: QA Team
+created_at: 2026-06-18
+stability:
+  status: stable
+  last_stress_test: '2026-06-18'
+  pass_rate: 100.0%
+  iterations: 10
