@@ -310,25 +310,36 @@ def create_service_via_api(
     charge_type: str = "free",
     price: str | None = None,
     tax_uids: list[str] | None = None,
+    service_type: str = "appointment",
+    interaction_type: str = "business_location",
+    meeting_interaction_details: str = "TLV",
+    duration: int = 60,
 ) -> dict:
-    """Create an appointment service via API.
+    """Create a service via API (appointment or event).
 
     `charge_type`/`price` default to the original free-service behavior so existing
     callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
-    legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
-    legacy "display a fee" service (see automation-js api/service.js). `tax_uids` attaches
-    business taxes to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+    legacy "require to pay" service, `charge_type="paid"` for "suggest to pay", or
+    `charge_type="paid_non_secured"` for the legacy "display a fee" service (see
+    automation-js api/service.js `_setPaymentType`). `tax_uids` attaches business taxes
+    to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+
+    `service_type` ("appointment"/"event"), `interaction_type` (legacy
+    `_setLocationType`, e.g. "business_location" for f2f_other, "business_phone"),
+    `meeting_interaction_details` (legacy `location_info`), and `duration` mirror the
+    legacy `create_service` table so non-appointment / location-typed services can be
+    seeded. The price is sent as a string (the legacy table passes "1").
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
         "category": {"uid": last_category_uid(context)},
         "staff_data": [{"uid": uid, "enabled": True} for uid in uids],
         "name": service_name,
-        "service_type": "appointment",
+        "service_type": service_type,
         "currency": "USD",
-        "duration": 60,
-        "interaction_type": "business_location",
-        "meeting_interaction_details": "TLV",
+        "duration": duration,
+        "interaction_type": interaction_type,
+        "meeting_interaction_details": meeting_interaction_details,
         "charge_type": charge_type,
         "display": "true",
         "max_attendance": 2,
@@ -342,7 +353,12 @@ def create_service_via_api(
     service_id = service.get("id") or service.get("uid")
     if not service_id:
         raise ValueError(f"Service API response did not include an id: {response}")
-    return {"id": service_id, "name": service.get("name") or service_name}
+    return {
+        "id": service_id,
+        "name": service.get("name") or service_name,
+        "price": service.get("price", price),
+        "currency": service.get("currency", "USD"),
+    }
 
 
 def future_appointment_start_time(lead_days: int = APPOINTMENT_LEAD_DAYS) -> str:
