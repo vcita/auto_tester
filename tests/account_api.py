@@ -310,24 +310,32 @@ def create_service_via_api(
     charge_type: str = "free",
     price: str | None = None,
     tax_uids: list[str] | None = None,
+    duration: int = 60,
+    service_type: str = "appointment",
+    interaction_type: str = "business_location",
 ) -> dict:
-    """Create an appointment service via API.
+    """Create a service via API.
 
     `charge_type`/`price` default to the original free-service behavior so existing
     callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
     legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
     legacy "display a fee" service (see automation-js api/service.js). `tax_uids` attaches
     business taxes to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+
+    `duration`, `service_type` ("appointment"/"event"), and `interaction_type` mirror the
+    legacy `create_service` table (location_type maps to interaction_type: business_location,
+    client_location, etc.). The full service id+name+uid is returned so callers that need to
+    schedule an event instance from the service can read interaction details.
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
         "category": {"uid": last_category_uid(context)},
         "staff_data": [{"uid": uid, "enabled": True} for uid in uids],
         "name": service_name,
-        "service_type": "appointment",
+        "service_type": service_type,
         "currency": "USD",
-        "duration": 60,
-        "interaction_type": "business_location",
+        "duration": duration,
+        "interaction_type": interaction_type,
         "meeting_interaction_details": "TLV",
         "charge_type": charge_type,
         "display": "true",
@@ -342,7 +350,16 @@ def create_service_via_api(
     service_id = service.get("id") or service.get("uid")
     if not service_id:
         raise ValueError(f"Service API response did not include an id: {response}")
-    return {"id": service_id, "name": service.get("name") or service_name}
+    result = {"id": service_id, "name": service.get("name") or service_name}
+    # Event scheduling needs the service's interaction + attendance details (legacy
+    # create_new_event reads them from the service object); pass them through when present.
+    for key in ("interaction_type", "meeting_interaction_details", "max_attendance",
+                "charge_type", "price", "currency", "padding", "duration"):
+        if service.get(key) is not None:
+            result[key] = service.get(key)
+    result.setdefault("duration", duration)
+    result.setdefault("interaction_type", interaction_type)
+    return result
 
 
 def future_appointment_start_time(lead_days: int = APPOINTMENT_LEAD_DAYS) -> str:

@@ -1,0 +1,44 @@
+name: CP Multi-Booking
+description: Client-portal multi-booking scheduler. On a fresh account with multi
+  booking enabled, an anonymous client picks "Schedule Now" on the livesite, schedules
+  a multi-booking appointment (service1+service2) and verifies the summary component
+  + booking confirmation + CP meeting page with linked bookings, and verifies the
+  service-combination disabling rules and the future-event next step.
+team: tempo
+account_profile:
+  type: isolated
+  slug: cp_multi_booking
+  cleanup: always
+execution_order:
+- summary_component
+- invalid_combination
+tests:
+- id: summary_component
+  name: Summary Component Displays Correctly
+  status: active
+  priority: high
+  description: Schedule a multi-booking appointment (service1+service2) as an anonymous
+    client, verify the summary component (At TLV / Duration 1 hour / default staff),
+    complete the booking, verify "Booking request sent!", and verify the CP meeting
+    page shows service1 Pending approval linked to service2.
+- id: invalid_combination
+  name: Invalid Service Combination
+  status: active
+  priority: high
+  description: After selecting service1, verify service3/service4/event1 become disabled;
+    after deselecting, verify all services are enabled; selecting event1 advances
+    the scheduler to the future-event step.
+status: active
+priority: high
+tags:
+- scheduling
+- client-portal
+- multi-booking
+- migration
+owner: QA Team
+created_at: 2026-06-18
+stability:
+  status: stable
+  last_stress_test: '2026-06-18'
+  pass_rate: 100.0%
+  iterations: 10
