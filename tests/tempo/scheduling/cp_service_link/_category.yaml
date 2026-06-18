@@ -1,0 +1,32 @@
+name: CP Service Link
+description: Grab scheduler links (staff-scoped via the client-portal-editor Link
+  Builder and general via the services "Copy public link") and access them anonymously,
+  asserting the client-portal scheduler calendar / staff-select / services pages under
+  different provider and service states. Migrated from automation-js features/tempo/CP/service-link.feature.
+account_profile:
+  type: isolated
+  slug: cp_service_link
+  cleanup: always
+execution_order:
+- grab_and_access
+tests:
+- id: grab_and_access
+  name: Grab and Access Scheduler Links
+  status: active
+  priority: high
+  description: Grab a staff-scoped and a general scheduler link; verify the CP calendar,
+    staff-select, and services pages across staff/service deletion states.
+status: active
+priority: high
+tags:
+- scheduling
+- client_portal
+- migration
+team: tempo
+owner: QA Team
+created_at: 2026-06-18
+stability:
+  status: stable
+  last_stress_test: '2026-06-18'
+  pass_rate: 100.0%
+  iterations: 10

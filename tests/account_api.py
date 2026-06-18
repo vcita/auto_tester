@@ -328,7 +328,8 @@ def create_service_via_api(
     `_setLocationType`, e.g. "business_location" for f2f_other, "business_phone"),
     `meeting_interaction_details` (legacy `location_info`), and `duration` mirror the
     legacy `create_service` table so non-appointment / location-typed services can be
-    seeded. The price is sent as a string (the legacy table passes "1").
+    seeded. The full service id+name (+ interaction/price details) is returned so callers
+    that need to schedule an event instance from the service can read them.
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
@@ -353,12 +354,19 @@ def create_service_via_api(
     service_id = service.get("id") or service.get("uid")
     if not service_id:
         raise ValueError(f"Service API response did not include an id: {response}")
-    return {
-        "id": service_id,
-        "name": service.get("name") or service_name,
-        "price": service.get("price", price),
-        "currency": service.get("currency", "USD"),
-    }
+    result = {"id": service_id, "name": service.get("name") or service_name}
+    # Event scheduling needs the service's interaction + attendance details (legacy
+    # create_new_event reads them from the service object); package items need price/currency.
+    # Pass them through when present.
+    for key in ("interaction_type", "meeting_interaction_details", "max_attendance",
+                "charge_type", "price", "currency", "padding", "duration"):
+        if service.get(key) is not None:
+            result[key] = service.get(key)
+    result.setdefault("duration", duration)
+    result.setdefault("interaction_type", interaction_type)
+    result.setdefault("price", price)
+    result.setdefault("currency", "USD")
+    return result
 
 
 def future_appointment_start_time(lead_days: int = APPOINTMENT_LEAD_DAYS) -> str:
