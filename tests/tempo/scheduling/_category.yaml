@@ -16,6 +16,7 @@ execution_order:
   - calendar
   - calendar_settings
   - payment_setups
+  - cp_service_link
 tests: []
 
 # Category metadata
