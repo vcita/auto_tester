@@ -310,22 +310,26 @@ def create_service_via_api(
     charge_type: str = "free",
     price: str | None = None,
     tax_uids: list[str] | None = None,
-    duration: int = 60,
     service_type: str = "appointment",
     interaction_type: str = "business_location",
+    meeting_interaction_details: str = "TLV",
+    duration: int = 60,
 ) -> dict:
-    """Create a service via API.
+    """Create a service via API (appointment or event).
 
     `charge_type`/`price` default to the original free-service behavior so existing
     callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
-    legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
-    legacy "display a fee" service (see automation-js api/service.js). `tax_uids` attaches
-    business taxes to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+    legacy "require to pay" service, `charge_type="paid"` for "suggest to pay", or
+    `charge_type="paid_non_secured"` for the legacy "display a fee" service (see
+    automation-js api/service.js `_setPaymentType`). `tax_uids` attaches business taxes
+    to the service (legacy `tax_uids`), e.g. a default-for-services tax.
 
-    `duration`, `service_type` ("appointment"/"event"), and `interaction_type` mirror the
-    legacy `create_service` table (location_type maps to interaction_type: business_location,
-    client_location, etc.). The full service id+name+uid is returned so callers that need to
-    schedule an event instance from the service can read interaction details.
+    `service_type` ("appointment"/"event"), `interaction_type` (legacy
+    `_setLocationType`, e.g. "business_location" for f2f_other, "business_phone"),
+    `meeting_interaction_details` (legacy `location_info`), and `duration` mirror the
+    legacy `create_service` table so non-appointment / location-typed services can be
+    seeded. The full service id+name (+ interaction/price details) is returned so callers
+    that need to schedule an event instance from the service can read them.
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
@@ -336,7 +340,7 @@ def create_service_via_api(
         "currency": "USD",
         "duration": duration,
         "interaction_type": interaction_type,
-        "meeting_interaction_details": "TLV",
+        "meeting_interaction_details": meeting_interaction_details,
         "charge_type": charge_type,
         "display": "true",
         "max_attendance": 2,
@@ -352,13 +356,16 @@ def create_service_via_api(
         raise ValueError(f"Service API response did not include an id: {response}")
     result = {"id": service_id, "name": service.get("name") or service_name}
     # Event scheduling needs the service's interaction + attendance details (legacy
-    # create_new_event reads them from the service object); pass them through when present.
+    # create_new_event reads them from the service object); package items need price/currency.
+    # Pass them through when present.
     for key in ("interaction_type", "meeting_interaction_details", "max_attendance",
                 "charge_type", "price", "currency", "padding", "duration"):
         if service.get(key) is not None:
             result[key] = service.get(key)
     result.setdefault("duration", duration)
     result.setdefault("interaction_type", interaction_type)
+    result.setdefault("price", price)
+    result.setdefault("currency", "USD")
     return result
 
 

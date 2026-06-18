@@ -8,6 +8,7 @@ execution_order:
 - coupons
 - coupons_checkout
 - cp_payment_actions
+- cp_packages
 - invoices
 - record_payments
 - refunds_credits
