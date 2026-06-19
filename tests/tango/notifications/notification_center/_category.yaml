@@ -1,0 +1,48 @@
+name: Notification Center
+team: tango
+description: In-app Notification Center — notification pane (empty states, badge counter,
+  read/unread, show-only-unread, mark-all-as-read, deep-link redirect, per-staff isolation)
+  and Notification Center settings (show_in_settings, push/pane/email channel toggles).
+account_profile:
+  type: isolated
+  slug: nc_center
+  cleanup: always
+execution_order:
+- notification_flow
+- nc_settings
+- email_settings
+tests:
+- id: notification_flow
+  name: Notification Center Pane And Badge Flow
+  status: active
+  priority: high
+  description: App-created notification template + per-staff notifications; pane empty
+    state, badge counter, read/unread toggles, show-only-unread, mark-all-as-read,
+    deep-link redirect, and per-staff notification isolation via impersonation.
+- id: nc_settings
+  name: Notification Center Settings
+  status: active
+  priority: high
+  description: Directory-created template; show_in_settings visibility, push/pane
+    channel visibility, opening notification settings, pane delivery, and unchecking
+    pane to suppress delivery.
+- id: email_settings
+  name: Email Channel In Notification Center Settings
+  status: active
+  priority: high
+  description: core_internal_app template with email channel hidden by default; enabling
+    email makes the email toggle visible/on in settings.
+status: active
+priority: high
+tags:
+- notification_center
+- notifications
+- tango
+- migration
+owner: QA Team
+created_at: 2026-06-19
+stability:
+  status: stable
+  last_stress_test: '2026-06-19'
+  pass_rate: 100.0%
+  iterations: 10
