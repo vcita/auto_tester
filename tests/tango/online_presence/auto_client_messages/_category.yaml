@@ -1,0 +1,33 @@
+name: Auto Client Messages
+description: Auto-reply (auto client messages) settings. A business updates the auto-reply
+  message text in settings; when a client leaves details via the public livesite contact
+  form, the livesite success page displays the updated auto-reply message.
+account_profile:
+  type: isolated
+  slug: auto_client_messages
+  cleanup: always
+execution_order:
+- auto_reply_text
+tests:
+- id: auto_reply_text
+  name: Auto Reply Text Change
+  status: active
+  priority: high
+  description: A business updates the auto-reply message text in settings; a client
+    leaves details on the livesite and the success page displays the updated auto-reply
+    message.
+status: active
+priority: high
+tags:
+- online_presence
+- auto_client_messages
+- livesite
+- settings
+- migration
+owner: QA Team
+created_at: 2026-06-19
+stability:
+  status: stable
+  last_stress_test: '2026-06-19'
+  pass_rate: 100.0%
+  iterations: 10
