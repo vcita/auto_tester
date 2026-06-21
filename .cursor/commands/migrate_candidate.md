@@ -8,6 +8,7 @@ The coverage tracker (Google Sheet + Confluence page `4690444289`) must reflect 
 
 **Skills/commands to follow:**
 - **Migration rules and DoD:** `migrate-automation-js-feature` skill (read its SKILL.md)
+- **Subagent-per-test isolation & context management:** `.cursor/rules/subagent-test-isolation.mdc`
 - **Coverage tracker:** `update-migration-coverage-tracker` skill
 - **Jira ticket creation/assignment:** `manage-jira-issues` skill
 - **Code review:** `/codeReview` command (runs the `code-review-checklist` skill)
@@ -92,6 +93,7 @@ Follow the `migrate-automation-js-feature` skill end to end:
 - Read the full legacy chain (feature, steps, page objects, API helpers) before writing code.
 - Create `migration_mapping.md` (local, not committed) before `test.py`.
 - Implement in strict phase order: `steps.md` → `script.md` → `test.py` → `changelog.md`; register in `_category.yaml`.
+- **Isolate each migrated test's authoring in a subagent** (`subagent-test-isolation.mdc`): per test, `test-scaffolder` (sonnet) → `steps.md`, `test-explorer` (opus) → `script.md` (heavy MCP stays inside it), `test-codegen` (sonnet) → `test.py`. The orchestrator keeps the mapping, tracker state, and run/heal loop. When a candidate spans multiple scenarios/tests, **`/clear` between independent tests** — all durable state (mapping, phase files, `_category.yaml`) is on disk.
 - Honor the **hard gate**: 3 clean focused runs, then re-verify scope and quality against the legacy test before any stress test.
 
 **Tracker:** when implementation starts (phase docs / `test.py` being written), upsert the same row to **`In progress`** (re-pass the known columns). Once the test is runnable but the focused/stress runs are not yet green, move it to **`Needs stabilization`**. Still no progress-counter increment at either status.

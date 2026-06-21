@@ -33,7 +33,13 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
    - Treat the mapping as a local planning artifact. It is important for preventing scope loss, but it must not be committed or included in the PR (the `.cursor/migration_mappings/` location is git-ignored for this reason).
-5. Implement in strict auto_tester phase order:
+5. Implement in strict auto_tester phase order, isolating each test's authoring in a subagent
+   (see `../rules/subagent-test-isolation.mdc`): per test run `test-scaffolder` (sonnet) for
+   `steps.md`, `test-explorer` (opus) for `script.md` — its heavy MCP snapshot traffic lives and
+   dies inside the subagent — then `test-codegen` (sonnet) for `test.py`. The orchestrator keeps
+   the migration mapping, tracker state, and the run/heal loop; subagents return only file paths +
+   short summaries, never raw snapshots. When a candidate spans multiple scenarios/tests, `/clear`
+   between independent tests (the mapping and phase files are all on disk).
    - `steps.md`: user-facing WHAT, no selectors or code.
    - `script.md`: Playwright-oriented HOW, including locator choices and waits.
    - `test.py`: executable code.

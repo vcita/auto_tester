@@ -54,6 +54,21 @@ the matching work, and follow them as binding project rules.
 - **team-taxonomy** (`.cursor/skills/team-taxonomy.md`) — how to resolve a test's owning team from
   the Confluence "Squads responsibilities" page (pageId `2615410911`, source of truth).
 
+## Subagents (`.cursor/agents/`) — isolate each test's authoring (pinned model tiers)
+
+When implementing/migrating tests, delegate each test's authoring to these pinned-model subagents
+so heavy MCP exploration traffic stays out of the orchestrator's context (see
+`.cursor/rules/subagent-test-isolation.mdc`). Each returns only a file path + short summary — never
+raw snapshots. `/clear` between independent tests (durable state is all on disk).
+
+- **test-scaffolder** (sonnet) — Phase 1: writes one test's `steps.md`. Mechanical, no browser.
+- **test-explorer** (opus) — Phase 2: live Playwright MCP exploration → verified `script.md`. The
+  heavy-MCP, hard-reasoning phase; all snapshot traffic lives and dies inside it.
+- **test-codegen** (sonnet) — Phase 3: transcribes verified code → `test.py`. No browser.
+
+(`.cursor/agents` is bridged to `.claude/agents` via a SessionStart symlink; registers natively
+from the next session.)
+
 ---
 
 ## Core principles (from `project.mdc` — do not violate)

@@ -1,0 +1,61 @@
+---
+description: Isolate each test's authoring in a subagent and manage context between tests (subagent-per-test, /clear between tests, /compact within a test, pinned model tiers). Apply when implementing or migrating more than one test, or any test with heavy MCP exploration.
+---
+
+# Subagent-Per-Test Isolation & Context Management
+
+Authoring is the expensive phase: live MCP exploration accumulates snapshots in context, and that
+context is re-sent on every subsequent turn. Across a multi-test build or migration this dominates
+token cost. This rule contains that cost without losing any durable work (VCITA2-14266, item F).
+
+## Core fact: all durable state is on disk
+
+A test's durable artifacts are files — `steps.md`, `script.md`, `test.py`, `changelog.md`,
+`_category.yaml`, and (for migration) `.cursor/migration_mappings/<ISSUE-KEY>.md`. Nothing
+important lives only in conversation context. So context can be cleared or compacted freely between
+units of work: re-reading a file is cheap; carrying a page's worth of stale snapshots is not.
+
+## Isolate each test's authoring in a subagent
+
+Run each test's authoring through the pinned-model subagents (in `.cursor/agents/`), one
+invocation per phase per test:
+
+| Phase | Subagent | Model | Why this tier |
+|-------|----------|-------|---------------|
+| 1 — `steps.md` | `test-scaffolder` | sonnet | Mechanical; no exploration. |
+| 2 — `script.md` | `test-explorer` | **opus** | Live MCP exploration — the genuinely hard reasoning, and where all heavy snapshot traffic lives and dies. |
+| 3 — `test.py` | `test-codegen` | sonnet | Transcribe already-verified code; locators decided. |
+
+The orchestrator (main loop) keeps only the cross-test state: the plan, tracker status, the run
+loop, and heal decisions. It does **not** drive the browser itself for routine authoring.
+
+### Boundary contract (what crosses back)
+
+A subagent returns ONLY a file path plus a short summary (chosen locators, success signal, any
+suspected bug/blocker). It must **never** return raw `browser_snapshot` output, accessibility
+trees, or screenshots — that traffic is exactly what the isolation exists to contain. The
+orchestrator acts on the committed files + the verdict, not on the subagent's working context.
+
+If a phase subagent reports a suspected product bug or a blocker, stop and surface it (per
+`build.mdc`) — do not silently spawn the next phase.
+
+## Context discipline between and within tests
+
+- **`/clear` between independent tests.** Once a test's files are written (and ideally after its
+  category run is green), clear context before starting the next independent test. Durable state is
+  on disk, so nothing is lost and the next test starts lean. This is the default in multi-test
+  builds and batch migrations.
+- **`/compact` only within a single test**, and only when a long exploration/heal loop has bloated
+  context mid-test. Prefer finishing the test and `/clear`ing over compacting repeatedly.
+- Do not carry one test's MCP snapshots into the next test's authoring.
+
+## When this applies
+
+- Implementing or migrating **more than one** test (`/implement_test`, `/migrate_candidate`, the
+  `migrate-automation-js-feature` skill) → isolate each test, `/clear` between them.
+- A **single** test whose Phase 2 exploration is heavy (many pages, crash-prone editors) → still
+  run Phase 2 in `test-explorer` so its snapshot traffic stays out of the orchestrator.
+- Trivial single-step edits or healing a known selector → isolation is optional; use judgment.
+
+See `.cursor/rules/snapshot-first-authoring.mdc` for the in-subagent MCP discipline and
+`.cursor/rules/build.mdc` § Token-Efficient Authoring for the phase model-tiering rationale.
