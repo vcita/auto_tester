@@ -209,18 +209,20 @@ def cmd_run(args):
     # Check for headless mode, keep-open flag, until-test, and debug-test
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
+    record_video = getattr(args, 'video', False)
     until_test = getattr(args, 'until_test', None)
     debug_test = getattr(args, 'debug_test', None)
-    
+
     # Resolve env: None when --no-auto-account is set, otherwise use --env value
     no_auto = getattr(args, 'no_auto_account', False)
     env = None if no_auto else getattr(args, 'env', 'integration')
-    
+
     try:
         # Create runner
         runner = TestRunner(
             tests_root,
             headless=headless,
+            record_video=record_video,
             keep_open=keep_open,
             until_test=until_test,
             debug_test=debug_test,
@@ -771,6 +773,11 @@ def main():
         "--headless",
         action="store_true",
         help="Run browser in headless mode"
+    )
+    run_parser.add_argument(
+        "--video",
+        action="store_true",
+        help="Record video of test execution (saved to _runs/; off by default to save disk/CPU)"
     )
     run_parser.add_argument(
         "--keep-open",

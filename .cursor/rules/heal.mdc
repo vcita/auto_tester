@@ -31,9 +31,9 @@ heal
 ## Failed At
 [Which step failed, if known]
 
-## Screenshot (REQUIRED)
-[Path to failure screenshot - ALWAYS captured automatically on failure]
-**YOU MUST READ AND ANALYZE THIS IMAGE before proceeding with any fix!**
+## Screenshot (optional — read only if a11y snapshot is insufficient)
+[Path to failure screenshot - captured automatically on failure]
+Read only when the a11y tree is empty (canvas/WebGL) or the error is purely visual.
 
 ## DOM Snapshot
 [Path to DOM snapshot at failure, if available]
@@ -76,27 +76,29 @@ Please analyze the failure and fix the test.
 
 From this you learn: Don't try `.edit-button` or `button[aria-label='Edit']` - they were already tried and failed!
 
-## MANDATORY SECOND STEP: Screenshot AND Video Analysis
+## SECOND STEP: Text-first diagnostics — error + a11y snapshot (screenshot optional)
 
-**Look at the screenshot EVERY TIME a run ends unsuccessfully.** Do not guess from the error message alone — open the failure screenshot first so you see the actual UI state at the moment of failure.
+**Lead heal investigation with text: the error message, the a11y/DOM snapshot from MCP, and the
+changelog. These are lower-cost and usually sufficient.** Do not reflexively open the screenshot —
+it is a fallback, not a first step (see `snapshot-first-authoring.mdc`).
 
-**AFTER reading the changelog, analyze the visual evidence:**
+**AFTER reading the changelog, gather text-first context:**
 
-1. **Locate the screenshot** - Path is in the heal request under "## Screenshot"
-2. **Read/view the screenshot** - Use the Read tool to view the image (every time)
-3. **Check for video recording** - Path is in heal request under "## Video Recording"
-   - Video shows the FULL test execution, not just the end state
-   - Watch for repeated actions, timing issues, or unexpected behavior
-4. **Analyze what you see** - Document:
-   - What is visible on screen?
-   - Did the expected UI element appear?
-   - Is there an error dialog?
-   - Is the page in the expected state?
-5. **Compare expected vs actual** - Based on the failing step, what SHOULD be visible vs what IS visible?
+1. **Read the error message** — the heal request has it at the top. What type of failure is it?
+   (selector not found, timeout, assertion, navigation?) This alone often points to the fix.
+2. **Take a `browser_snapshot` in MCP** — navigate to the failing test's page and snapshot the
+   a11y tree. The tree shows the actual DOM state without a screenshot's token cost.
+3. **Read the test files** — `test.py` and `script.md` at the location in the heal request.
+4. **Check for video recording** (if available, path in heal request under "## Video Recording") —
+   the video shows the FULL execution journey; check it when a timing or flow issue is suspected.
+5. **Screenshot — optional, use only when:**
+   - The a11y tree is genuinely empty (canvas/WebGL page with no accessible nodes), **or**
+   - The error is purely visual and cannot be diagnosed from DOM + error message alone.
+   Path is in the heal request under "## Screenshot (optional)".
 
-**The screenshot shows the END state. The video shows the JOURNEY - it reveals timing issues, repeated actions, and the exact moment of failure.**
-
-If the heal request doesn't have a screenshot, that's a bug - the test runner should always capture one on failure.
+**Why text-first:** a full screenshot is re-sent on every subsequent turn of the same heal session,
+accumulating token cost fast. The a11y snapshot via `browser_snapshot` gives the same DOM
+information at a fraction of the cost — use it first.
 
 ## MANDATORY THIRD STEP: Debug with MCP (NO BLIND FIXES!)
 
@@ -166,7 +168,7 @@ Playwright MCP starts and controls **its own** browser. The AI **cannot** attach
 ```
 Heal Request (failure context)
     ↓ [1. FIRST: Read changelog.md - learn from past attempts!]
-    ↓ [2. SECOND: Read and analyze the screenshot!]
+    ↓ [2. SECOND: Read error + browser_snapshot (text-first); screenshot only if a11y tree is empty]
     ↓ [3. THIRD: Debug step-by-step with MCP - NO BLIND FIXES!]
     ↓ [4. Analyze the error message with MCP findings]
     ↓ [5. Determine: selector issue vs flow change vs product bug]
