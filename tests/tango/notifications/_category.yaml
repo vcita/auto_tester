@@ -4,6 +4,7 @@ description: Notification Center (in-app notification pane, badge, and per-notif
   settings) owned by Tango.
 execution_order:
 - notification_center
+- customized_notifications
 tests: []
 status: active
 priority: high

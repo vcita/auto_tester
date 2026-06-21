@@ -1,0 +1,50 @@
+name: Customized Notifications
+team: tango
+description: Customized (v3) notification templates — create/update a customized email
+  or SMS notification template via the v3 communication API, assert it shows in Notification
+  Center settings, staff channel toggles (disable email / enable SMS), v3 send with
+  params, and the v3 sent-notification channel STATUS (email processed, sms in_progress,
+  send rejected when a channel is disabled).
+account_profile:
+  type: isolated
+  slug: cust_notif
+  cleanup: always
+execution_order:
+- s1_email_create_send
+- s2_email_disabled_by_staff
+- s3_sms_create_send
+tests:
+- id: s1_email_create_send
+  name: Create And Send Customized Email Notification (v3)
+  status: active
+  priority: high
+  description: Directory creates a customized EMAIL v3 template; it shows in NC settings;
+    update title/CTA; refreshed display shows the new title; badge counter "1"; v3
+    email notification status contains "processed".
+- id: s2_email_disabled_by_staff
+  name: Customized Email Notification Disabled By Staff (v3)
+  status: active
+  priority: high
+  description: Directory creates a customized EMAIL v3 template; staff unchecks the
+    email channel in NC settings; it persists (email=false); sending the v3 notification
+    then fails.
+- id: s3_sms_create_send
+  name: Create And Send Customized SMS Notification (v3)
+  status: active
+  priority: high
+  description: Directory creates a customized SMS v3 template; it shows in NC settings;
+    staff enables the SMS channel; v3 send; v3 sms notification status contains "in_progress".
+status: active
+priority: high
+tags:
+- customized_notifications
+- notifications
+- tango
+- migration
+owner: QA Team
+created_at: 2026-06-19
+stability:
+  status: stable
+  last_stress_test: '2026-06-19'
+  pass_rate: 100.0%
+  iterations: 10

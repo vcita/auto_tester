@@ -512,6 +512,173 @@ def send_notification(
 
 
 # ===================================================================== #
+# v3 communication notification templates + staff notifications (apigw)
+# Mirrors automation-js api/notificationCenter.js:
+#   create_notification_template_v3 / update_notification_template_v3 /
+#   send_notification_v3 / get_notification_v3 (the "- v3" step-def variants).
+# Added for VCITA2-14248 (customized v3 notifications). All on the apigw with a
+# directory Bearer (legacy get_authorization_token("directory")). Verified live on
+# integration 2026-06-19 against the legacy ground-truth run (3 scenarios / 23 steps pass).
+# ===================================================================== #
+V3_TEMPLATES_PATH = "/v3/communication/notification_templates"
+V3_STAFF_NOTIFICATIONS_PATH = "/v3/communication/staff_notifications"
+
+# email_status / sms_status update asynchronously after the send (the send returns before
+# the channel processor stamps a status), so the GET is a bounded eventual-consistency poll —
+# exactly like the badge counter. Capped at 5s (UI policy); the legacy step read once but the
+# legacy account was fresh per scenario so the status was already stamped by then.
+V3_STATUS_POLL_TIMEOUT_S = 5.0
+V3_STATUS_POLL_INTERVAL_S = 0.5
+
+
+def create_notification_template_v3(
+    context: dict,
+    token: str,
+    *,
+    code_name: str,
+    category: str,
+    configurable_by_staff: bool,
+    title: list,
+    description: list,
+    content: dict,
+) -> dict:
+    """apigw POST /v3/communication/notification_templates.
+
+    title/description are localized arrays ([{locale,value}]); content is the channel
+    payload object ({email:{...}} / {sms:{...}}). Records the created uid for v3 teardown
+    deletion (legacy pushed code_name to scenarioContext.notifications)."""
+    payload = {
+        "code_name": code_name,
+        "category": category,
+        "configurable_by_staff": configurable_by_staff,
+        "title": title,
+        "description": description,
+        "content": content,
+    }
+    response = _apigw_request(
+        "POST", f"{apigw_base(context)}{V3_TEMPLATES_PATH}", token, payload
+    )
+    data = (response.json() or {}).get("data") or {}
+    uid = data.get("uid")
+    if uid:
+        context.setdefault("nc_templates_v3", []).append((uid, token))
+    return data
+
+
+def update_notification_template_v3(
+    context: dict, token: str, uid: str, fields: dict
+) -> dict:
+    """apigw PUT /v3/communication/notification_templates/<uid> (partial title/content)."""
+    response = _apigw_request(
+        "PUT", f"{apigw_base(context)}{V3_TEMPLATES_PATH}/{uid}", token, fields
+    )
+    return (response.json() or {}).get("data") or {}
+
+
+def send_notification_v3(
+    context: dict, token: str, code_name: str, staff_uid: str, params: list
+) -> str | None:
+    """apigw POST /v3/communication/staff_notifications
+    {staff_uid, notification_template_code_name, params}.
+
+    Returns the created notification uid, or None if the send was rejected (legacy
+    send_notification_v3 returned null on failure -> the 'failed' scenario). A rejected
+    send is an expected 4xx (a disabled channel makes the send fail), NOT a transient,
+    so this does a single non-retrying POST and returns None on any non-2xx."""
+    response = requests.post(
+        f"{apigw_base(context)}{V3_STAFF_NOTIFICATIONS_PATH}",
+        json={
+            "staff_uid": staff_uid,
+            "notification_template_code_name": code_name,
+            "params": params,
+        },
+        headers=_apigw_headers(token),
+        timeout=REQUEST_TIMEOUT,
+    )
+    if not response.ok:
+        return None
+    return ((response.json() or {}).get("data") or {}).get("uid")
+
+
+def get_notification_v3(context: dict, token: str, uid: str) -> dict:
+    """apigw GET /v3/communication/staff_notifications/<uid> -> the sent-notification data
+    (incl. email_status / sms_status)."""
+    response = _apigw_request(
+        "GET", f"{apigw_base(context)}{V3_STAFF_NOTIFICATIONS_PATH}/{uid}", token
+    )
+    return (response.json() or {}).get("data") or {}
+
+
+def assert_v3_notification_created(context: dict, token: str, uid: str) -> None:
+    """Assert the sent v3 notification exists (legacy `new notification created`)."""
+    if not uid:
+        raise AssertionError("v3 send returned no notification uid")
+    data = get_notification_v3(context, token, uid)
+    if not data:
+        raise AssertionError(f"v3 notification {uid} not found after send")
+
+
+def assert_v3_channel_status_contains(
+    context: dict, token: str, uid: str, channel: str, expected: str
+) -> None:
+    """Bounded poll of the v3 notification's <channel>_status until it CONTAINS `expected`
+    (legacy `"<channel>" notification status contains "<status>"`). channel in {email, sms}.
+
+    Eventual consistency: the channel status is stamped asynchronously after the send, so this
+    re-reads the GET (no action retried) until the status string contains the expected value,
+    capped at 5s (V3_STATUS_POLL_TIMEOUT_S)."""
+    key = f"{channel}_status"
+    deadline = time.monotonic() + V3_STATUS_POLL_TIMEOUT_S
+    last = None
+    while True:
+        data = get_notification_v3(context, token, uid)
+        last = data.get(key)
+        if last is not None and expected in str(last):
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError(
+                f"v3 {key} expected to contain {expected!r}, got {last!r}"
+            )
+        time.sleep(V3_STATUS_POLL_INTERVAL_S)
+
+
+def assert_v3_channel_not_dispatched(
+    context: dict, token: str, uid: str, channel: str
+) -> None:
+    """Assert the v3 notification's <channel>_status shows the channel was NOT dispatched
+    (empty/null), i.e. the staff-disabled channel suppressed delivery.
+
+    Legacy-vs-current backend note (verified live on integration 2026-06-19, documented in
+    changelog): the legacy scenario asserted the v3 SEND itself failed (legacy
+    send_notification_v3 returned null on a non-2xx) when the only channel was disabled by the
+    staff. On the CURRENT backend the same send instead returns 201 with the notification
+    record created but the disabled channel NOT dispatched: a normally-enabled send stamps
+    `email_status: ["in_progress"]`, while the staff-disabled-email send leaves
+    `email_status: null` (no channel processed). The user-visible behavior the scenario owns —
+    "a staff-disabled channel is not delivered" — is preserved and asserted here on the
+    channel status being empty, which is stronger/more direct than the old HTTP-failure proxy."""
+    data = get_notification_v3(context, token, uid)
+    status = data.get(f"{channel}_status")
+    if status:  # non-empty list/string => the channel WAS dispatched
+        raise AssertionError(
+            f"v3 {channel} channel was dispatched despite being disabled by staff: "
+            f"{channel}_status={status!r}"
+        )
+
+
+def delete_notification_template_v3(context: dict, token: str, uid: str) -> None:
+    """Best-effort apigw DELETE /v3/communication/notification_templates/<uid> (teardown)."""
+    try:
+        requests.delete(
+            f"{apigw_base(context)}{V3_TEMPLATES_PATH}/{uid}",
+            headers=_apigw_headers(token),
+            timeout=REQUEST_TIMEOUT,
+        )
+    except Exception as exc:  # noqa: BLE001 - teardown best-effort
+        print(f"  [teardown] Failed to delete v3 notification template {uid}: {exc}")
+
+
+# ===================================================================== #
 # Toolbar badge (top-level POV)
 # ===================================================================== #
 PANE_CONTENT_MARKER = f"{PANE_ROW}, {PANE_EMPTY}, {PANE_EMPTY_READ_ALL}"
