@@ -17,10 +17,6 @@ execution:
   delay_between_runs: 60
   screenshot_on_failure: true
   trace_on_failure: true
-exploration:
-  max_steps: 50
-  wait_after_action: 1000
-  screenshot_each_step: true
 healing:
   enabled: true
   max_heal_attempts: 3

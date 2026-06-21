@@ -11,6 +11,31 @@ Before building, verify:
 2. You have access to the Playwright MCP browser tools (navigate, snapshot, click, type, etc.)
 3. You know the target URL (from config.yaml or steps.md)
 
+## Token-Efficient Authoring (read first — keeps LLM cost down)
+
+Authoring and heal are the only LLM-driven phases (replay is pure Playwright). Apply these
+disciplines on every build; they cut token cost without losing scope or quality (VCITA2-14266).
+
+- **Snapshot-first, no-vision MCP loop**: follow `.cursor/rules/snapshot-first-authoring.mdc` —
+  use `browser_snapshot` (not screenshots), snapshot once per page then read the region of
+  interest via `browser_evaluate`/`browser_run_code`, verify with `browser_wait_for`, and pull
+  console/network logs only on demand and filtered.
+- **Model / effort tiering**: live MCP exploration of an unknown flow is the genuinely hard
+  reasoning → run it on the strongest model (Opus). Mechanical phases are cheap → run them on
+  Sonnet/Haiku / low effort:
+  - **Phase 1** (scaffold `steps.md`) — mechanical, no exploration.
+  - **Phase 3** (`test.py` from an **already-verified** `script.md`) — locators are already
+    decided; copy the verified code, don't re-reason it.
+  Reserve Opus for the live exploration loop only.
+- **Grep-don't-read; reuse-don't-re-explore**: pull the single locator/pattern you need via
+  Grep/Explore instead of reading large helper files end-to-end. Before re-exploring a page,
+  check sibling tests (`tests/{team}/{domain}/...`) and `tests/_functions/` for an already-committed
+  locator for that same element — reuse it instead of paying to rediscover it (see project.mdc
+  § Check Similar Tests When Building or Healing).
+- **Author one subcategory at a time**: run `python main.py run --category <domain>/<sub>` for the
+  path you're building, never the whole category. A full-category run re-executes unrelated tests
+  and floods context with irrelevant output.
+
 ## CRITICAL: Use Playwright MCP for Exploration and Debugging
 
 **ALWAYS use the Playwright MCP server for browser exploration**, not the built-in cursor-ide-browser.
@@ -721,7 +746,8 @@ If steps.md contains `Call: function_name`:
 
 If an action fails during exploration:
 
-1. **Take a screenshot** to capture the current state
+1. **Take a `browser_snapshot`** to capture the current state (not a screenshot — see
+   `.cursor/rules/snapshot-first-authoring.mdc`; screenshot only if the a11y tree is empty)
 2. **Re-examine the page** - maybe the element has a different selector
 3. **Try alternative approaches** - different selector, different action
 4. **If stuck**, document what you tried and ask for help

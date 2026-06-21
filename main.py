@@ -294,13 +294,6 @@ def cmd_run(args):
         sys.exit(1)
 
 
-def cmd_explore(args):
-    """Explore and generate test."""
-    console.print(f"[bold blue]Exploring: {args.test_path}[/bold blue]")
-    # TODO: Implement exploration
-    console.print("[yellow]Exploration not yet implemented[/yellow]")
-
-
 def cmd_init(args):
     """Initialize a new test."""
     config = load_config()
@@ -818,13 +811,6 @@ def main():
         help="Skip per-category account creation; use the hardcoded account from config.yaml instead."
     )
     
-    # Explore command - explore and generate tests
-    explore_parser = subparsers.add_parser("explore", help="Explore and generate test from steps.md")
-    explore_parser.add_argument(
-        "test_path",
-        help="Path to test folder (e.g., tests/booking/book_consultation)"
-    )
-    
     # List command - list all tests or functions
     list_parser = subparsers.add_parser("list", help="List all tests or functions")
     list_parser.add_argument(
@@ -954,7 +940,6 @@ def main():
     
     commands = {
         "run": cmd_run,
-        "explore": cmd_explore,
         "list": cmd_list,
         "status": cmd_status,
         "health": cmd_health,

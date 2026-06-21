@@ -1,0 +1,53 @@
+---
+description: Snapshot-first, no-vision discipline for Playwright MCP authoring & debugging (keeps token cost down)
+alwaysApply: true
+---
+
+# Snapshot-First, No-Vision MCP Authoring
+
+This rule governs how you drive the Playwright MCP browser while **authoring** and
+**debugging** tests (Phase 2 exploration, heal investigation). Replay (`python main.py run`)
+is already LLM-free — this is purely about the live MCP loop, where almost all token cost lives.
+
+The MCP server runs with `--caps=core` (no-vision; see `.cursor/mcp.json`). The accessibility
+tree exposes `ref=` ids and text content; selection is `data-qa` → semantic (`get_by_role`,
+labeled fields) → text/CSS, **never screenshot coordinates**.
+
+## 1. Snapshot, don't screenshot
+
+- **Use `browser_snapshot`** to see page state. It returns the a11y tree with `ref=` ids and
+  text — everything needed to choose and verify locators.
+- **`browser_take_screenshot` is the exception, not the routine.** Use it only when:
+  - the a11y tree is genuinely empty (real canvas/WebGL page) — and there, enable
+    `--caps=vision` for that session only (never commit it), or
+  - you need to attach **one** failure frame for a human to look at.
+- Never take a screenshot "to be sure" after an action you can verify from text/state.
+
+## 2. Scope every snapshot — read the region, not the page (highest-impact rule)
+
+A full-page snapshot is expensive and accumulates in context across a test. Minimize it:
+
+- **Snapshot once per page for orientation.** Once you know the layout, stop re-snapshotting
+  the whole page.
+- **Read only the region of interest** with `browser_evaluate` / `browser_run_code` — query the
+  specific container, list, dialog, or field you care about instead of dumping the whole tree.
+- **Verify post-action state with `browser_wait_for`** (a specific text or selector appearing /
+  disappearing), **not** by re-snapshotting the entire page. "Did the row disappear?" →
+  `browser_wait_for` on its absence, not a fresh full snapshot to eyeball.
+- After a navigation or a flow that genuinely changed the whole page, a fresh orientation
+  snapshot is fine — just don't re-snapshot the full page to confirm a single local change.
+
+## 3. Console & network logs — on demand and filtered only
+
+- `browser_console_messages` and `browser_network_requests` are **diagnostic, not routine.**
+  Do not pull them after every step.
+- Fetch them only when you have a specific question (a suspected JS error, a request that
+  should/shouldn't have fired), and **filter** to the relevant entries — never dump the full
+  log into context.
+
+## Why
+
+Every full snapshot, screenshot, and unfiltered log lands in the model context and is re-sent
+on each subsequent turn of the same test. Scoping reads to the region of interest and verifying
+with `browser_wait_for` is the single biggest lever on authoring/heal token cost — see
+VCITA2-14266. Cross-referenced from `build.mdc` (§ Token-Efficient Authoring) and `heal.mdc`.
