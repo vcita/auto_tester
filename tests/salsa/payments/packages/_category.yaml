@@ -1,0 +1,100 @@
+name: Packages (Back Office)
+team: salsa
+description: Back-office package management migrated from automation-js features/salsa/packages.feature
+  (9 scenarios). Create/edit/reorder packages in Settings/Packages, assign a package
+  to a client via the client card, and manage the client-package payment request (exclude/include
+  tax totals, invoice, partial pay + edit, POS sale, cancel/waive), plus package credit-quota
+  and usage-history reads. Distinct from cp_packages (client-portal purchase/redeem).
+account_profile:
+  type: isolated
+  slug: packages_bo
+  cleanup: always
+execution_order:
+- create_assign_exclude
+- create_assign_include
+- create_edit_reorder
+- invoice_package
+- pay_edit_refund
+- pay_via_pos
+- cancel_request
+- redeem_quota
+- usage_history
+tests:
+- id: create_assign_exclude
+  name: Create + assign taxed package, DUE total in exclude mode + CP conversation
+  status: active
+  priority: high
+  description: Create package (service, 2cr, $150, tax TS 13%) in Settings/Packages
+    via UI, assign to client via the client card (taxes TS + TS 2). Assert client-package
+    request DUE $189.20 ($150.00 + Tax) and the CP conversation includes the package-added
+    message.
+- id: create_assign_include
+  name: Create + assign taxed package, DUE total in include mode
+  status: active
+  priority: high
+  description: With account tax_mode=include, create + assign the taxed package via
+    UI and assert the client-package request is DUE $150.00 (tax folded into the price).
+- id: create_edit_reorder
+  name: Create, edit and reorder packages with product add-ons
+  status: active
+  priority: high
+  description: Create package_1 (service, 2cr, $150, product x2) and package_2 (r2p_event,
+    3cr, $250, product x3) via UI; assert list [package_1, package_2]; edit package_1
+    -> rename package_3 + disable add-ons; assert list [package_3, package_2]; reorder
+    via API; assert list [package_2, package_3].
+- id: invoice_package
+  name: Pay an invoiced single-service package
+  status: active
+  priority: high
+  description: Create + assign single1 (service, 2cr, $150) via UI, invoice the package's
+    purchase order (single1_invoice), pay the invoice ($150); assert client-package
+    PAID $150.00 and "Payment for single1_invoice
+- id: pay_edit_refund
+  name: Pay, edit and complete an any-service package request
+  status: active
+  priority: high
+  description: With point_of_sale denied, create + assign bundle1 (any service, 5cr,
+    $150); pay $10 -> DUE $140.00 (out of $150.00); edit request to $50 -> DUE $40.00
+    (out of $50.00); pay $40 -> PAID $50.00; assert two "Payment for bundle1 - Package
+    purchased".
+- id: pay_via_pos
+  name: Pay an any-service package via POS
+  status: active
+  priority: high
+  description: Create + assign bundle1 (any service, 5cr, $150); pay via Point of
+    Sale -> PAID $150.00; assert "Payment for Sale
+- id: cancel_request
+  name: Cancel (waive) a package payment request
+  status: active
+  priority: high
+  description: Create + assign package (r2p_event, 2cr, $150) via API; cancel/waive
+    the client-package payment request via UI; assert CANCELLED $150.00.
+- id: redeem_quota
+  name: Package credit quota on redeem / refund
+  status: active
+  priority: high
+  description: Create + assign all-services package (2cr, $150, valid from yesterday)
+    via UI; schedule+complete meeting1 -> quota 1; cancel package redemption -> quota
+    2; schedule meeting2 redeemed-with-package, complete, cancel appointment with
+    refund -> quota 2.
+- id: usage_history
+  name: View package usage history and open the meeting
+  status: active
+  priority: high
+  description: Create + assign package (service, 2cr, $150) via API; schedule+complete
+    meeting1 -> quota 1; open the client-package usage-history dialog (lists service);
+    click the usage item -> meeting page opens (service, COMPLETED).
+status: active
+priority: high
+tags:
+- payments
+- packages
+- back-office
+- migration
+owner: QA Team
+created_at: 2026-06-19
+stability:
+  status: stable
+  last_stress_test: '2026-06-20'
+  pass_rate: 100.0%
+  iterations: 10
