@@ -22,6 +22,7 @@ execution_order:
   - crm_selection_logic
   - crm_views
   - crm_tabs_management
+  - crm_mobile
   - matters_management
   - matter_deletion
   - delete_matter
