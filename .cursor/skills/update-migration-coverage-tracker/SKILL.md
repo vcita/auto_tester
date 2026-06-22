@@ -156,7 +156,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
 ## Update Workflow
 
 1. Confirm the `tools/migration_tracker/README.md` env vars are set.
-2. Compute the current totals with the Counting Rules above.
+2. Compute the current totals with the Counting Rules above. **The `--ff-total`/`--sc-total` numbers in the example below are illustrative and go stale** — read the live Confluence page's current Summary first (or recompute via the Counting Rules) and pass the **live** totals (as of this writing the live page is `136` feature files / `362` scenarios, not the older `113`/`279`). Passing stale totals with `--refresh-confluence` rewrites the progress bars to the wrong denominator.
 3. Upsert the row and refresh Confluence in one call (matched by `--feature`; updates if present, appends otherwise). Pass the Summary metrics you computed; any Summary row you omit is left unchanged:
 
    ```bash
@@ -171,7 +171,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
      --pr-label "PR #<n>" --pr-url <pr url> \
      --latest-branch "<branch> — PR #<n>" \
      --refresh-confluence \
-     --ff-migrated <n> --ff-total 113 --sc-migrated <n> --sc-total 279 \
+     --ff-migrated <n> --ff-total 136 --sc-migrated <n> --sc-total 362 \   # use the LIVE totals (step 2), not these literals
      --tracked-ff <n> --tracked-sc <n> --validated-scopes <n>
    ```
 
@@ -201,6 +201,24 @@ For a partial feature-file migration, keep the feature path and name the migrate
 
 Only record an improvement when the migrated scope still covers every original assertion, setup path, and in-scope UI action. If runtime dropped because coverage, selectors, or in-scope actions were reduced, do not present it as an improvement — note the scope/quality change instead.
 
+## Sync the Jira ticket (status + retrospective comment)
+
+Every tracker status change must be mirrored on the row's `VCITA2` Jira ticket (via the
+`manage-jira-issues` skill). Transition the ticket to the matching status:
+
+- `In progress` / `Needs stabilization` → **In Progress** (transition id `11`)
+- `In review` → **In Review** (id `31`)
+- `Merged` → **Done** (id `51`)
+- `Blocked` → **Blocked** (id `41`)
+
+**When the row moves to `In review`, also post a migration-retrospective comment** on the ticket
+(`addCommentToJiraIssue`, `contentFormat: markdown`) covering *what went well and what was hard*:
+scenario→subtest mapping + scope/zero-loss note, helper reuse, and especially **stabilization
+challenges with their root cause and fix** (flaky selectors, cold-load/skeleton races, async
+propagation, overlay/wizard interference, backend/UI behaviour changes, mechanism/scope
+deviations), plus the final stress result and how many runs it took. Keep it tight and use **flat
+bullets** — nested/ordered lists do not survive the markdown→ADF conversion (they render empty).
+
 ## After Updating
 
 Report:
@@ -208,4 +226,5 @@ Report:
 - The Sheet URL and the new Confluence page version.
 - The progress totals after the update.
 - The row that was added or changed.
+- The Jira transition applied (and, at `In review`, that the retrospective comment was posted).
 - Any missing data left as `TBD`.

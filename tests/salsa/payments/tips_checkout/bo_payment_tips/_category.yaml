@@ -1,0 +1,15 @@
+name: BO Payment With Tips
+account_profile:
+  type: isolated
+  slug: tips_bo
+  cleanup: always
+tests:
+  - id: take_with_tips
+    name: Close balance and record custom payment, both with tips (BO)
+    status: active
+    priority: high
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

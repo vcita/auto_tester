@@ -8,6 +8,7 @@ The coverage tracker (Google Sheet + Confluence page `4690444289`) must reflect 
 
 **Skills/commands to follow:**
 - **Migration rules and DoD:** `migrate-automation-js-feature` skill (read its SKILL.md)
+- **Subagent-per-test isolation & context management:** `.cursor/rules/subagent-test-isolation.mdc`
 - **Coverage tracker:** `update-migration-coverage-tracker` skill
 - **Jira ticket creation/assignment:** `manage-jira-issues` skill
 - **Code review:** `/codeReview` command (runs the `code-review-checklist` skill)
@@ -92,6 +93,7 @@ Follow the `migrate-automation-js-feature` skill end to end:
 - Read the full legacy chain (feature, steps, page objects, API helpers) before writing code.
 - Create `migration_mapping.md` (local, not committed) before `test.py`.
 - Implement in strict phase order: `steps.md` → `script.md` → `test.py` → `changelog.md`; register in `_category.yaml`.
+- **Isolate each migrated test's authoring in a subagent** (`subagent-test-isolation.mdc`): per test, `test-scaffolder` (sonnet) → `steps.md`, `test-explorer` (opus) → `script.md` (heavy MCP stays inside it), `test-codegen` (sonnet) → `test.py`. The orchestrator keeps the mapping, tracker state, and run/heal loop. When a candidate spans multiple scenarios/tests, **`/clear` between independent tests** — all durable state (mapping, phase files, `_category.yaml`) is on disk.
 - Honor the **hard gate**: 3 clean focused runs, then re-verify scope and quality against the legacy test before any stress test.
 
 **Tracker:** when implementation starts (phase docs / `test.py` being written), upsert the same row to **`In progress`** (re-pass the known columns). Once the test is runnable but the focused/stress runs are not yet green, move it to **`Needs stabilization`**. Still no progress-counter increment at either status.
@@ -122,7 +124,13 @@ Run `/stress_test categories: <category/subcategory> iterations: <iterations>` (
 
 - Run both the original `automation-js` scope and the migrated `auto_tester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
 - Once the stability gate has passed and the PR is open, update the tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to **`In review`** (PR open, not merged) — never `Merged` at this stage. This is the first status that **counts toward progress**, so this is where you increment `--ff-migrated` / `--sc-migrated` (full scenario set only) and refresh the Summary/`--tracked-*`/`--latest-*` rows.
-- **After the PR merges to `master`**, run the same upsert again for that `--feature` with `--status "Merged"` (re-pass every column). This is the only time a row should read `Merged`. Update **both** the Sheet and Confluence: pass `--refresh-confluence` and re-pass the current ff/sc totals (`--ff-*`/`--sc-*`) plus `--tracked-*`/`--validated-scopes`/`--latest-branch`, so the page reflects the merge and its "Latest" rows stay current without zeroing the bars (per the `update-migration-coverage-tracker` skill).
+- **Sync the Jira ticket to the tracker status, and post a migration retrospective comment.** Whenever you advance the tracker row, transition the matching `VCITA2` ticket to the corresponding status via the `manage-jira-issues` skill (`transitionJiraIssue`): `In progress`/`Needs stabilization` → **In Progress** (transition id `11`), `In review` → **In Review** (id `31`), `Merged` → **Done** (id `51`), `Blocked` → **Blocked** (id `41`). **When you move the ticket to `In review`, also add a comment** (`addCommentToJiraIssue`, `contentFormat: markdown`) — a short **migration retrospective** of *what went well and what was hard*:
+  - scenario→subtest mapping / scope notes (confirm zero scope loss) and helper reuse;
+  - **stabilization challenges with their root cause and fix** — flaky selectors, cold-load/skeleton races, async propagation/eventual-consistency, onboarding-wizard/overlay interference, backend or UI behaviour changes vs legacy, and any mechanism/scope deviations (with the why);
+  - the final stress result (e.g. `10/10 on <date>`) and how many runs/iterations it took to stabilize.
+
+  Keep it tight and use **flat bullet lists** — nested/ordered lists do not survive the markdown→ADF conversion (they render as empty bullets). This makes each ticket a durable record for reviewers and a knowledge base for future migrations (especially the hard ones).
+- **After the PR merges to `master`**, run the same upsert again for that `--feature` with `--status "Merged"` (re-pass every column). This is the only time a row should read `Merged`. Update **both** the Sheet and Confluence: pass `--refresh-confluence` and re-pass the current ff/sc totals (`--ff-*`/`--sc-*`) plus `--tracked-*`/`--validated-scopes`/`--latest-branch`, so the page reflects the merge and its "Latest" rows stay current without zeroing the bars (per the `update-migration-coverage-tracker` skill). Then transition the Jira ticket to **Done** (id `51`).
 
 ---
 
@@ -135,5 +143,6 @@ All of the `migrate-automation-js-feature` DoD checks pass **and**:
 - Stress test stable at `iterations` runs on `env`.
 - Coverage tracker kept live across the run — the row advanced through `Proposed` → `In progress` → `Needs stabilization` → `In review` as the work actually progressed (using `Blocked` if it ever stalled), never skipping ahead of the real state.
 - Coverage tracker updated with measured results, with the row `Status` set to `In review` (PR open); flipped to `Merged` only after the PR merges.
+- Jira ticket transitioned to match the tracker status (**In Review** at PR-open, **Done** at merge), **and** a *migration retrospective* comment (what went well / what was hard, with stabilization root causes + fixes) posted on the ticket when it moved to `In review`.
 
 Do not commit or push without explicit approval (per repo rules). Keep `migration_mapping.md`, `plan.md`, and `_health.json` churn out of any commit.

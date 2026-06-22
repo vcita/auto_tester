@@ -25,6 +25,13 @@ from .storage import RunStorage
 from . import account_factory, env_config
 from .browser_config import get_browser_viewport, get_browser_window_size_arg
 
+# Isolated-account creation can hit a genuinely transient 403 when the
+# environment rate-limits new-business creation. Retry at a steady interval for
+# a bounded budget to ride out a brief throttle. (Permanent 403s that carry
+# field validation errors fail fast in account_factory and never reach here.)
+FORBIDDEN_RETRY_BUDGET_SECONDS = 180
+FORBIDDEN_RETRY_INTERVAL_SECONDS = 30
+
 # For --debug-test: pause after each minor action (human-in-the-loop debugging)
 def _get_step_callback_for_debug():
     from tests.debug_utils import step_callback_with_enter
@@ -135,7 +142,7 @@ class TestRunner:
         tests_root: Path,
         headless: bool = False,
         snapshots_dir: Optional[Path] = None,
-        record_video: bool = True,
+        record_video: bool = False,
         keep_open: bool = False,
         until_test: Optional[str] = None,
         debug_test: Optional[str] = None,
@@ -160,7 +167,7 @@ class TestRunner:
         self.tests_root = Path(tests_root)
         self.headless = headless
         self.snapshots_dir = snapshots_dir or Path("snapshots")
-        self.record_video = record_video
+        self.record_video = record_video  # off by default; enable with --video
         self.keep_open = keep_open
         self.until_test = until_test
         self.debug_test = debug_test
@@ -198,6 +205,26 @@ class TestRunner:
         """
         return self.discovery.scan()
     
+    def resolve_team_selection(self, team: str) -> List[str]:
+        """Return the account-boundary category paths owned by a team.
+
+        Used by `run --team <team>` to run every domain a team owns, each with
+        its own fresh account (per-domain isolation preserved).
+        """
+        return self.discovery.get_team_category_paths(team)
+
+    @staticmethod
+    def _strip_leading_team_group(chain: Optional[List[Category]]) -> Optional[List[Category]]:
+        """Drop a leading team-group from a resolved chain.
+
+        Team folders are organizational only and never own an account, so the
+        account boundary is the first non-team segment (the domain). Stripping
+        the team group makes chain[0] the domain, which owns the account/setup.
+        """
+        if chain and len(chain) >= 2 and chain[0].is_team_group:
+            return chain[1:]
+        return chain
+
     def get_category(self, category_name: str) -> Optional[Category]:
         """
         Get a specific category by name.
@@ -268,7 +295,7 @@ class TestRunner:
             total_tests = 0
             category_chains: List[Optional[List[Category]]] = []
             for path in selection:
-                chain = self._resolve_category_path(path)
+                chain = self._strip_leading_team_group(self._resolve_category_path(path))
                 category_chains.append(chain)
                 if chain:
                     total_tests += len(chain[-1].tests) if chain[-1].tests else 0
@@ -296,7 +323,7 @@ class TestRunner:
                     ))
                     continue
                 category = chain[0]
-                path_for_display = "/".join((c.path.name for c in chain if c.path))
+                path_for_display = chain[-1].path.as_posix() if chain[-1].path else chain[-1].name
                 category_result = self._run_category_internal(
                     category,
                     index + 1,
@@ -307,20 +334,25 @@ class TestRunner:
                     category_result.category_name = path_for_display
                 result.category_results.append(category_result)
         else:
-            # Run all top-level categories (original behavior)
-            total_tests = sum(len(c.tests) for c in categories)
+            # Run all account boundaries (domains). Team folders are
+            # organizational only, so their per-domain children are the
+            # account/run units; legacy top-level domains run as themselves.
+            boundaries = self.discovery.get_account_boundaries()
+            total_tests = sum(len(c.tests) for c in boundaries)
             self.events.emit(RunnerEvent.RUN_STARTED, {
-                "categories": [c.name for c in categories],
-                "total_categories": len(categories),
+                "categories": [c.path.as_posix() if c.path else c.name for c in boundaries],
+                "total_categories": len(boundaries),
                 "total_tests": total_tests,
                 "run_id": run_id,
             })
-            for index, category in enumerate(categories):
+            for index, category in enumerate(boundaries):
                 category_result = self._run_category_internal(
                     category,
                     index + 1,
-                    len(categories),
+                    len(boundaries),
                 )
+                if category.path and category_result:
+                    category_result.category_name = category.path.as_posix()
                 result.category_results.append(category_result)
         
         result.completed_at = datetime.now()
@@ -356,7 +388,7 @@ class TestRunner:
         # Support path: xxx/yyy/zzz -> run setup of xxx, then setup of yyy, then setup and tests of zzz
         category_chain: Optional[List[Category]] = None
         if "/" in category_name:
-            category_chain = self._resolve_category_path(category_name)
+            category_chain = self._strip_leading_team_group(self._resolve_category_path(category_name))
             if not category_chain:
                 return CategoryResult(
                     category_name=category_name,
@@ -373,7 +405,7 @@ class TestRunner:
                 )
             category = category_chain[0]
             total_tests = len(category_chain[-1].tests)
-            path_for_display = "/".join((c.path.name for c in category_chain if c.path))
+            path_for_display = category_chain[-1].path.as_posix() if category_chain[-1].path else category_chain[-1].name
             subcategory_name = None  # path overrides --subcategory
         else:
             category = self.get_category(category_name)
@@ -467,8 +499,14 @@ class TestRunner:
             category_name=category.name,
             category_path=category.path,
         )
+        # Storage key: full relative path (e.g. "tempo/scheduling") so run
+        # history lands under the team-nested folder, not a stray top-level dir.
+        category_key = category.path.as_posix() if category.path else category.name
         # Track subcategory run dirs we save to (so we can copy parent video there)
         self._saved_subcategory_paths = []
+        # Reset per-boundary: set when restoring the parent session after an
+        # isolated subcategory fails, so the boundary stops instead of crashing.
+        self._parent_session_restore_failed = False
 
         # Emit category started
         self.events.emit(RunnerEvent.CATEGORY_STARTED, {
@@ -547,37 +585,35 @@ class TestRunner:
                 ]
             )
                 
-            # Create context with realistic settings
-            # Video recording is enabled by default for debugging
-            # Videos are recorded to a temp location and moved to run storage after completion
+            # Create context with realistic settings.
+            # Videos are recorded to a temp location and moved to run storage after completion.
+            # Video recording is opt-in (--video flag); off by default to save disk/CPU.
+            bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
+            custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
+            viewport = get_browser_viewport(self.config)
+
             video_dir = None
             if self.record_video:
                 video_dir = Path.cwd() / ".temp_videos"
                 video_dir.mkdir(parents=True, exist_ok=True)
-                
-                # Custom user agent with bypass string to avoid captcha
-                # The bypass string is specific to vcita's captcha allowlist
-                bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
-                custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
-                
-                viewport = get_browser_viewport(self.config)
-                browser_context = browser.new_context(
-                    no_viewport=True,
-                    locale='en-US',
-                    timezone_id='America/New_York',
-                    user_agent=custom_user_agent,
-                    record_video_dir=str(video_dir) if video_dir else None,
-                    record_video_size=viewport,
-                )
-                
-                # Minimal stealth - just hide webdriver flag
-                browser_context.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                """)
-                
-                page = browser_context.new_page()
+
+            browser_context = browser.new_context(
+                no_viewport=True,
+                locale='en-US',
+                timezone_id='America/New_York',
+                user_agent=custom_user_agent,
+                record_video_dir=str(video_dir) if video_dir else None,
+                record_video_size=viewport if video_dir else None,
+            )
+
+            # Minimal stealth - just hide webdriver flag
+            browser_context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
+
+            page = browser_context.new_page()
             
             # Track video start time for timestamp logging
             import time as time_module
@@ -598,7 +634,7 @@ class TestRunner:
                         context=context,
                         index=0,
                         total=len(category.tests),
-                        category_name=category.name,
+                        category_name=category_key,
                     )
                     test_end_offset = time_module.time() - video_start_time
                     video_timestamps.append(("_setup", test_start_offset, test_end_offset, setup_result.status))
@@ -630,7 +666,7 @@ class TestRunner:
                     for i in range(1, len(category_chain)):
                         parent_cat = category_chain[i - 1]
                         subcat = category_chain[i]
-                        path_str = "/".join((c.path.name for c in category_chain[: i + 1] if c.path))
+                        path_str = subcat.path.as_posix() if subcat.path else subcat.name
                         if skip_parent_setups:
                             continue
                         if self._requires_isolated_account(subcat):
@@ -778,7 +814,7 @@ class TestRunner:
                                     context=context,
                                     index=index + 1,
                                     total=total_items,
-                                    category_name=category.name,
+                                    category_name=category_key,
                                 )
                                 test_end_offset = time_module.time() - video_start_time
                                 video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
@@ -803,7 +839,7 @@ class TestRunner:
                                 context=context,
                                 index=index + 1,
                                 total=total_items,
-                                category_name=category.name,
+                                category_name=category_key,
                             )
                             test_end_offset = time_module.time() - video_start_time
                             video_timestamps.append((test.name, test_start_offset, test_end_offset, test_result.status))
@@ -829,8 +865,27 @@ class TestRunner:
                                 debug_test=debug_test,
                             )
                             if subcat_failed:
+                                # An isolated subcategory ran in its own throwaway account,
+                                # so its failure cannot corrupt the shared boundary state.
+                                # Record it but keep running the remaining siblings instead
+                                # of cascading skips across the whole boundary.
+                                if self._requires_isolated_account(subcategory):
+                                    result.stopped_early = True
+                                    # If restoring the parent session failed, the shared
+                                    # page is unusable for siblings -- stop this boundary
+                                    # cleanly rather than running them on a dead session.
+                                    if getattr(self, "_parent_session_restore_failed", False):
+                                        self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
+                                        break
+                                    continue
                                 result.stopped_early = True
                                 self._skip_remaining_items(execution_plan[index + 1:], result, failed_test_name)
+                                break
+                            # Even when the isolated subcategory passed, a failed parent
+                            # session restore leaves the shared page unusable for siblings.
+                            if getattr(self, "_parent_session_restore_failed", False):
+                                result.stopped_early = True
+                                self._skip_remaining_items(execution_plan[index + 1:], result, subcategory.name)
                                 break
 
                     # Run teardown if exists (always, even on failure, unless until_test or debug_test was reached)
@@ -853,7 +908,7 @@ class TestRunner:
                         "title": page.title(),
                         "context": {k: ("***" if k == "password" else v) for k, v in context.items()},
                     }
-                    run_dir = self.storage.get_current_run_dir(category.name)
+                    run_dir = self.storage.get_current_run_dir(category_key)
                     run_dir.mkdir(parents=True, exist_ok=True)
                     context_path = run_dir / "until_test_context.json"
                     with open(context_path, "w", encoding="utf-8") as f:
@@ -934,14 +989,14 @@ class TestRunner:
         try:
             # Save category result to storage (will move video to _runs folder)
             self.storage.save_category_result(
-                category=category.name,
+                category=category_key,
                 result=result,
                 video_path=final_video_path,
             )
 
             # Copy parent video into each subcategory run dir so video is visible there too
             if final_video_path is not None and getattr(self, "_saved_subcategory_paths", None):
-                parent_video = self.storage.get_current_run_dir(category.name) / "video.webm"
+                parent_video = self.storage.get_current_run_dir(category_key) / "video.webm"
                 if parent_video.exists():
                     for subcat_path in self._saved_subcategory_paths:
                         subcat_run_dir = self.storage.get_current_run_dir(subcat_path)
@@ -997,7 +1052,7 @@ class TestRunner:
                 context=context,
                 index=0,
                 total=0,
-                category_name=category.name,
+                category_name=category.path.as_posix() if category.path else category.name,
             )
             result.teardown_result = teardown_result
 
@@ -1016,7 +1071,7 @@ class TestRunner:
         for cat in reversed(category_chain):
             if not (cat.teardown and cat.teardown.is_valid):
                 continue
-            path_str = cat.path.name if cat.path else cat.name
+            path_str = cat.path.as_posix() if cat.path else cat.name
             test_name = f"{cat.name}/_teardown" if cat != category_chain[0] else "_teardown"
             test_start_offset = time_module.time() - video_start_time
             teardown_result = self._run_single_test(
@@ -1224,10 +1279,29 @@ class TestRunner:
                 restore_parent_session=restore_parent_session,
             )
 
+        # Grouping subcategory: a container that owns no tests of its own, only
+        # nested child subcategories (each typically isolated with its own account).
+        # The boundary loop only reaches a boundary's direct children, so without
+        # this recursion a pure group's nested children never run in a full suite.
+        if subcategory.subcategories and not subcategory.tests:
+            return self._run_group_subcategory_inline(
+                group=subcategory,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=parent_category,
+                until_test=until_test,
+                debug_test=debug_test,
+                skip_setup=skip_setup,
+            )
+
         print(f"\n    >>> Subcategory: {subcategory.name}")
         
-        # Build category path: parent/subcategory (e.g., "scheduling/appointments")
-        category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+        # Build category path: full relative path (e.g., "tempo/scheduling/appointments")
+        category_path = subcategory.path.as_posix() if subcategory.path else f"{parent_category.name}/{subcategory.name}"
         
         # Run subcategory setup if exists (unless skip_setup, e.g. path mode already ran it)
         if not skip_setup and subcategory.setup and subcategory.setup.is_valid:
@@ -1371,9 +1445,145 @@ class TestRunner:
         
         # Extract subcategory results and save them separately
         self._save_subcategory_result(subcategory, parent_category, result, category_path)
-        
+
+        # Mixed node: this subcategory owns both direct tests (run above) and nested
+        # subcategories. Without recursing here those nested children never run, since
+        # the boundary loop only reaches the boundary's direct children.
+        if subcategory.subcategories:
+            child_failed, child_failed_name = self._run_child_subcategories(
+                parent=subcategory,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                until_test=until_test,
+                debug_test=debug_test,
+            )
+            print(f"    <<< Subcategory: {subcategory.name} completed")
+            return child_failed, child_failed_name
+
         print(f"    <<< Subcategory: {subcategory.name} completed")
         return False, None
+
+    def _run_group_subcategory_inline(
+        self,
+        group: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+        parent_category: Category,
+        until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
+        skip_setup: bool = False,
+    ) -> tuple[bool, str]:
+        """Run a grouping subcategory: a container whose children are nested
+        subcategories (each usually isolated with its own account).
+
+        The boundary-level loop only reaches a boundary's *direct* children, so a pure
+        group's nested children would otherwise never run in a full suite. This mirrors
+        that loop, including the isolated-failure (non-cascade) semantics: an isolated
+        child fails inside its own throwaway account, so siblings keep running.
+
+        Returns ``(hard_failed, first_failed_name)`` where ``hard_failed`` is True only
+        for a non-contained failure (a non-isolated child failed, or the shared parent
+        session could not be restored) that should stop the surrounding boundary.
+        """
+        print(f"\n    >>> Group: {group.name} ({len(group.subcategories)} nested subcategories)")
+
+        # A pure group rarely has its own _setup, but honor it if present.
+        if not skip_setup and group.setup and group.setup.is_valid:
+            category_path = group.path.as_posix() if group.path else f"{parent_category.name}/{group.name}"
+            setup_result = self._run_single_test(
+                test_path=self.tests_root / group.path / "_setup",
+                test_name=f"{group.name}/_setup",
+                test_type="setup",
+                page=page,
+                context=context,
+                index=0,
+                total=0,
+                category_name=category_path,
+            )
+            result.test_results.append(setup_result)
+            if setup_result.status == "failed":
+                result.stopped_early = True
+                return True, f"{group.name}/_setup"
+
+        hard_failed, first_failed_name = self._run_child_subcategories(
+            parent=group,
+            page=page,
+            context=context,
+            result=result,
+            video_timestamps=video_timestamps,
+            video_start_time=video_start_time,
+            time_module=time_module,
+            until_test=until_test,
+            debug_test=debug_test,
+        )
+
+        print(f"    <<< Group: {group.name} completed")
+        return hard_failed, first_failed_name
+
+    def _run_child_subcategories(
+        self,
+        parent: Category,
+        page,
+        context: dict,
+        result: CategoryResult,
+        video_timestamps: list,
+        video_start_time: float,
+        time_module,
+        until_test: Optional[str] = None,
+        debug_test: Optional[str] = None,
+    ) -> tuple[bool, Optional[str]]:
+        """Run every nested subcategory of ``parent`` (skipping its own direct tests),
+        applying the isolated-failure (non-cascade) semantics: an isolated child fails
+        inside its own throwaway account, so siblings keep running; a non-isolated child
+        failing (or a dead shared session) cascades and stops the surrounding boundary.
+
+        Shared by pure groups and mixed nodes (a subcategory that owns both tests and
+        nested subcategories) so neither silently skips its nested children.
+        """
+        hard_failed = False
+        first_failed_name: Optional[str] = None
+        for item in build_execution_plan(parent):
+            if not isinstance(item, Category):
+                # Direct tests (if any) were already run by the caller.
+                continue
+            subcat_failed, failed_test_name = self._run_subcategory_inline(
+                subcategory=item,
+                page=page,
+                context=context,
+                result=result,
+                video_timestamps=video_timestamps,
+                video_start_time=video_start_time,
+                time_module=time_module,
+                parent_category=parent,
+                until_test=until_test,
+                debug_test=debug_test,
+            )
+            if getattr(result, "until_test_reached", False) or getattr(result, "debug_test_reached", False):
+                return subcat_failed, failed_test_name
+            if subcat_failed:
+                result.stopped_early = True
+                first_failed_name = first_failed_name or failed_test_name
+                if self._requires_isolated_account(item):
+                    # Contained failure: only stop if the shared session is now dead.
+                    if getattr(self, "_parent_session_restore_failed", False):
+                        hard_failed = True
+                        break
+                    continue
+                # A non-isolated child failing is a genuine cascade within the group.
+                hard_failed = True
+                break
+            if getattr(self, "_parent_session_restore_failed", False):
+                hard_failed = True
+                break
+        return hard_failed, first_failed_name
 
     def _requires_isolated_account(self, category: Category) -> bool:
         profile = getattr(category, "account_profile", None) or {}
@@ -1508,18 +1718,38 @@ class TestRunner:
             if restore_parent_session and not getattr(result, "until_test_reached", False) and not getattr(result, "debug_test_reached", False):
                 self._restore_parent_session(page, context)
 
-    def _restore_parent_session(self, page, context: dict) -> None:
+    def _restore_parent_session(self, page, context: dict) -> bool:
+        """Re-log into the parent boundary account after an isolated subcategory.
+
+        Runs in a ``finally`` block, so it must never raise: a transient
+        navigation timeout here previously crashed the entire run. Retry once,
+        and on persistent failure log it and return False so the caller can stop
+        the boundary cleanly instead of aborting every remaining boundary.
+        """
         username = context.get("username")
         password = context.get("password")
         base_url = context.get("base_url") or self.app_base_url
         if not (username and password and base_url):
-            return
-
-        self._clear_browser_session(page)
+            return True
 
         from tests._functions.login.test import fn_login
 
-        fn_login(page, context, username=username, password=password, base_url=base_url)
+        last_error = None
+        for attempt in range(2):
+            try:
+                self._clear_browser_session(page)
+                fn_login(page, context, username=username, password=password, base_url=base_url)
+                return True
+            except Exception as exc:  # noqa: BLE001 - must not propagate from finally
+                last_error = exc
+
+        print(
+            f"  [auto-account] Failed to restore parent session after isolated "
+            f"subcategory: {last_error}",
+            flush=True,
+        )
+        self._parent_session_restore_failed = True
+        return False
 
     def _clear_browser_session(self, page) -> None:
         try:
@@ -1584,8 +1814,9 @@ class TestRunner:
             raise
 
     def _create_account_attempts(self, category_name, package_subscription_id, operator_pkg) -> dict:
+        deadline = time.monotonic() + FORBIDDEN_RETRY_BUDGET_SECONDS
         last_error = None
-        for attempt in range(4):
+        while True:
             try:
                 account = account_factory.create_account(
                     self.api_base_url,
@@ -1600,16 +1831,16 @@ class TestRunner:
                 return account
             except account_factory.AccountCreationError as exc:
                 last_error = exc
-                if "transient forbidden" not in str(exc).lower() or attempt == 3:
+                remaining = deadline - time.monotonic()
+                if "transient forbidden" not in str(exc).lower() or remaining <= 0:
                     raise
-                wait_seconds = 15 * (attempt + 1)
+                wait_seconds = min(FORBIDDEN_RETRY_INTERVAL_SECONDS, remaining)
                 print(
                     f"  [auto-account] Isolated account creation was transiently forbidden; "
-                    f"retrying in {wait_seconds}s",
+                    f"retrying in {int(wait_seconds)}s (~{int(remaining)}s budget left)",
                     flush=True,
                 )
                 time.sleep(wait_seconds)
-        raise last_error
     
     def _run_subcategory_teardown(
         self,
@@ -1624,8 +1855,8 @@ class TestRunner:
     ) -> None:
         """Run subcategory teardown if it exists."""
         if subcategory.teardown and subcategory.teardown.is_valid:
-            # Build category path: parent/subcategory (e.g., "scheduling/appointments")
-            category_path = f"{parent_category.path.name}/{subcategory.path.name}" if parent_category.path and subcategory.path else f"{parent_category.name}/{subcategory.name}"
+            # Build category path: full relative path (e.g., "tempo/scheduling/appointments")
+            category_path = subcategory.path.as_posix() if subcategory.path else f"{parent_category.name}/{subcategory.name}"
             
             test_start_offset = time_module.time() - video_start_time
             teardown_result = self._run_single_test(

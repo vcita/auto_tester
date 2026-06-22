@@ -6,7 +6,10 @@ including dynamic import, function discovery, and error handling.
 """
 
 import importlib.util
+import os
+import signal
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime
@@ -16,6 +19,59 @@ from typing import Callable, Dict, Any, Optional, Tuple, Literal
 from playwright.sync_api import Page
 
 from .models import TestResult
+
+# A single hung test (e.g. a corrupted browser context that never returns) used to
+# block the whole suite for tens of minutes. The watchdog force-fails any test/
+# setup/teardown that runs longer than this so the runner moves on. It is a safety
+# net for pathological hangs, NOT a per-test budget: it sits far above the slowest
+# legitimate test (~3.5min observed) so normal slow tests are never affected.
+DEFAULT_WATCHDOG_SECONDS = 600
+
+
+def _watchdog_seconds() -> int:
+    """Per-test watchdog ceiling (seconds). Override with AUTO_TESTER_TEST_WATCHDOG_SECONDS;
+    set to 0 to disable."""
+    raw = os.environ.get("AUTO_TESTER_TEST_WATCHDOG_SECONDS")
+    if raw is None:
+        return DEFAULT_WATCHDOG_SECONDS
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return DEFAULT_WATCHDOG_SECONDS
+
+
+class WatchdogTimeout(Exception):
+    """Raised when a test exceeds the watchdog ceiling so the suite can continue."""
+
+
+def _run_with_watchdog(func: Callable, page: Page, context: Dict[str, Any]) -> None:
+    """Run ``func(page, context)`` under a SIGALRM watchdog.
+
+    SIGALRM only arms on the main thread (where the Playwright sync loop lives); on a
+    worker thread or a platform without SIGALRM we run unguarded rather than fail."""
+    timeout_s = _watchdog_seconds()
+    can_arm = (
+        timeout_s > 0
+        and hasattr(signal, "SIGALRM")
+        and threading.current_thread() is threading.main_thread()
+    )
+    if not can_arm:
+        func(page, context)
+        return
+
+    def _on_timeout(signum, frame):
+        raise WatchdogTimeout(
+            f"Test exceeded the {timeout_s}s watchdog ceiling and was force-failed "
+            "to keep the suite running (likely a hung/corrupted browser context)."
+        )
+
+    previous_handler = signal.signal(signal.SIGALRM, _on_timeout)
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        func(page, context)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 class TestExecutor:
@@ -87,7 +143,7 @@ class TestExecutor:
         screenshot_path = None
         
         try:
-            func(page, context)
+            _run_with_watchdog(func, page, context)
             
             duration_ms = int((time.time() - start_time) * 1000)
             return TestResult(
@@ -98,6 +154,21 @@ class TestExecutor:
                 duration_ms=duration_ms,
             )
         
+        except WatchdogTimeout as e:
+            # The page/browser context is likely wedged, so do NOT attempt a screenshot
+            # (it could hang too). Return a plain failure and let the runner continue.
+            duration_ms = int((time.time() - start_time) * 1000)
+            return TestResult(
+                test_name=test_name,
+                test_path=test_path,
+                test_type=test_type,
+                status="failed",
+                duration_ms=duration_ms,
+                error=str(e),
+                error_type="WatchdogTimeout",
+                context_snapshot=context.copy() if context else None,
+            )
+
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             # Treat [SKIP] message convention as skipped, not failed

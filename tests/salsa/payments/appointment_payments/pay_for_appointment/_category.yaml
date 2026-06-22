@@ -1,0 +1,32 @@
+# Pay for appointment (isolated account, point_of_sale denied)
+# Migrated from appointment-payments.feature scenario 3
+# "paying for appointment" (@gate) (VCITA2-13857).
+
+name: Pay For Appointment
+description: On a fresh account (point_of_sale denied) with a "display a fee" $100 service and an API-scheduled appointment for "first last", record a $10 payment (DUE $90.00 out of $100.00) then a $90 payment (PAID $100.00), verifying Payments Received after each.
+
+account_profile:
+  type: isolated
+  slug: apptpay_pay
+  cleanup: always
+
+tests:
+  - id: pay_appt
+    name: Pay for appointment partial then full
+    status: active
+    priority: high
+    description: Record a $10 payment and assert DUE $90.00 (out of $100.00) with one matching payment; record a $90 payment and assert PAID $100.00 with two matching payments.
+
+status: active
+priority: high
+tags:
+  - payments
+  - appointments
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

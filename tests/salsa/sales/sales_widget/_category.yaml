@@ -1,0 +1,45 @@
+# Sales Widget Subcategory
+# Migrated from automation-js/features/salsa/sales_widget.feature (VCITA2-13854)
+# Isolated account (fresh per run) with the new_dashboard feature flag. The empty
+# state test runs first (fresh account = no payments), then the full-display test
+# seeds revenue/estimate/overdue data via API and asserts the aggregated widget.
+
+name: Sales Widget
+description: New-dashboard Sales widget. On a fresh account assert the empty state and that "Start accepting payments" opens the payment wizard; then seed a paid invoice, a pending estimate, and three overdue appointment fees via API and assert the widget's total revenue, pending estimates, overdue payments + age breakdowns, and the click-through navigation to the payments/estimates/billing pages.
+
+account_profile:
+  type: isolated
+  slug: sales_widget
+  cleanup: always
+
+execution_order:
+  - empty_state
+  - full_display
+
+tests:
+  - id: empty_state
+    name: Sales widget empty state
+    status: active
+    priority: high
+    description: On a fresh account with the new_dashboard flag, the Sales widget shows its empty state and clicking "Start accepting payments" opens the payment wizard.
+  - id: full_display
+    name: Sales widget full display
+    status: active
+    priority: high
+    description: With a paid invoice ($10), a pending estimate, and three overdue appointment fees ($10/$40/$30 at 2/9/35 days past) seeded via API, the Sales widget shows total revenue $10, 1 pending estimate, $80 overdue with the 1-7/8-30/31+ day breakdowns, and each value navigates to its page.
+
+status: active
+priority: high
+tags:
+  - sales
+  - dashboard
+  - payments
+  - widget
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

@@ -1,0 +1,52 @@
+name: CP Packages
+team: salsa
+description: Client-portal package flows. A client opens the business purchase links,
+  buys package2 with a new card (mock gateway) and package1 with the saved card, and
+  the purchased-packages page reflects both; then (assigned via API) the client redeems
+  an r2p_appointment from package1 (booking confirmed + redeemed-with-package), sees
+  package1 fully_redeemed with the booking in its history, and re-purchases package1
+  from the finished package.
+account_profile:
+  type: isolated
+  slug: cp_packages
+  cleanup: always
+execution_order:
+- purchase_packages
+- redeem_and_repurchase
+tests:
+- id: purchase_packages
+  name: Client purchases packages using business links
+  status: active
+  priority: high
+  description: Access the purchase-packages link -> CP packages page, select package2
+    -> description, purchase with a NEW card (mock gateway) -> purchased-packages
+    shows package2 (0/2, s2p_appointment, active). Access the single package1 purchase
+    link -> description, purchase with the SAVED card -> purchased-packages shows
+    package1 (0/1, r2p_appointment s2p_appointment r2p_event, active) and package2
+    (active).
+- id: redeem_and_repurchase
+  name: Client redeems and re-purchases a package
+  status: active
+  priority: high
+  description: Assign package1 + package2 to the client via API, navigate to purchased-packages,
+    start scheduling from package1 (services page shows r2p_appointment + s2p_appointment),
+    schedule an r2p_appointment -> booking 'Confirmed!' redeemed with package. Purchased-packages
+    shows package2 active + package1 1/1 fully_redeemed; package1 history shows the
+    r2p_appointment. Re-purchase package1 from the finished package -> description
+    package1, purchase with a new card -> purchased-packages shows package1 active
+    + package2 + package1 fully_redeemed.
+status: active
+priority: high
+tags:
+- payments
+- packages
+- client-portal
+- scheduling
+- migration
+owner: QA Team
+created_at: 2026-06-18
+stability:
+  status: stable
+  last_stress_test: '2026-06-18'
+  pass_rate: 100.0%
+  iterations: 10

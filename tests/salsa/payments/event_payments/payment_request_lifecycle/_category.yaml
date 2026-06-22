@@ -1,0 +1,32 @@
+# Event payment request lifecycle (isolated account)
+# Migrated from event-payments.feature scenario 1 "payment request for created,
+# edited, and canceled event" (VCITA2-13856).
+
+name: Event Payment Request Lifecycle
+description: On a fresh account with a "require to pay" $10 event and one registered client, assert the attendee's payment request is DUE $10, edit it to $50 (DUE $50), then cancel/waive it (CANCELLED $50).
+
+account_profile:
+  type: isolated
+  slug: evtpay_life
+  cleanup: always
+
+tests:
+  - id: request_lifecycle
+    name: Event payment request create, edit, cancel
+    status: active
+    priority: high
+    description: Assert the registered attendee's event payment request is DUE $10.00; edit the amount to $50 and assert DUE $50.00; cancel the payment request and assert CANCELLED $50.00.
+
+status: active
+priority: high
+tags:
+  - payments
+  - events
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

@@ -65,25 +65,62 @@ def fn_login(page: Page, context: dict, **params) -> None:
         print(f"  [OK] Cloudflare check passed!")
         print(f"  Page Title after wait: {page.title()}")
 
-    # Resolve login form context (main page or vue_iframe)
-    ctx = _get_login_context(page)
-    print(f"  Waiting for login page or dashboard...")
-    try:
-        email_field = ctx.locator('input[type="email"]')
-        email_field.wait_for(state="visible", timeout=60000)
-        print(f"  [OK] Login form is ready")
-    except Exception as wait_error:
-        if "dashboard" in page.url:
-            context["logged_in_user"] = username
-            print("  Already logged in (redirected to dashboard), skipping login")
-            return
-        print(f"  Current URL: {page.url}")
-        print(f"  Current Title: {page.title()}")
-        raise wait_error
-    
-    email_field.fill(username)
-    ctx.locator('input[type="password"]').fill(password)
-    ctx.get_by_role("button", name="Log In").click()
+    # The login page runs an SSO check that can redirect to ?sso=true and reload the
+    # Vue login iframe shortly after it first renders. Filling before that reload
+    # silently discards the typed credentials, so the submit never authenticates and
+    # we stay on /login. Fast path first (no extra waits when the form is stable); only
+    # pay the settle cost on retry, when a discarded submit leaves us on /login.
+    print("  Submitting login form...")
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            if attempt > 0:
+                # The iframe reloaded under us: let it settle before retrying. The app
+                # polls, so networkidle rarely fully settles - cap it low; the email-field
+                # visibility + input_value re-check below is the real readiness guard.
+                try:
+                    page.wait_for_load_state("networkidle", timeout=8000)
+                except Exception:
+                    pass
+                page.wait_for_timeout(1500)
+
+            ctx = _get_login_context(page)
+            email_field = ctx.locator('input[type="email"]').first
+            email_field.wait_for(state="visible", timeout=30000)
+
+            # Re-resolve right before filling in case the iframe was just swapped.
+            ctx = _get_login_context(page)
+            email_field = ctx.locator('input[type="email"]').first
+            email_field.fill(username)
+            ctx.locator('input[type="password"]').first.fill(password)
+
+            if email_field.input_value() != username:
+                raise RuntimeError("login form reset before submit (iframe reloaded)")
+
+            ctx.get_by_role("button", name="Log In", exact=True).first.click()
+
+            # Confirm the submit took: a discarded fill leaves us on /login. Detect that
+            # quickly and retry with a settle, rather than waiting out the full dashboard
+            # timeout below.
+            try:
+                page.wait_for_url(lambda url: "/login" not in url, timeout=10000)
+            except Exception:
+                if "/login" in page.url:
+                    raise RuntimeError("still on /login after submit (credentials discarded)")
+
+            print("  [OK] Login form submitted")
+            last_error = None
+            break
+        except Exception as exc:
+            if "dashboard" in page.url:
+                context["logged_in_user"] = username
+                print("  Already logged in (redirected to dashboard), skipping login")
+                return
+            last_error = exc
+            print(f"  [retry {attempt + 1}/3] login form unstable: {repr(exc)[:120]}")
+    if last_error is not None:
+        print(f"  [X] Login form interaction failed - stuck on: {page.url}")
+        raise last_error
     
     # Step 5: Wait for Dashboard to Load
     # After clicking login, the page will navigate. Don't try to interact with the page

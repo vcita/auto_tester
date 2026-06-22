@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from src.models import Category, Test, TestStatus, TestPriority, SetupTeardown
+from src.models import is_canonical_team, normalize_team
 
 
 class TestDiscovery:
@@ -85,9 +86,10 @@ class TestDiscovery:
         execution_order = raw_order if isinstance(raw_order, list) and len(raw_order) > 0 else None
 
         # Create category
+        rel_path = path.relative_to(self.tests_root)
         category = Category(
             name=yaml_data.get("name", path.name.replace("_", " ").title()),
-            path=path.relative_to(self.tests_root),
+            path=rel_path,
             description=yaml_data.get("description"),
             parent=parent,
             setup=setup,
@@ -95,6 +97,19 @@ class TestDiscovery:
             execution_order=execution_order,
             run_after=yaml_data.get("run_after"),  # Deprecated; used only when execution_order is not set
             account_profile=yaml_data.get("account_profile"),
+        )
+
+        # Resolve owning team: explicit `team:` in YAML > derived from the
+        # top-level folder name (team-first layout) > inherited from parent.
+        # A top-level folder whose name is a canonical team is a "team group":
+        # purely organizational, with no account of its own.
+        top_segment = rel_path.parts[0] if rel_path.parts else ""
+        explicit_team = normalize_team(yaml_data.get("team", ""))
+        derived_team = top_segment.lower() if is_canonical_team(top_segment) else ""
+        inherited_team = parent.team if parent else None
+        category.team = explicit_team or derived_team or inherited_team
+        category.is_team_group = bool(yaml_data.get("team_group", False)) or (
+            len(rel_path.parts) == 1 and is_canonical_team(top_segment)
         )
         
         # Build test metadata lookup from YAML
@@ -233,6 +248,9 @@ class TestDiscovery:
         last_run = self._parse_datetime(yaml_data.get("last_run"))
         blocked_since = self._parse_date(yaml_data.get("blocked_since"))
         
+        # Owning team: explicit test-level `team:` > the parent category's team.
+        test_team = normalize_team(yaml_data.get("team", "")) or category.team
+
         return Test(
             id=test_id,
             name=yaml_data.get("name", test_id.replace("_", " ").title()),
@@ -241,6 +259,7 @@ class TestDiscovery:
             priority=priority,
             tags=yaml_data.get("tags", []),
             owner=yaml_data.get("owner"),
+            team=test_team,
             created_date=created_date,
             last_run=last_run,
             estimated_duration=yaml_data.get("estimated_duration"),
@@ -308,6 +327,36 @@ class TestDiscovery:
         
         return search(categories, category_path)
     
+    def get_account_boundaries(self) -> list[Category]:
+        """Return the categories that own a fresh account / browser session.
+
+        Team folders are organizational only: their per-domain children are the
+        account boundaries. Legacy top-level domains (not yet under a team) are
+        their own boundary. This keeps per-domain isolation regardless of
+        whether the team-first restructure has happened yet.
+        """
+        boundaries: list[Category] = []
+        for category in self.scan():
+            if category.is_team_group:
+                boundaries.extend(category.subcategories)
+            else:
+                boundaries.append(category)
+        return boundaries
+
+    def get_teams(self) -> list[str]:
+        """Return the sorted set of teams that own at least one boundary category."""
+        teams = {b.team for b in self.get_account_boundaries() if b.team}
+        return sorted(teams)
+
+    def get_team_category_paths(self, team: str) -> list[str]:
+        """Return account-boundary category paths owned by the given team."""
+        want = normalize_team(team) or (team or "").strip().lower()
+        return [
+            b.path.as_posix()
+            for b in self.get_account_boundaries()
+            if (b.team or "").lower() == want
+        ]
+
     def get_all_tests(self) -> list[Test]:
         """Get all tests from all categories."""
         tests = []

@@ -1,0 +1,38 @@
+# Scheduling Category
+# Tests for vcita's scheduling functionality: services, calendar, booking, and reminders
+# All tests are organized into subcategories that run in sequence
+
+name: Scheduling
+description: Tests for scheduling functionality including services, calendar management, booking settings, online booking, and reminders
+
+# No direct tests in main category - all tests are in subcategories
+# Subcategory run order defined here (folder names)
+execution_order:
+  - services
+  - services_categories
+  - appointments
+  - multi_booking
+  - events
+  - calendar
+  - calendar_settings
+  - payment_setups
+  - cp_service_link
+  - cp_multi_booking
+tests: []
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - scheduling
+  - calendar
+  - booking
+  - appointments
+  - services
+owner: QA Team
+created_at: 2026-01-21
+stability:
+  status: stable
+  last_stress_test: '2026-05-27'
+  pass_rate: 100.0%
+  iterations: 10

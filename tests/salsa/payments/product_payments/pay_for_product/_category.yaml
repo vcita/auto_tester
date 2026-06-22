@@ -1,0 +1,31 @@
+# Pay for product (isolated account, point_of_sale denied)
+# Migrated from products.feature scenario 4 "paying for product" (VCITA2-13858).
+
+name: Pay For Product
+description: On a fresh account (point_of_sale denied) with a $10 payable product assigned to "first last", record a $2 payment (DUE $8.00 out of $10.00) then an $8 payment (PAID $10.00), verifying the order is listed and Payments Received after each.
+
+account_profile:
+  type: isolated
+  slug: prodpay_pay
+  cleanup: always
+
+tests:
+  - id: pay_product
+    name: Pay for product partial then full
+    status: active
+    priority: high
+    description: Record a $2 payment and assert DUE $8.00 (out of $10.00) with the product order listed and one matching payment; record an $8 payment and assert PAID $10.00 with two matching payments.
+
+status: active
+priority: high
+tags:
+  - payments
+  - products
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

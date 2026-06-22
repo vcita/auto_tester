@@ -1,0 +1,38 @@
+name: CRM Mobile
+description: On a mobile viewport, close the CRM mobile welcome modal and verify the
+  CRM client list with 10 API-seeded clients - counter "10 CLIENTS" in the All tab,
+  search "first7" -> "first7 last7" (1 CLIENTS), and the empty "New inquiries" tab
+  (0 CLIENTS).
+team: tempo
+account_profile:
+  type: isolated
+  slug: crmmobile
+  cleanup: always
+execution_order:
+- crm_mobile_list
+tests:
+- id: crm_mobile_list
+  name: CRM Mobile List
+  status: active
+  priority: high
+  description: Close the welcome modal on a mobile viewport; verify the CRM counter
+    (10 CLIENTS), search first7 (1 CLIENTS, "first7 last7"), and the empty New inquiries
+    tab (0 CLIENTS).
+  tags:
+  - clients
+  - crm
+  - mobile
+status: active
+priority: high
+tags:
+- clients
+- crm
+- mobile
+- migration
+owner: QA Team
+created_at: 2026-06-20
+stability:
+  status: stable
+  last_stress_test: '2026-06-20'
+  pass_rate: 100.0%
+  iterations: 10

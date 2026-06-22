@@ -1,0 +1,10 @@
+name: Notifications
+team: tango
+description: Notification Center (in-app notification pane, badge, and per-notification
+  settings) owned by Tango.
+execution_order:
+- notification_center
+tests: []
+status: active
+priority: high
+owner: QA Team

@@ -201,26 +201,29 @@ def create_account(
     Returns dict with: email, password, business_id, auth_token, name, pivot_uid, raw_response.
     Raises FatalTokenError on 401, AccountCreationError on other failures.
     """
-    timestamp = int(time.time())
-    email = build_auto_email(category_name, timestamp)
-    business_name = f"Auto_{normalize_email_category(category_name)}_{timestamp}"
-
-    options = {
-        "email": email,
-        "business_name": business_name,
-        "password": DEFAULT_PASSWORD,
-        "directory_id": directory_id,
-        "country_name": country_name,
-        "time_zone": DEFAULT_TIME_ZONE,
-        "package_subscription_id": package_subscription_id,
-    }
-    payload = {"generate_api_token": True, "options": json.dumps(options)}
-
     url = f"{api_base_url.rstrip('/')}{ADMIN_USERS_PATH}"
     headers = {"Authorization": f"Admin {admin_token}"}
 
     last_error = None
     for attempt in range(1 + MAX_RETRIES):
+        # Mint a fresh email/business_name per attempt. A retry can follow a request
+        # whose client-side timeout hid a server-side success; reusing the same email
+        # then fails hard with "email has already been taken". A fresh timestamp
+        # (retries are seconds apart) sidesteps the collision and leaves the prior
+        # account (if any) for orphan cleanup.
+        timestamp = int(time.time())
+        email = build_auto_email(category_name, timestamp)
+        business_name = f"Auto_{normalize_email_category(category_name)}_{timestamp}"
+        options = {
+            "email": email,
+            "business_name": business_name,
+            "password": DEFAULT_PASSWORD,
+            "directory_id": directory_id,
+            "country_name": country_name,
+            "time_zone": DEFAULT_TIME_ZONE,
+            "package_subscription_id": package_subscription_id,
+        }
+        payload = {"generate_api_token": True, "options": json.dumps(options)}
         try:
             resp = requests.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
             _handle_create_error(resp, category_name)
@@ -533,6 +536,14 @@ def _handle_create_error(resp: requests.Response, category_name: str) -> None:
         raise AccountCreationError(f"HTTP {status} for {category_name}: {detail}")
 
     if status == 403:
+        # Split on a field-validation `errors` body specifically: a 403 carrying
+        # `{"errors": {...}}` (e.g. a business_name with a reserved term) is a
+        # permanent rejection, not a rate-limit blip, so surface it as a hard error
+        # and fail fast. A 403 without that body is treated as a transient throttle.
+        if isinstance(body, dict) and body.get("errors"):
+            raise AccountCreationError(
+                f"HTTP {status} invalid request for {category_name}: {body.get('errors')}"
+            )
         raise AccountCreationError(f"HTTP {status} transient forbidden for {category_name}: {detail}")
 
     if status >= 500:

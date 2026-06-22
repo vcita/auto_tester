@@ -1,0 +1,32 @@
+name: Partial Import
+description: Import an Excel file where only one of three rows is valid; verify the
+  review step flags the invalid rows and that only the valid product is imported.
+  Migrated from automation-js import_products.feature (scenario 2).
+account_profile:
+  type: isolated
+  slug: prodpart
+  cleanup: always
+execution_order:
+- only_one_valid
+tests:
+- id: only_one_valid
+  name: Import Only One Valid Product
+  status: active
+  priority: high
+  description: Import products_only_one_valid.xlsx, assert invalid rows are flagged
+    in review, and verify only product 12 is imported
+  tags:
+  - products
+  - import
+status: active
+priority: high
+tags:
+- products
+- import
+owner: QA Team
+created_at: 2026-06-05
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

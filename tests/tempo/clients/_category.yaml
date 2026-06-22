@@ -1,0 +1,62 @@
+# Clients Category
+# Tests for matter (client/property/patient) management in vcita
+# Note: "Matter" is vcita's general entity - called "Property" for landscapers, "Patient" for doctors, etc.
+
+name: Clients
+description: Tests for creating, managing, and deleting matters (clients/properties/patients)
+
+# Full run order: test ids and subcategory folder names
+execution_order:
+  - create_matter
+  - edit_matter
+  - edit_contact
+  - notes
+  - recently_active
+  - reassign_primary_staff
+  - collaborators
+  - custom_status
+  - crm_filters
+  - client_card
+  - crm_bulk_actions
+  - clients_quota
+  - crm_selection_logic
+  - crm_views
+  - crm_tabs_management
+  - crm_mobile
+  - matters_management
+  - matter_deletion
+  - delete_matter
+
+# Test metadata (order also in execution_order above)
+tests:
+  - id: create_matter
+    name: Create Matter
+    status: active
+    priority: high
+  - id: edit_matter
+    name: Edit Matter
+    status: active
+    priority: high
+  - id: edit_contact
+    name: Edit Contact
+    status: active
+    priority: high
+  - id: delete_matter
+    name: Delete Matter
+    status: active
+    priority: high
+
+# Category metadata
+status: active
+priority: high
+tags:
+  - crm
+  - clients
+  - matters
+owner: QA Team
+created_at: 2024-01-20
+stability:
+  status: stable
+  last_stress_test: '2026-05-27'
+  pass_rate: 100.0%
+  iterations: 10

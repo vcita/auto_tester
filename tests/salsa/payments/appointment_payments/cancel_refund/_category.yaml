@@ -1,0 +1,32 @@
+# Cancel and refund paid appointment (isolated account, point_of_sale denied)
+# Migrated from appointment-payments.feature scenario 4
+# "Cancel and refund paid appointment" (VCITA2-13857).
+
+name: Cancel And Refund Appointment
+description: On a fresh account (point_of_sale denied) with a "display a fee" $100 service and an API-scheduled appointment for "first last", pay $100 in full, cancel the appointment with a refund, and assert the request is CANCELLED $100.00 and the payment was refunded.
+
+account_profile:
+  type: isolated
+  slug: apptpay_refund
+  cleanup: always
+
+tests:
+  - id: cancel_refund
+    name: Cancel and refund a paid appointment
+    status: active
+    priority: high
+    description: Record a $100 payment, cancel the appointment with a refund, assert CANCELLED $100.00, and assert the "Payment for service" payment is present (refunded).
+
+status: active
+priority: high
+tags:
+  - payments
+  - appointments
+  - migration
+owner: QA Team
+created_at: 2026-06-06
+stability:
+  status: stable
+  last_stress_test: '2026-06-15'
+  pass_rate: 100.0%
+  iterations: 10

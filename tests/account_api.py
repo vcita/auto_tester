@@ -18,6 +18,18 @@ REQUEST_TIMEOUT = 30
 ACCOUNT_API_TIMEOUT = 5
 APPOINTMENT_LEAD_DAYS = 30
 
+# Brief server-side transients happen under load: the gateway occasionally 429s and
+# endpoints can 5xx for a few seconds. Network-level hiccups (read timeouts, dropped
+# connections) are the same class of transient. Retry a couple of times with linear
+# backoff before failing (at most TRANSIENT_RETRY_MAX_ATTEMPTS requests total).
+TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+TRANSIENT_EXCEPTIONS = (
+    requests.exceptions.ReadTimeout,
+    requests.exceptions.ConnectionError,
+)
+TRANSIENT_RETRY_MAX_ATTEMPTS = 3
+TRANSIENT_RETRY_BACKOFF_SECONDS = 2.0
+
 
 def admin_headers() -> dict:
     admin_token = os.environ.get("VCITA_ADMIN_TOKEN")
@@ -137,19 +149,37 @@ def account_headers(context: dict) -> dict:
 def account_request(context: dict, method: str, path: str, **kwargs) -> dict:
     base_url = kwargs.pop("base_url", None) or resolve_api_base_url(context)
     headers = kwargs.pop("headers", None) or account_headers(context)
-    response = requests.request(
-        method,
-        f"{base_url}{path}",
-        headers=headers,
-        timeout=ACCOUNT_API_TIMEOUT,
-        **kwargs,
+    url = f"{base_url}{path}"
+
+    attempt = 0
+    response = None
+    while True:
+        attempt += 1
+        try:
+            response = requests.request(
+                method, url, headers=headers, timeout=ACCOUNT_API_TIMEOUT, **kwargs
+            )
+        except TRANSIENT_EXCEPTIONS:
+            # Network-level transient (read timeout / dropped connection). Retry on the
+            # same budget as transient status codes; re-raise once the budget is spent.
+            if attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS:
+                raise
+            time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS * attempt)
+            continue
+
+        if response.ok:
+            return response.json() if response.text else {}
+        if (
+            response.status_code not in TRANSIENT_STATUS_CODES
+            or attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS
+        ):
+            break
+        time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS * attempt)
+
+    raise requests.HTTPError(
+        f"{response.status_code} {response.reason} for {path}: {response.text[:500]}",
+        response=response,
     )
-    if not response.ok:
-        raise requests.HTTPError(
-            f"{response.status_code} {response.reason} for {path}: {response.text[:500]}",
-            response=response,
-        )
-    return response.json() if response.text else {}
 
 
 def pivot_uid(context: dict) -> str:
@@ -257,16 +287,18 @@ def first_staff_uid(context: dict) -> str:
     original owner (e.g. seeding an owner-assigned appointment) stay deterministic
     regardless of staff-list ordering once more staff exist.
     """
+    account_uid = pivot_uid(context)
     cached = context.get("account_first_staff_uid")
-    if cached:
+    if cached and context.get("account_first_staff_uid_pivot") == account_uid:
         return cached
     response = account_request(
-        context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}/staffs?status=all"
+        context, "GET", f"/platform/v1/businesses/{account_uid}/staffs?status=all"
     )
     staffs = response.get("data", {}).get("staff", [])
     if not staffs:
         raise ValueError("No staff returned for auto account")
     context["account_first_staff_uid"] = staffs[0].get("id") or staffs[0].get("uid")
+    context["account_first_staff_uid_pivot"] = account_uid
     return context["account_first_staff_uid"]
 
 
@@ -278,25 +310,37 @@ def create_service_via_api(
     charge_type: str = "free",
     price: str | None = None,
     tax_uids: list[str] | None = None,
+    service_type: str = "appointment",
+    interaction_type: str = "business_location",
+    meeting_interaction_details: str = "TLV",
+    duration: int = 60,
 ) -> dict:
-    """Create an appointment service via API.
+    """Create a service via API (appointment or event).
 
     `charge_type`/`price` default to the original free-service behavior so existing
     callers are unchanged. Pass `charge_type="paid_force"` + `price` to mirror the
-    legacy "require to pay" service, or `charge_type="paid_non_secured"` for the
-    legacy "display a fee" service (see automation-js api/service.js). `tax_uids` attaches
-    business taxes to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+    legacy "require to pay" service, `charge_type="paid"` for "suggest to pay", or
+    `charge_type="paid_non_secured"` for the legacy "display a fee" service (see
+    automation-js api/service.js `_setPaymentType`). `tax_uids` attaches business taxes
+    to the service (legacy `tax_uids`), e.g. a default-for-services tax.
+
+    `service_type` ("appointment"/"event"), `interaction_type` (legacy
+    `_setLocationType`, e.g. "business_location" for f2f_other, "business_phone"),
+    `meeting_interaction_details` (legacy `location_info`), and `duration` mirror the
+    legacy `create_service` table so non-appointment / location-typed services can be
+    seeded. The full service id+name (+ interaction/price details) is returned so callers
+    that need to schedule an event instance from the service can read them.
     """
     uids = staff_uids or [first_staff_uid(context)]
     payload = {
         "category": {"uid": last_category_uid(context)},
         "staff_data": [{"uid": uid, "enabled": True} for uid in uids],
         "name": service_name,
-        "service_type": "appointment",
+        "service_type": service_type,
         "currency": "USD",
-        "duration": 60,
-        "interaction_type": "business_location",
-        "meeting_interaction_details": "TLV",
+        "duration": duration,
+        "interaction_type": interaction_type,
+        "meeting_interaction_details": meeting_interaction_details,
         "charge_type": charge_type,
         "display": "true",
         "max_attendance": 2,
@@ -310,7 +354,19 @@ def create_service_via_api(
     service_id = service.get("id") or service.get("uid")
     if not service_id:
         raise ValueError(f"Service API response did not include an id: {response}")
-    return {"id": service_id, "name": service.get("name") or service_name}
+    result = {"id": service_id, "name": service.get("name") or service_name}
+    # Event scheduling needs the service's interaction + attendance details (legacy
+    # create_new_event reads them from the service object); package items need price/currency.
+    # Pass them through when present.
+    for key in ("interaction_type", "meeting_interaction_details", "max_attendance",
+                "charge_type", "price", "currency", "padding", "duration"):
+        if service.get(key) is not None:
+            result[key] = service.get(key)
+    result.setdefault("duration", duration)
+    result.setdefault("interaction_type", interaction_type)
+    result.setdefault("price", price)
+    result.setdefault("currency", "USD")
+    return result
 
 
 def future_appointment_start_time(lead_days: int = APPOINTMENT_LEAD_DAYS) -> str:

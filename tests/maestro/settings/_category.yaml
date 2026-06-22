@@ -1,0 +1,10 @@
+name: Settings
+team: maestro
+description: Staff profile and upgrade page owned by Maestro.
+execution_order:
+- staff_profile
+- upgrade_page
+tests: []
+status: active
+priority: high
+owner: QA Team

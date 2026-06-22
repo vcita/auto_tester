@@ -1,0 +1,32 @@
+name: Payments
+team: salsa
+description: "Payments: gateway, checkout, settings, invoices, and PDF generation owned by Salsa."
+execution_order:
+- settings
+- taxes_settings
+- pdf_customization
+- coupons
+- coupons_checkout
+- cp_payment_actions
+- cp_packages
+- packages
+- invoices
+- record_payments
+- refunds_credits
+- tips_settings
+- tips_checkout
+- offset_fees
+- card_on_file
+- scheduled_payments
+- deposits
+- qr_code_payment
+- event_payments
+- appointment_payments
+- product_payments
+- generate_pdfs
+- payment_settings
+- gateway_setups
+tests: []
+status: active
+priority: high
+owner: QA Team

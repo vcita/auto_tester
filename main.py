@@ -79,6 +79,15 @@ def cmd_list(args):
             else:
                 console.print(f"[red]Category not found: {args.category}[/red]")
                 return
+
+        team = getattr(args, "team", None)
+        if team:
+            from src.models import normalize_team
+            want = normalize_team(team) or team.strip().lower()
+            categories = [c for c in categories if (c.team or "").lower() == want]
+            if not categories:
+                console.print(f"[yellow]No tests found for team: {team}[/yellow]")
+                return
         
         console.print("\n[bold]Test Discovery Results[/bold]\n")
         print_discovery_tree(categories)
@@ -151,6 +160,22 @@ def cmd_health(args):
     tests_root = Path(__file__).parent / config.get("tests", {}).get("root_path", "tests")
     category = (getattr(args, "category", None) or "payments").strip().lower()
 
+    # Health currently covers only the payments domain, which Salsa owns. Accept
+    # `--team salsa` as a synonym; reject other teams with a clear message
+    # instead of silently ignoring the flag.
+    team = getattr(args, "team", None)
+    if team:
+        from src.models import normalize_team
+        normalized_team = normalize_team(team) or team.strip().lower()
+        if normalized_team != "salsa":
+            console.print(
+                f"[yellow]Health snapshots currently cover only the payments "
+                f"domain (owned by 'salsa'); nothing to generate for team "
+                f"'{team}'.[/yellow]"
+            )
+            return
+        category = "payments"
+
     if category != "payments":
         console.print(
             "[yellow]Only 'payments' is supported for now. "
@@ -170,6 +195,12 @@ def cmd_health(args):
         sys.exit(1)
 
 
+def _is_team_group(runner, category_name: str) -> bool:
+    """True when the given --category target is a team folder (no account of its own)."""
+    category = runner.get_category(category_name)
+    return bool(category and getattr(category, "is_team_group", False))
+
+
 def cmd_run(args):
     """Run tests."""
     config = load_config()
@@ -178,18 +209,20 @@ def cmd_run(args):
     # Check for headless mode, keep-open flag, until-test, and debug-test
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
+    record_video = getattr(args, 'video', False)
     until_test = getattr(args, 'until_test', None)
     debug_test = getattr(args, 'debug_test', None)
-    
+
     # Resolve env: None when --no-auto-account is set, otherwise use --env value
     no_auto = getattr(args, 'no_auto_account', False)
     env = None if no_auto else getattr(args, 'env', 'integration')
-    
+
     try:
         # Create runner
         runner = TestRunner(
             tests_root,
             headless=headless,
+            record_video=record_video,
             keep_open=keep_open,
             until_test=until_test,
             debug_test=debug_test,
@@ -203,12 +236,33 @@ def cmd_run(args):
         # Run tests
         # Check for selection (multiple categories/subcategories)
         selection = getattr(args, 'selection', None)
+        team = getattr(args, 'team', None)
+        if team and (args.category or selection):
+            console.print("[red]Error: --team cannot be combined with --category or --selection.[/red]")
+            sys.exit(1)
         if selection and args.category:
             console.print("[red]Error: --selection and --category cannot be used together. Use --selection for multiple categories/subcategories, or --category for a single category.[/red]")
             sys.exit(1)
-        if selection:
+        if team:
+            # Run every domain owned by the team (each gets its own fresh account)
+            team_selection = runner.resolve_team_selection(team)
+            if not team_selection:
+                console.print(f"[red]No domains found for team: {team}[/red]")
+                sys.exit(1)
+            console.print(f"[dim]Team '{team}' -> {', '.join(team_selection)}[/dim]")
+            result = runner.run_all(selection=team_selection)
+        elif selection:
             # Run selected categories/subcategories
             result = runner.run_all(selection=selection)
+        elif args.category and _is_team_group(runner, args.category):
+            # `--category <team>` targets a team folder: run each of its domains
+            # with its own fresh account (same as --team), preserving isolation.
+            team_selection = runner.resolve_team_selection(args.category)
+            if not team_selection:
+                console.print(f"[red]No domains found for team: {args.category}[/red]")
+                sys.exit(1)
+            console.print(f"[dim]Team '{args.category}' -> {', '.join(team_selection)}[/dim]")
+            result = runner.run_all(selection=team_selection)
         elif args.category:
             # Run specific category (optionally only a subcategory)
             subcategory = getattr(args, 'subcategory', None)
@@ -240,13 +294,6 @@ def cmd_run(args):
         import traceback
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
-
-
-def cmd_explore(args):
-    """Explore and generate test."""
-    console.print(f"[bold blue]Exploring: {args.test_path}[/bold blue]")
-    # TODO: Implement exploration
-    console.print("[yellow]Exploration not yet implemented[/yellow]")
 
 
 def cmd_init(args):
@@ -728,6 +775,11 @@ def main():
         help="Run browser in headless mode"
     )
     run_parser.add_argument(
+        "--video",
+        action="store_true",
+        help="Record video of test execution (saved to _runs/; off by default to save disk/CPU)"
+    )
+    run_parser.add_argument(
         "--keep-open",
         action="store_true",
         help="Keep browser open on failure for debugging"
@@ -750,6 +802,10 @@ def main():
         help="Run only the selected category/subcategory paths (e.g., 'clients scheduling/events'). Each path can be a category (e.g., 'clients') or a subcategory path (e.g., 'scheduling/events'). Mutually exclusive with --category."
     )
     run_parser.add_argument(
+        "--team",
+        help="Run every domain owned by this team (one of: backstage, maestro, salsa, spotlights, tango, tempo). Each domain gets its own fresh account. Mutually exclusive with --category/--selection."
+    )
+    run_parser.add_argument(
         "--env",
         default="integration",
         help="Target environment for per-category account creation. "
@@ -760,13 +816,6 @@ def main():
         "--no-auto-account",
         action="store_true",
         help="Skip per-category account creation; use the hardcoded account from config.yaml instead."
-    )
-    
-    # Explore command - explore and generate tests
-    explore_parser = subparsers.add_parser("explore", help="Explore and generate test from steps.md")
-    explore_parser.add_argument(
-        "test_path",
-        help="Path to test folder (e.g., tests/booking/book_consultation)"
     )
     
     # List command - list all tests or functions
@@ -780,6 +829,10 @@ def main():
         action="store_true",
         help="List available functions instead of tests"
     )
+    list_parser.add_argument(
+        "--team",
+        help="List only tests owned by this team (backstage, maestro, salsa, spotlights, tango, tempo)."
+    )
     
     # Status command - show test status
     status_parser = subparsers.add_parser("status", help="Show test status and results")
@@ -790,6 +843,10 @@ def main():
         "--category", "-c",
         default="payments",
         help="Category health to generate (currently only: payments)"
+    )
+    health_parser.add_argument(
+        "--team",
+        help="Owning team filter (backstage, maestro, salsa, spotlights, tango, tempo). The health snapshot currently supports only the payments category."
     )
     
     # Init command - create a new test
@@ -890,7 +947,6 @@ def main():
     
     commands = {
         "run": cmd_run,
-        "explore": cmd_explore,
         "list": cmd_list,
         "status": cmd_status,
         "health": cmd_health,
