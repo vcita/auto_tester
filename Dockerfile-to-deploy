@@ -9,7 +9,7 @@ WORKDIR /autotester
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY . .
+COPY --chown=vcita:vcita . .
 
 # Default behavior is the long-lived GUI service. The CronJob/Job overrides
 # `command` to run the full suite and exit (see helm_chart/values_integration.yaml).

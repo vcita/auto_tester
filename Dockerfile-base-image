@@ -3,17 +3,23 @@
 # and the version matches playwright==1.40.0 in requirements.txt.
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
+# Create non-root vcita user (uid/gid 1000) matching vcita's container security standard.
+RUN groupadd -r -g 1000 vcita && useradd -m -s /bin/bash -r -u 1000 -g vcita vcita
+
 WORKDIR /autotester
+RUN chown vcita:vcita /autotester
 
 # Keep Python from writing .pyc files and turn off output buffering for cleaner container logs.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 # Install Python dependencies first to leverage Docker layer caching.
-COPY requirements.txt .
+COPY --chown=vcita:vcita requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # The runner launches the real Google Chrome channel (channel='chrome' in
 # src/runner/runner.py), which is NOT bundled in the base image (it ships
 # Chromium). Install Chrome + its OS deps here.
 RUN python -m playwright install --with-deps chrome
+
+USER vcita
