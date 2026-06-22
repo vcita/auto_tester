@@ -103,7 +103,7 @@
               "type": "prometheus"
             },
             "exemplar": true,
-            "expr": "100 * sum(rate(nginx_ingress_controller_requests{status!~\"[5].*\",exported_service=\"<service_name>\"}[$__rate_interval])) by (exported_service) / sum(rate(nginx_ingress_controller_requests{exported_service=\"<service_name>\"}[$__rate_interval])) by (exported_service)",
+            "expr": "100 * sum(rate(nginx_ingress_controller_requests{status!~\"[5].*\",exported_service=\"autotester\"}[$__rate_interval])) by (exported_service) / sum(rate(nginx_ingress_controller_requests{exported_service=\"autotester\"}[$__rate_interval])) by (exported_service)",
             "interval": "",
             "intervalFactor": 2,
             "legendFormat": "{{ exported_service }}",
@@ -126,7 +126,7 @@
     },
     "timepicker": {},
     "timezone": "",
-    "title": "<service_name>",
+    "title": "autotester",
     "version": 0,
     "weekStart": ""
   }

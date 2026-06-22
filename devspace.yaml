@@ -1,5 +1,5 @@
 version: v2beta1
-name: <service_name>
+name: autotester
 
 imports:
   - git: git@github.com:vcita/devspace.git
@@ -7,5 +7,5 @@ imports:
     subPath: ./generic_services/
 
 vars:
-    SERVICE_NAME: <service_name>
-    SERVICE_PORT_DEBUG: <service_port_debug>
+    SERVICE_NAME: autotester
+    SERVICE_PORT_DEBUG: 43261

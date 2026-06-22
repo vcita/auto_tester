@@ -1,4 +1,4 @@
-# Service Template - <service_name>
+# Service Template - autotester
 #### This template service is designed to facilitate the developer in setting up a new service and includes within it most of the software requirements of vcita.
 #### The template is coded in TypeScript, [to learn more on TypeScript](https://www.typescriptlang.org/).
 #### We used [NestJS](https://nestjs.com/) as framework, A progressive Node.js framework for building efficient, reliable and scalable server-side applications.
@@ -37,12 +37,12 @@ To build and run this service locally you will need a few things:
 ## Getting started
 ### Clone the repository
 ```
-git clone git@github.com:vcita/<service_name>.git
+git clone git@github.com:vcita/autotester.git
 ```
 ### Install dependencies
 For better code editor auto-complete: 
 ```
-cd <service_name>
+cd autotester
 npm install
 ```
 ### Run the service
@@ -92,7 +92,7 @@ The template works with TypeORM based on [repository design pattern](https://cub
 * From now on, for any entity changes you need to repeat steps 3 - 5 to auto generating migration and run it.
 * All migration will be placed on the migration directory (In the root directory)
 
-main port <service_port_main>
+main port 48475
 
 ##### Additional information
 * TypeORM integration with NestJS - [click here](https://docs.nestjs.com/techniques/database#repository-pattern)

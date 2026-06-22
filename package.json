@@ -1,5 +1,5 @@
 {
-  "name": "<compact_service_name>",
+  "name": "autotester",
   "private": true,
   "version": "1.0.0",
   "description": "Nest TypeScript starter repository",

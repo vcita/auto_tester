@@ -87,7 +87,7 @@ api_gateway:
   swaggerize_command: npm run swaggerize
   command_version: 2
   contexts:
-    - name: <service_name>
+    - name: autotester
       context_path: <context_path>
       version: v1
       swagger_path: swagger_<context_path>.json
@@ -103,7 +103,7 @@ helm_values:
 #        command: '["npm", "run", "job:exec", "--", "cancel-all-notes"]'
     alerting:
       # the squad to be alerted
-      squad: <squad_name>
+      squad: salsa
     default_application:
       enabled: true
       # Section specifying the microservice dependencies
@@ -135,17 +135,17 @@ helm_values:
     global:
       deployment:
         env:
-          APP_NAME: <compact_service_name>
+          APP_NAME: autotester
           PROTOCOL: https
           DATABASE_TYPE: mysql
           REDIS_HOST: redis-{{ $.Release.Namespace }}-master.{{ $.Release.Namespace }}.svc.cluster.local
           REDIS_PORT: "6379"
           CUSTOM_ENTITIES: '["/home/node_modules/@vcita/oauth-client-nestjs/dist/oauth/**/*.entity.js"]'
           REDIS_QUEUES: notes
-          SCOPE: <oauth_scope>
-          DEMAND_SCOPE: <oauth_demand_scope>
-          APP_LAYER: <oauth_app_layer>
-          APP_TYPE: <oauth_app_type>
+          SCOPE: "[]"
+          DEMAND_SCOPE: "[]"
+          APP_LAYER: cores
+          APP_TYPE: "['internal']"
           # TODO: Remove this when secrets infra is operational
           AUTH_INTERNAL_RSA_PUBLIC: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyMEeVmNSwJmZ5eDXO+pP\n2yZzZjBsgrPE3hKXD35yAZ9hpFzN1JC/1VL71AJzr/4MSYVFtWnOvNMQi4JTV6sw\ntI7l5najDIy5M7yM7ILsBpNaqli8vkPbsqoT8o0zjsrQHCQpJ0Y9O85XNe519LDI\n6imA8v49ma5raFeeffRzvkqVC6ChpJGEfh/Kv66Ehc/19iyxv+HjRuZWRu8u4uko\nxujeN4gw4MZ3tuad6Y6AknSDbfAdRdCO9Rv1iwj/7eJtF6xjZ1zDqnw6NwOtiOMC\np8uJGFPTAdzWcD15vnLTCEgc1kuHjYwDkfiKlJCFU3NBDqezSb+WPfPrKZ/ps4m7\nOwIDAQAB\n-----END PUBLIC KEY-----'
         secrets:
@@ -196,7 +196,7 @@ helm_values:
       deployment:
         env:
           DATABASE_HOST: mysql-{{ $.Release.Namespace }}.{{ $.Release.Namespace }}.svc.cluster.local
-          DATABASE_NAME: <compact_service_name>
+          DATABASE_NAME: autotester
           DATABASE_USER: root
           DATABASE_PASSWORD: "123456"
           DATABASE_PORT: "3306"
@@ -222,7 +222,7 @@ infra-bot:
 # Project specific section
 project:
   meta:
-    name: <service_name>
+    name: autotester
   development:
     env:
-      port: <service_port_main>
+      port: 48475

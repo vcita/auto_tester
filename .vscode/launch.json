@@ -5,7 +5,7 @@
             "name": "remoteDebug",
             "type": "node",
             "request": "attach",
-            "port": <service_port_debug>,
+            "port": 43261,
             "address": "localhost",
             "localRoot": "${workspaceFolder}",
             "remoteRoot": "/home/vcita/app",

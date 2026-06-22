@@ -5,41 +5,41 @@
 groups:
   - name: ingress
     rules:
-    - alert: <service_name>_Http_Errors_5xx_Warning
+    - alert: autotester_Http_Errors_5xx_Warning
       annotations:
         message: '{{`{{$labels.exported_service}} {{$labels.exported_namespace}}
         - between 0.05% - 5% requests with status 5xx ({{$value | printf "%.2f"}}%)`}}'
         priority: P2
         summary: '{{`High rate of 5xx errors in {{$labels.exported_service}} {{$labels.exported_namespace}}.`}}'
         tags: '{{`{{$labels.exported_service}}`}}'
-      expr: 'sum(rate(nginx_ingress_controller_requests{status=~"^5..",exported_service="<service_name>"}[5m]))
-      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_requests{status=~"^5..",exported_service="autotester"}[5m]))
+      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="autotester"}[5m]))
       by (service, exported_service, exported_namespace) * 100 > 0.05 < 5 and
-      on() sum(increase(nginx_ingress_controller_requests{status=~"^5..",exported_service="<service_name>"}[5m])) by (exported_service, exported_namespace) > 10'
+      on() sum(increase(nginx_ingress_controller_requests{status=~"^5..",exported_service="autotester"}[5m])) by (exported_service, exported_namespace) > 10'
       for: 5m
       labels:
         runbook_url: https://myvcita.atlassian.net/wiki/spaces/IT/pages/2373451784/Http+Errors+5xx+Critical
         severity: warning
-        team: <squad_name>
+        team: salsa
 
-    - alert: <service_name>_Http_Errors_5xx_Critical
+    - alert: autotester_Http_Errors_5xx_Critical
       annotations:
         message: '{{`{{$labels.exported_service}} {{$labels.exported_namespace}}
           - over 5% requests with status 5xx ({{$value | printf "%.2f"}}%)`}}'
         priority: P1
         summary: '{{`High rate of 5xx errors in {{$labels.exported_service}} {{$labels.exported_namespace}}.`}}'
         tags: '{{`{{$labels.exported_service}}`}}'
-      expr: 'sum(rate(nginx_ingress_controller_requests{status=~"^5..",exported_service="<service_name>"}[5m]))
-        by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_requests{status=~"^5..",exported_service="autotester"}[5m]))
+        by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="autotester"}[5m]))
         by (service, exported_service, exported_namespace) * 100 > 5 and
-        on() sum(increase(nginx_ingress_controller_requests{status=~"^5..",exported_service="<service_name>"}[5m])) by (exported_service, exported_namespace) > 10'
+        on() sum(increase(nginx_ingress_controller_requests{status=~"^5..",exported_service="autotester"}[5m])) by (exported_service, exported_namespace) > 10'
       for: 5m
       labels:
         runbook_url: https://myvcita.atlassian.net/wiki/spaces/IT/pages/2373451784/Http+Errors+5xx+Critical
         severity: critical
-        team: <squad_name>
+        team: salsa
 
-    - alert: <service_name>_HTTP_High_Response_Time_Warning
+    - alert: autotester_HTTP_High_Response_Time_Warning
       annotations:
         message: 'Warning: {{`{{`}}$labels.exported_service{{`}}`}} response time is between
         100ms and 300ms ({{`{{`}}$value | printf "%.2f"{{`}}`}}s) during the past 10 minutes'
@@ -47,15 +47,15 @@ groups:
         summary: 'Warning: {{`{{`}}$labels.exported_service{{`}}`}} response time is higher than
         100ms ({{`{{`}}$value | printf "%.2f"{{`}}`}}s) during the past 10 minutes'
         tags: '{{`{{`}}$labels.exported_service{{`}}`}}'
-      expr: 'sum(rate(nginx_ingress_controller_request_duration_seconds_sum{exported_service=~"<service_name>"}[5m]))
-        by (exported_service)/sum(rate(nginx_ingress_controller_request_duration_seconds_count{exported_service=~"<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_request_duration_seconds_sum{exported_service=~"autotester"}[5m]))
+        by (exported_service)/sum(rate(nginx_ingress_controller_request_duration_seconds_count{exported_service=~"autotester"}[5m]))
         by (exported_service) > 0.1 < 0.3'
       for: 10m
       labels:
         severity: warning
-        team: <squad_name>
+        team: salsa
 
-    - alert: <service_name>_HTTP_High_Response_Time_Critical
+    - alert: autotester_HTTP_High_Response_Time_Critical
       annotations:
         message: 'Critical: {{`{{`}}$labels.exported_service{{`}}`}} response time is higher than
         300ms ({{`{{`}}$value | printf "%.2f"{{`}}`}}s) during the past 10 minutes'
@@ -63,15 +63,15 @@ groups:
         summary: 'Critical: {{`{{`}}$labels.exported_service{{`}}`}} response time is higher than
         300ms ({{`{{`}}$value | printf "%.2f"{{`}}`}}s) during the past 10 minutes'
         tags: '{{`{{`}}$labels.exported_service{{`}}`}}'
-      expr: 'sum(rate(nginx_ingress_controller_request_duration_seconds_sum{exported_service=~"<service_name>"}[5m]))
-        by (exported_service)/sum(rate(nginx_ingress_controller_request_duration_seconds_count{exported_service=~"<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_request_duration_seconds_sum{exported_service=~"autotester"}[5m]))
+        by (exported_service)/sum(rate(nginx_ingress_controller_request_duration_seconds_count{exported_service=~"autotester"}[5m]))
         by (exported_service) > 0.3'
       for: 10m
       labels:
         severity: critical
-        team: <squad_name>
+        team: salsa
 
-    - alert: <service_name>_HTTP_High_Errors_408_Timeout_Warning
+    - alert: autotester_HTTP_High_Errors_408_Timeout_Warning
       annotations:
         message: 'Warning: {{`{{`}}$labels.exported_service{{`}}`}} has over 5% timeout responses
         in the last 5 minutes'
@@ -79,15 +79,15 @@ groups:
         summary: 'Warning: {{`{{`}}$labels.exported_service{{`}}`}} has over 5% timeout responses
         in the last 5 minutes.
         408 response code comes from the service ending http communication due to service-configured timeout (default 100ms).'
-      expr: 'sum(rate(nginx_ingress_controller_requests{status="408",exported_service="<service_name>"}[5m]))
-      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_requests{status="408",exported_service="autotester"}[5m]))
+      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="autotester"}[5m]))
       by (service, exported_service, exported_namespace) * 100 > 5 < 10'
       for: 5m
       labels:
         severity: warning
-        team: <squad_name>
+        team: salsa
 
-    - alert: <service_name>_HTTP_High_Errors_408_Timeout_Critical
+    - alert: autotester_HTTP_High_Errors_408_Timeout_Critical
       annotations:
         message: 'Critical: {{`{{`}}$labels.exported_service{{`}}`}} has over 10% timeout responses
         in the last 5 minutes'
@@ -95,10 +95,10 @@ groups:
         summary: 'Critical: {{`{{`}}$labels.exported_service{{`}}`}} has over 5% timeout responses
         in the last 5 minutes.
         408 response code comes from the service ending http communication due to service-configured timeout (default 100ms).'
-      expr: 'sum(rate(nginx_ingress_controller_requests{status="408",exported_service="<service_name>"}[5m]))
-      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="<service_name>"}[5m]))
+      expr: 'sum(rate(nginx_ingress_controller_requests{status="408",exported_service="autotester"}[5m]))
+      by (service, exported_service, exported_namespace) / sum(rate(nginx_ingress_controller_requests{exported_service="autotester"}[5m]))
       by (service, exported_service, exported_namespace) * 100 >= 10'
       for: 5m
       labels:
         severity: critical
-        team: <squad_name>
+        team: salsa

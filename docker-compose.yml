@@ -1,13 +1,13 @@
 version: "3.4"
 
 services:
-  <service_name>:
+  autotester:
     build:
       context: ./
       dockerfile: Dockerfile-base-image
     ports:
-      - "<service_port_main>:8989"
-      - "<service_port_debug>:9229" # Debugging port
+      - "48475:8989"
+      - "43261:9229" # Debugging port
     restart: on-failure
     entrypoint:
       - ./entrypoint_dev.sh
