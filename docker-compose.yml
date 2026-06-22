@@ -1,10 +1,10 @@
 services:
-  auto-tester:
+  autotester:
     build: .
-    container_name: auto-tester
+    container_name: autotester
     entrypoint: ["./entrypoint_dev.sh"]
     # Default command runs the long-lived GUI. To run the full suite instead:
-    #   docker compose run --rm auto-tester run --headless --env integration
+    #   docker compose run --rm autotester run --headless --env integration
     command: ["gui", "--host", "0.0.0.0", "--port", "8080"]
     ports:
       - "8080:8080"

@@ -2,7 +2,7 @@
 
 ## 2026-05-30 - Initial migration
 - Migrated automation-js `features/salsa/payments-settings/taxes-settings.feature`
-  (single scenario `Create, update & delete taxes`) to a single auto_tester leaf test
+  (single scenario `Create, update & delete taxes`) to a single autotester leaf test
   `manage_taxes` under a new `tests/payments/taxes_settings/` subcategory.
 - Mapped the legacy `pages/desktop/Frontage/Settings/taxes.js` page object to
   `taxes_helpers.py`, reusing its stable `data-qa` selectors

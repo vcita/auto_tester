@@ -1,6 +1,6 @@
-# Deploying auto_tester to a feature environment
+# Deploying autotester to a feature environment
 
-This service packages the auto_tester runner so it can run inside the cluster:
+This service packages the autotester runner so it can run inside the cluster:
 
 - **Primary:** a set of k8s **CronJobs** (one per team/domain shard) that run their slice of the suite against a target env every 2 hours and exit.
 - **Secondary:** the **GUI** (`python main.py gui`) for triggering/watching runs.
@@ -39,13 +39,13 @@ docker compose up --build
 
 # Run the full suite once against integration and exit
 docker compose run --rm -e VCITA_ADMIN_TOKEN=... -e VCITA_DIRECTORY_ID=... \
-  auto-tester run --headless --env integration
+  autotester run --headless --env integration
 ```
 
 ## Secrets
 
 `VCITA_ADMIN_TOKEN` and `VCITA_DIRECTORY_ID` are synced from AWS SSM
-(`/<environment>/<release>/auto-tester-creds`) into a k8s Secret by the External
+(`/<environment>/<release>/autotester-creds`) into a k8s Secret by the External
 Secrets Operator and injected as env vars (`helm_chart/templates/externalSecret.yaml`).
 Never commit them.
 
@@ -90,13 +90,13 @@ Validate locally:
 
 ```bash
 helm lint helm_chart -f helm_chart/values_integration.yaml
-helm template auto-tester helm_chart -f helm_chart/values_integration.yaml
+helm template autotester helm_chart -f helm_chart/values_integration.yaml
 ```
 
 Run a single shard on demand from its deployed CronJob:
 
 ```bash
-kubectl create job --from=cronjob/auto-tester-salsa-payments-core auto-tester-manual-1 -n <namespace>
+kubectl create job --from=cronjob/autotester-salsa-payments-core autotester-manual-1 -n <namespace>
 ```
 
 ## Onboarding (Infra)

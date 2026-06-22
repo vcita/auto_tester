@@ -17,7 +17,7 @@ Frame topology (POV):
   (`/site/{uid}/action?client_jwt=<token>`); the action buttons render inside the
   `#cp_iframe` (mirrors estimates_helpers.open_cp_estimate_page).
 
-The editor renders the same on the auto_tester default directory (970); the only
+The editor renders the same on the autotester default directory (970); the only
 care needed is the Edit-portal click, which drives an Angular -> Vue iframe reload
 and is flaky on a single click — `_enter_edit_mode` retries it within NAV_TIMEOUT.
 
@@ -71,7 +71,7 @@ def _app_base(context: dict) -> str:
 
 def _vitrage_base(context: dict) -> str:
     """Public Vitrage livesite base derived from the account's app base_url, matching
-    the convention used across auto_tester (estimates_helpers, client_create_channels):
+    the convention used across autotester (estimates_helpers, client_create_channels):
     app.meet2know -> live.meet2know, app.vcita -> live.vcita, fenv app-... -> vitrage-...."""
     base = _app_base(context)
     if "app.meet2know.com" in base:

@@ -40,10 +40,10 @@ shared:
       value: "integration"
     - name: ENVIRONMENT
       value: "integration"
-  # SSM JSON at /integration/<release>/auto-tester-creds with keys
+  # SSM JSON at /integration/<release>/autotester-creds with keys
   # VCITA_ADMIN_TOKEN and VCITA_DIRECTORY_ID, injected as env vars.
   secrets: &secrets
-    - name: auto-tester-creds
+    - name: autotester-creds
       as: env
   resources: &resources
     requests:

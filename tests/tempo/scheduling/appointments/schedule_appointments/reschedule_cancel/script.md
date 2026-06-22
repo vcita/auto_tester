@@ -32,7 +32,7 @@ assert_meeting(page, appt_id, service_name=service, client_name=client,
 
 ## Verification mapping (legacy `meeting created with details`)
 
-| Legacy column | auto_tester assertion |
+| Legacy column | autotester assertion |
 |---|---|
 | `meeting_name` | service header `div.summary-header h3` contains `service1` |
 | `client_name` | `[data-qa='display-name']` contains `Chuck Norris` |

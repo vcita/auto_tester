@@ -2,7 +2,7 @@
 
 ## 2026-06-08 — Initial migration (VCITA2-13951)
 - Migrated automation-js `crm-view-create-and-edit.feature` (single scenario
-  "Admin creates and edits views", 24 steps) into one auto_tester test.
+  "Admin creates and edits views", 24 steps) into one autotester test.
 - UI actions kept as UI (ported 1:1 from `newClients.js` with the same `data-qa`
   selectors): create view ×3, three-dot menu reads (description + permission),
   edit view, delete view, close tab, select view, view-availability checks.

@@ -17,7 +17,7 @@
   (`wait_for_business_country`) before login, so the page never renders a stale country;
   the UI then renders `Israel (972)`.
 - Business name/email are read from the API rather than hardcoded, since
-  auto_tester names accounts dynamically (legacy hardcoded "Automation test business").
+  autotester names accounts dynamically (legacy hardcoded "Automation test business").
 
 ## Wait policy
 - `goto` bounded at 5s; the Angular iframe readiness is a bounded 10s documented

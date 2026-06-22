@@ -3,7 +3,7 @@
 # and the version matches playwright==1.40.0 in requirements.txt.
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-WORKDIR /auto_tester
+WORKDIR /autotester
 
 # Keep Python from writing .pyc files and turn off output buffering for cleaner container logs.
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -13,7 +13,7 @@ Run from the repo root after a migration is validated and the PR is open:
         --migrated "3/3, ~43s" --improvement "~42% faster" \
         --stability "stress 10/10 on 2026-06-04" \
         --jira-key VCITA2-13796 --jira-url https://.../VCITA2-13796 \
-        --pr-label "PR #50" --pr-url https://github.com/vcita/auto_tester/pull/50 \
+        --pr-label "PR #50" --pr-url https://github.com/vcita/autotester/pull/50 \
         --refresh-confluence --ff-migrated 18 --ff-total 113 \
         --sc-migrated 36 --sc-total 279
 
@@ -155,7 +155,7 @@ def _summary_updates(args: argparse.Namespace, latest_path: str) -> dict:
         updates["Tracked migrated scope, including non-candidates"] = (
             f"{args.tracked_ff} feature files, {args.tracked_sc} scenario definitions")
     if args.validated_scopes:
-        updates["Validated auto_tester scopes"] = str(args.validated_scopes)
+        updates["Validated autotester scopes"] = str(args.validated_scopes)
     if latest_path:
         updates["Latest migrated scope"] = latest_path
     if args.jira_key:
@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     upsert.set_defaults(func=cmd_upsert)
 
     conf = sub.add_parser("confluence", help="Refresh only the Confluence dashboard in place")
-    conf.add_argument("--latest-path", required=True, help="auto_tester path of the newest migration")
+    conf.add_argument("--latest-path", required=True, help="autotester path of the newest migration")
     conf.add_argument("--jira-key", default="")
     conf.add_argument("--jira-url", default="")
     conf.add_argument("--pr-label", default="")

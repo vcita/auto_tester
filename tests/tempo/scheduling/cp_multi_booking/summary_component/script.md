@@ -35,7 +35,7 @@ target selector (`_cp_frame_with`) because the livesite shell nests the iframe d
   (`booking-detail-start-date`/`booking-detail-start-time`) — legacy `default` = existence.
 - Duration 1 hour = service1(20) + service2(40).
 - DEVIATION (staff name): the legacy table hardcodes "With Automation test business" because
-  the legacy auto-account is literally named "Automation test business". The auto_tester
+  the legacy auto-account is literally named "Automation test business". The autotester
   isolated account name varies per run, so the default providing staff = "With <owner display
   name>" is resolved dynamically: _setup reads the owner staff display_name from the staff
   list and the test asserts `f"With {owner_display_name}"`. Same behavior (default staff shown),

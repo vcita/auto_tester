@@ -2,7 +2,7 @@
 
 Coupons settings and the appointment payment-status card both render in the
 legacy Angular frontage iframe (Angular Material `md-*` widgets). All waits are
-condition-based and capped at 5s per the auto_tester wait policy.
+condition-based and capped at 5s per the autotester wait policy.
 """
 
 import re

@@ -1,6 +1,6 @@
 # Migration Coverage Tracker
 
-Keeps the **automation-js → auto_tester migration coverage** in sync from any
+Keeps the **automation-js → autotester migration coverage** in sync from any
 teammate's migration run:
 
 - The **Google Sheet** holds only the full per-feature coverage table (scope,
@@ -35,7 +35,7 @@ so it works headlessly for everyone who has the shared key file.
 ### 2. Create + share the Google Sheet (once, by an admin)
 
 1. Create a blank Google Sheet titled
-   `automation-js → auto_tester Migration Coverage`.
+   `automation-js → autotester Migration Coverage`.
 2. **Share** it with the service-account email as **Editor**.
 3. (Recommended) also share with anyone in the org as **Viewer** so the Confluence
    link opens for everyone.
@@ -94,7 +94,7 @@ python -m tools.migration_tracker.update_tracker upsert \
   --migrated "3/3, ~43s" --improvement "~42% faster" \
   --stability "stress 10/10 on 2026-06-04" \
   --jira-key VCITA2-13796 --jira-url https://myvcita.atlassian.net/browse/VCITA2-13796 \
-  --pr-label "PR #50" --pr-url https://github.com/vcita/auto_tester/pull/50 \
+  --pr-label "PR #50" --pr-url https://github.com/vcita/autotester/pull/50 \
   --latest-branch "VCITA2-13796_migrate_calendar_settings — PR #50" \
   --refresh-confluence \
   --ff-migrated 18 --ff-total 113 --sc-migrated 36 --sc-total 279 \

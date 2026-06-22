@@ -3,7 +3,7 @@
 ## 2026-06-01 — Initial migration (VCITA2-13757)
 
 Migrated `automation-js/features/salsa/card-on-file.feature` (scenario: *user
-sends request to add card on file*) to auto_tester.
+sends request to add card on file*) to autotester.
 
 - Setup: isolated account, client created via API, mock payment gateway connected
   via UI (reusing `tips_settings.tips_gateway.connect_mock_gateway`).

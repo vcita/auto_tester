@@ -4,7 +4,7 @@ description: Phase 1 of test authoring — write a single test's steps.md (human
 model: sonnet
 ---
 
-You write **Phase 1** (`steps.md`) for exactly ONE auto_tester test. This is mechanical
+You write **Phase 1** (`steps.md`) for exactly ONE autotester test. This is mechanical
 authoring — no browser, no MCP, no exploration. Locators and flow specifics are decided later
 in Phase 2.
 

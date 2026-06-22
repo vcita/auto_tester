@@ -1,45 +1,45 @@
 version: v2beta1
-name: auto-tester
+name: autotester
 
 # Local-against-cluster dev loop. Builds the image, runs a long-lived dev pod,
 # syncs local source into it, and gives an interactive shell + port-forward.
 # Reconcile with vcita's shared devspace setup during Infra onboarding.
 
 images:
-  auto-tester:
-    image: auto_tester
+  autotester:
+    image: autotester
     dockerfile: ./Dockerfile
 
 deployments:
-  auto-tester-dev:
+  autotester-dev:
     kubectl:
       inlineManifest: |-
         apiVersion: apps/v1
         kind: Deployment
         metadata:
-          name: auto-tester-dev
+          name: autotester-dev
         spec:
           replicas: 1
           selector:
             matchLabels:
-              app: auto-tester-dev
+              app: autotester-dev
           template:
             metadata:
               labels:
-                app: auto-tester-dev
+                app: autotester-dev
             spec:
               containers:
-                - name: auto-tester
-                  image: auto_tester
+                - name: autotester
+                  image: autotester
                   command: ["sleep", "infinity"]
 
 dev:
-  auto-tester:
+  autotester:
     labelSelector:
-      app: auto-tester-dev
-    devImage: auto_tester
+      app: autotester-dev
+    devImage: autotester
     sync:
-      - path: ./:/auto_tester
+      - path: ./:/autotester
         excludePaths:
           - .git/
           - .venv/

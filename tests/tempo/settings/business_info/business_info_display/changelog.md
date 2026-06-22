@@ -6,7 +6,7 @@
 - Verifies the business info settings page shows the business name, owner email,
   and the Israel (972) country code.
 - Added `get_business` + admin `update_business_country` helpers to account_api.
-- Reads expected name/email from the API (auto_tester names accounts dynamically).
+- Reads expected name/email from the API (autotester names accounts dynamically).
 
 ## 2026-06-07 — Wait audit + country read-back + iframe readiness
 - `page.goto` lowered 15s -> 5s (`PAGE_TIMEOUT`); `domcontentloaded` fires fast.

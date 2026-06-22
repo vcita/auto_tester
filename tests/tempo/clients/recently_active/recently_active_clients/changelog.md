@@ -54,7 +54,7 @@
 ## 2026-05-24 - Initial Migration
 **Phase**: Steps, script, test
 **Author**: Cursor AI
-**Reason**: Migrated automation-js recently active clients dashboard scenario into auto_tester.
+**Reason**: Migrated automation-js recently active clients dashboard scenario into autotester.
 **Changes**:
 - Added Phase 1 steps covering empty, one-client, and two-client dashboard states.
 - Added Phase 2 script mapping legacy API setup and dashboard assertions to Playwright.

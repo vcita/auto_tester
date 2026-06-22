@@ -3,7 +3,7 @@
 ## Initial creation (VCITA2-13849)
 **Phase**: steps.md, script.md, test.py
 **Reason**: Migrate `automation-js/features/salsa/sales.feature` scenario
-"Create ad-hoc sale - refund" into auto_tester.
+"Create ad-hoc sale - refund" into autotester.
 
 **Decisions**:
 - New isolated-account subcategory `tests/sales/adhoc_sale_refund`

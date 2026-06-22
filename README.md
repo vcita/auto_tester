@@ -12,7 +12,7 @@ AI-driven browser test automation framework for [vcita](https://www.vcita.com), 
 
 ## Planning New Tests
 
-Before building a new product flow test, use the [auto_tester New Flow Test Design Template](https://myvcita.atlassian.net/wiki/spaces/MT/pages/4690149402/auto_tester+New+Flow+Test+Design+Template) to agree on scope, setup, expected user flow, validation, and stress-test readiness.
+Before building a new product flow test, use the [autotester New Flow Test Design Template](https://myvcita.atlassian.net/wiki/spaces/MT/pages/4690149402/autotester+New+Flow+Test+Design+Template) to agree on scope, setup, expected user flow, validation, and stress-test readiness.
 
 ---
 
@@ -297,7 +297,7 @@ The project includes 6 Cursor IDE slash commands (in `.cursor/commands/`) that a
 ## Project Structure
 
 ```
-auto_tester/
+autotester/
 ├── main.py                     # CLI entry point (all commands)
 ├── config.yaml                 # App, browser, target, and healing configuration
 ├── requirements.txt            # Python dependencies

@@ -11,7 +11,7 @@ contact_form_helpers.submit_contact_form`.
   `[data-qa="CrmTable-All-item-matter_name"]`.
 - **API** — `account_api.create_client`.
 - **Livesite** — public Vitrage site `{vitrage}/site/<pivot_uid>` where `vitrage` follows
-  the auto_tester convention (app.meet2know→live.meet2know, app.vcita→live.vcita, fenv
+  the autotester convention (app.meet2know→live.meet2know, app.vcita→live.vcita, fenv
   app-<name>→vitrage-<name>); Leave-details action → `cp_iframe` form (label-based fields)
   → Submit.
 - **Email** — internal `/infra/automation/message/content?business_uid=<pivot>` with a

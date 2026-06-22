@@ -27,7 +27,7 @@
   scope (4 create channels, 4 email assertions, 4 CRM searches, 1 portal conversation).
 
 ## 2026-06-09 — Code-review fixes (Bugbot)
-- Fixed fenv livesite host: `vitrage_base` now follows the shared auto_tester convention
+- Fixed fenv livesite host: `vitrage_base` now follows the shared autotester convention
   (app-<name> → vitrage-<name> on fenv) instead of `live-<name>`, which only resolved on
   integration. Dropped the custom `_swap_subdomain`.
 - Made the duplicate client "Thank you for your message" assertion non-vacuous: the widget

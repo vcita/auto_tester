@@ -1,12 +1,12 @@
 # =============================================================================
-# auto_tester CronJob Helm chart (concept copied from vcita/cronjobs)
+# autotester CronJob Helm chart (concept copied from vcita/cronjobs)
 # Renders one k8s CronJob per entry in `jobs:` (see values_integration.yaml).
 # =============================================================================
 
 global:
   # ECR image built by the shipit pipeline. Confirm the exact repo with Infra.
-  image: 184806450101.dkr.ecr.eu-west-1.amazonaws.com/auto_tester
-  image_tag: auto_tester-latest
+  image: 184806450101.dkr.ecr.eu-west-1.amazonaws.com/autotester
+  image_tag: autotester-latest
 
   # External Secrets Operator - syncs secrets from AWS SSM Parameter Store.
   external_secret:

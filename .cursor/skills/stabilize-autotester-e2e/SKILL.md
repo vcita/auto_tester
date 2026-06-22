@@ -1,6 +1,6 @@
 ---
-name: stabilize-auto-tester-e2e
-description: Stabilize auto_tester E2E categories and subcategories by investigating health files, heal requests, setup bottlenecks, flaky Playwright selectors, and validation runs. Use when fixing unstable tests, reducing category runtime, running health checks, or when the user asks to stabilize an auto_tester category or subcategory.
+name: stabilize-autotester-e2e
+description: Stabilize autotester E2E categories and subcategories by investigating health files, heal requests, setup bottlenecks, flaky Playwright selectors, and validation runs. Use when fixing unstable tests, reducing category runtime, running health checks, or when the user asks to stabilize an autotester category or subcategory.
 ---
 
 # Stabilize Auto Tester E2E

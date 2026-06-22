@@ -14,7 +14,7 @@ Token landscape (verified live on integration 2026-06-19):
   - App token:   admin POST /platform/v1/apps -> client_id/client_secret ->
                  admin POST /oauth/service/token -> token (Bearer on apigw).
   - Directory:   the integration directory 970 (kmy47p5x88kqlv6f) token; used as Bearer
-                 on apigw. Default below matches the directory auto_tester provisions on.
+                 on apigw. Default below matches the directory autotester provisions on.
   - core_internal_app: integration service creds -> admin POST /oauth/service/token.
 Notification metadata + send run on the apigw (apigw-integration...), NOT core_url.
 

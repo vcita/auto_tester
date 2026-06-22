@@ -1,6 +1,6 @@
 ---
 name: update-migration-coverage-tracker
-description: Update the automation-js to auto_tester Confluence coverage tracker after a legacy automation-js Gherkin feature or scenario is migrated, stabilized, validated, and compared. Use when a migration reaches done, when a migrated test is stabilized, when backfilling migration coverage, or when the user asks to update migration progress totals.
+description: Update the automation-js to autotester Confluence coverage tracker after a legacy automation-js Gherkin feature or scenario is migrated, stabilized, validated, and compared. Use when a migration reaches done, when a migrated test is stabilized, when backfilling migration coverage, or when the user asks to update migration progress totals.
 ---
 
 # Update Migration Coverage Tracker
@@ -14,7 +14,7 @@ dashboard in place — never hand-edit either artifact.
 Use after a migration has enough evidence to update shared coverage:
 
 - The legacy automation-js scope is identified.
-- The migrated auto_tester scope is implemented and validated.
+- The migrated autotester scope is implemented and validated.
 - Original and migrated runs were executed, with result and duration captured.
 - Scope coverage was checked against `migration_mapping.md`.
 
@@ -60,7 +60,7 @@ The tracker has two synced artifacts, both owned by `tools/migration_tracker`:
 | Artifact | Holds | Updated by the tool |
 |----------|-------|---------------------|
 | **Google Sheet** (source of truth) | The full per-feature coverage table — one row per migrated scope (scope, runtime comparison, stability, Jira, PR). | Row upserted, matched by feature file. **The upsert rewrites the whole row from the args you pass — any column you omit is written blank.** |
-| **Confluence dashboard** (page `4690444289`, cloud `myvcita.atlassian.net`, parent "auto_tester Project Guide") | A rich page: Summary metrics, two colored progress bars, Scope Counting Rules, Update Instructions, Status Definitions. The old big coverage table is replaced by a link to the Sheet. | Bars + Summary metric rows refreshed **in place**; other sections untouched. |
+| **Confluence dashboard** (page `4690444289`, cloud `myvcita.atlassian.net`, parent "autotester Project Guide") | A rich page: Summary metrics, two colored progress bars, Scope Counting Rules, Update Instructions, Status Definitions. The old big coverage table is replaced by a link to the Sheet. | Bars + Summary metric rows refreshed **in place**; other sections untouched. |
 
 Why a tool and not hand-edited HTML:
 
@@ -79,11 +79,11 @@ One-time setup (service-account key, Sheet id, Confluence email + API token) is 
 Collect before running:
 
 - Legacy feature path, e.g. `features/steps/client-custom-status.feature`.
-- Migrated auto_tester path, e.g. `tests/clients/custom_status`.
+- Migrated autotester path, e.g. `tests/clients/custom_status`.
 - Status: one of the values in the Status Lifecycle below (`Proposed`, `In progress`, `Needs stabilization`, `In review`, `Merged`, or `Blocked`). Use `In review` at PR-open closeout and `Merged` only after the PR is merged.
 - Scope covered — summarized from the original scenario actions and assertions.
 - Original result and duration (automation-js run).
-- Migrated result and duration (auto_tester run). The tool auto-normalizes the duration to the `Xm SSs` format used by the original column.
+- Migrated result and duration (autotester run). The tool auto-normalizes the duration to the `Xm SSs` format used by the original column.
 - Duration improvement vs the original.
 - Stability evidence — only real focused or `stress_test` output.
 - Jira link and PR link, or `TBD` if unavailable.
@@ -106,7 +106,7 @@ resp = client._session.get(
 )
 for row in resp.json().get("values", []):
     path = row[1] if len(row) > 1 else ""
-    if "<your/auto_tester/path>" in path:  # filter to the row(s) you're editing
+    if "<your/autotester/path>" in path:  # filter to the row(s) you're editing
         print(row)
 PY
 ```
@@ -162,7 +162,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
    ```bash
    python -m tools.migration_tracker.update_tracker upsert \
      --feature <legacy/feature/path.feature> \
-     --path <tests/auto_tester/path> \
+     --path <tests/autotester/path> \
      --status "In review" --scope "<concise scope>" \
      --original "<scenarios/steps, duration>" \
      --migrated "<pass count, duration>" --improvement "<N.N% faster>" \
@@ -186,7 +186,7 @@ Format as `N.N% faster` (positive) or `N.N% slower` (negative).
 
 ### Sheet columns (one row per migrated scope)
 
-| Feature file | auto_tester path | Status | Scope covered | Original result | Migrated result | Duration improvement | Stability | Jira | PR |
+| Feature file | autotester path | Status | Scope covered | Original result | Migrated result | Duration improvement | Stability | Jira | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `features/...` | `tests/...` | In review / Merged | concise scope | `scenario/step count`, `duration` | `pass count`, `duration` | `N.N% faster` | focused/stress evidence | Jira link | PR link or TBD |
 
@@ -194,7 +194,7 @@ For a partial feature-file migration, keep the feature path and name the migrate
 
 ### PR link format
 
-- Merged or open PR: `PR #<number>` → `https://github.com/vcita/auto_tester/pull/<number>` (pass via `--pr-label` / `--pr-url`).
+- Merged or open PR: `PR #<number>` → `https://github.com/vcita/autotester/pull/<number>` (pass via `--pr-label` / `--pr-url`).
 - No PR yet, branch pushed: use the branch link and `(PR TBD)`; replace with the PR number once opened (`gh pr view <branch>` or `gh pr list --head <branch>`).
 
 ### Duration improvement integrity

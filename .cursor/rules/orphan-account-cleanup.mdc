@@ -8,7 +8,7 @@ alwaysApply: true
 When the user asks to "find and delete all orphan accounts" or similar phrasing
 including typos such as "orphens Accounts", interpret it as:
 
-- Repository: `auto_tester`
+- Repository: `autotester`
 - Environment: the env named by the user, or `integration` only when no env is specified
 - Action: run the built-in automation account cleanup flow for `.accounts/ledger.json`
 
@@ -16,8 +16,8 @@ Use this workflow without asking clarifying questions:
 
 1. Run a dry-run first:
    `PYENV_VERSION=3.11.9 python main.py cleanup_accounts --env <env> --dry-run`
-2. Check whether any `auto_tester` test commands are actively running:
-   `ps -axo pid,etime,command | awk '/auto_tester|main.py stress_test|main.py run|python main.py/ && !/awk/ && !/cleanup_accounts/ {print}'`
+2. Check whether any `autotester` test commands are actively running:
+   `ps -axo pid,etime,command | awk '/autotester|main.py stress_test|main.py run|python main.py/ && !/awk/ && !/cleanup_accounts/ {print}'`
 3. Delete accounts with:
    `PYENV_VERSION=3.11.9 python main.py cleanup_accounts --env <env>`
 4. If the API returns `429 Too many requests`, wait about 60 seconds and rerun cleanup.
@@ -28,5 +28,5 @@ production", or "in wl", use that value for `<env>`. Do not ask which env unless
 the wording names multiple possible environments.
 
 Safety rule: active test-created accounts are not orphaned. If a final dry-run
-shows only very fresh accounts while an `auto_tester` run is active, leave them
+shows only very fresh accounts while an `autotester` run is active, leave them
 and report that they are likely in use.

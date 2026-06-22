@@ -1,7 +1,7 @@
 """Shared UI helpers for the tips_settings subcategories.
 
 Tips tab navigation and assertions (POV). All explicit waits honor the 5s
-auto_tester cap. The mock-gateway connection flow lives in :mod:`tips_gateway`.
+autotester cap. The mock-gateway connection flow lives in :mod:`tips_gateway`.
 """
 
 import time

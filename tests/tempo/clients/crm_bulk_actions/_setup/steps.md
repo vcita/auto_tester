@@ -3,7 +3,7 @@
 Migrated from `automation-js/features/steps/crm-bulk-actions.feature` Background.
 
 The legacy Background creates a fresh account and logs in for **each** scenario.
-The closest auto_tester primitive is an isolated-account subcategory: the runner
+The closest autotester primitive is an isolated-account subcategory: the runner
 provisions one fresh account for the subcategory run, and this setup logs into it.
 
 1. Log in to the isolated automation account.

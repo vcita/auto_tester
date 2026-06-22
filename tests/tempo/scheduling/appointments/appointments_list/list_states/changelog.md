@@ -3,7 +3,7 @@
 ## 2026-06-08 — Initial migration (VCITA2-13953)
 
 Migrated `automation-js/features/tempo/appointments-list.feature` scenario 1
-("Appointment list page - empty, with results, and filtered") into auto_tester as the
+("Appointment list page - empty, with results, and filtered") into autotester as the
 isolated subcategory `scheduling/appointments/appointments_list`.
 
 - **Setup (API):** create one client (`first last`, capturing the CP portal token) and one

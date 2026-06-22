@@ -10,7 +10,7 @@ All CRM selectors below are the stable `data-qa` selectors that match the legacy
 `CrmTable-<tab>-actionBar-searchBar`, `CrmTable-<tab>_mainClientName`,
 `RolloutBottomSheet-footer-button`). The legacy `@mobile_web` ground-truth run passed
 (1 scenario / 12 steps, 44s on directory `recurly`), and a live DOM probe under mobile
-emulation confirmed every selector renders in the auto_tester mobile layout.
+emulation confirmed every selector renders in the autotester mobile layout.
 
 **Mobile layout note**: the mobile CRM does NOT render the desktop `.table-actions__filter`
 toolbar that `crm_*_helpers.wait_for_clients_table` waits on, so those desktop helpers

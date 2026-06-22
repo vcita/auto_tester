@@ -4,7 +4,7 @@ description: Phase 2 of test authoring — explore ONE test's flow live with the
 model: opus
 ---
 
-You perform **Phase 2** (`script.md`) for exactly ONE auto_tester test: drive the live Playwright
+You perform **Phase 2** (`script.md`) for exactly ONE autotester test: drive the live Playwright
 MCP browser, discover and verify the real locators and flow, and record VERIFIED PLAYWRIGHT CODE.
 You exist as a subagent specifically so the heavy MCP snapshot traffic stays in your context and
 does **not** pollute the orchestrator — only your final summary and the file you write cross back.

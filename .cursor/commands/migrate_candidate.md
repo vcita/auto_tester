@@ -1,6 +1,6 @@
 # Migrate Candidate
 
-End-to-end workflow to pick a legacy `automation-js` candidate, open its Jira ticket, migrate it into `auto_tester` with zero scope/quality loss, review, stabilize, and keep the coverage tracker live at every step.
+End-to-end workflow to pick a legacy `automation-js` candidate, open its Jira ticket, migrate it into `autotester` with zero scope/quality loss, review, stabilize, and keep the coverage tracker live at every step.
 
 This command **orchestrates** existing skills and commands; it does not redefine their rules. Follow each referenced source as the authority.
 
@@ -68,7 +68,7 @@ If the user named a candidate, use it. Otherwise auto-select:
 
 - **Selected candidate** (from Step 1) and one-line rationale.
 - **Parent epic:** `epic` (default `VCITA2-12727`)
-- **Summary:** `[auto_tester migration] <candidate scope>`
+- **Summary:** `[autotester migration] <candidate scope>`
 - **Sprint:** `sprint` (default active sprint)
 - **Assignee:** `assignee` (default `Aviv`)
 - **Proposed branch name:** `<ISSUE-KEY>_<short_candidate_description>`
@@ -122,7 +122,7 @@ Run `/stress_test categories: <category/subcategory> iterations: <iterations>` (
 
 ## Step 7 — Compare and update tracker (`In review`, then `Merged`)
 
-- Run both the original `automation-js` scope and the migrated `auto_tester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
+- Run both the original `automation-js` scope and the migrated `autotester` scope; report the comparison table from the `migrate-automation-js-feature` skill (command, result, duration, duration improvement, scope coverage, quality notes).
 - Once the stability gate has passed and the PR is open, update the tracker via the `update-migration-coverage-tracker` skill with real run evidence, the Jira key, the branch/PR link, and refreshed progress totals. Set the row `Status` to **`In review`** (PR open, not merged) — never `Merged` at this stage. This is the first status that **counts toward progress**, so this is where you increment `--ff-migrated` / `--sc-migrated` (full scenario set only) and refresh the Summary/`--tracked-*`/`--latest-*` rows.
 - **Sync the Jira ticket to the tracker status, and post a migration retrospective comment.** Whenever you advance the tracker row, transition the matching `VCITA2` ticket to the corresponding status via the `manage-jira-issues` skill (`transitionJiraIssue`): `In progress`/`Needs stabilization` → **In Progress** (transition id `11`), `In review` → **In Review** (id `31`), `Merged` → **Done** (id `51`), `Blocked` → **Blocked** (id `41`). **When you move the ticket to `In review`, also add a comment** (`addCommentToJiraIssue`, `contentFormat: markdown`) — a short **migration retrospective** of *what went well and what was hard*:
   - scenario→subtest mapping / scope notes (confirm zero scope loss) and helper reuse;

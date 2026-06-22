@@ -8,7 +8,7 @@ endpoint for a matching subject.
 The endpoint resolves the business from a directory-scoped ``Token <directory_token>``
 (it looks the business up under ``current_directory.businesses``); an Admin token has
 no directory context and the call 500s with "undefined method `businesses' for nil".
-So it is authenticated with the directory token of the directory auto_tester
+So it is authenticated with the directory token of the directory autotester
 provisions accounts on, keyed by ``context["directory_id"]`` (integration 970 /
 production 16403, mirroring automation-js ``runtime/envs.js``). Override with the
 ``VCITA_DIRECTORY_TOKEN`` env var for other directories.
@@ -86,7 +86,7 @@ def wait_for_email(context: dict, subject: str, timeout_s: int = EMAIL_TIMEOUT_S
       "Payment Confirmation").
     - ``"prefix"``: the subject starts with ``subject``. Used for the
       "<verb> from <business>" subjects whose business-name suffix is dynamic on
-      auto_tester isolated accounts (``Auto_<category>_<ts>``), so only the stable
+      autotester isolated accounts (``Auto_<category>_<ts>``), so only the stable
       prefix ("New payment request from ", ...) is asserted.
 
     Returns the matching email dict (carries ``subject`` and ``text_part``). Raises with

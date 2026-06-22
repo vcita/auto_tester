@@ -2,7 +2,7 @@
 # CI uses the split Dockerfile-base-image + Dockerfile-to-deploy for caching.
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-WORKDIR /auto_tester
+WORKDIR /autotester
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
