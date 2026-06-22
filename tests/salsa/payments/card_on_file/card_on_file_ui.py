@@ -7,7 +7,7 @@ defaulting to the client's email), and the resulting "Card request sent on …"
 label all live in the inner Vue iframe, so controls are resolved across the page
 and all frames.
 
-All explicit waits are capped at 5s per the auto_tester wait policy, except the
+All explicit waits are capped at 5s per the autotester wait policy, except the
 client-page load budget (a page-readiness allowance, like login waiting for the
 dashboard, not an element wait).
 """

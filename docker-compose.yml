@@ -1,0 +1,15 @@
+services:
+  autotester:
+    build: .
+    container_name: autotester
+    entrypoint: ["./entrypoint_dev.sh"]
+    # Default command runs the long-lived GUI. To run the full suite instead:
+    #   docker compose run --rm autotester run --headless --env integration
+    command: ["gui", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      - TARGET_ENV=${TARGET_ENV:-integration}
+      - VCITA_ADMIN_TOKEN=${VCITA_ADMIN_TOKEN:-}
+      - VCITA_DIRECTORY_ID=${VCITA_DIRECTORY_ID:-}
+    restart: unless-stopped

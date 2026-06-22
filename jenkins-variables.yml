@@ -1,0 +1,9 @@
+integration:
+  HELM_VALUES_FILE: 'values_integration.yaml'
+  HELM_ARGS: '--set global.image_tag=<IMAGE_TAG_HASH>'
+  BASE_IMAGE_FILES: 'Dockerfile-base-image, Dockerfile-to-deploy, requirements.txt'
+
+production:
+  HELM_VALUES_FILE: 'values_production.yaml'
+  HELM_ARGS: '--set global.image_tag=<IMAGE_TAG_HASH>'
+  BASE_IMAGE_FILES: 'Dockerfile-base-image, Dockerfile-to-deploy, requirements.txt'

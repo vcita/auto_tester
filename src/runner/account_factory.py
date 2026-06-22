@@ -41,7 +41,7 @@ MAX_RETRIES = 2
 RETRY_BACKOFF = 2
 
 # Operator portal credentials for the integration sandbox-WL directory (the same
-# directory auto_tester provisions accounts on). Mirrors automation-js
+# directory autotester provisions accounts on). Mirrors automation-js
 # clients-quota.feature, which hard-codes these in the step table. Overridable via
 # env for other directories/environments.
 OPERATOR_LOGIN_PATH = "/operator_api/v1/authentications/login"
@@ -90,7 +90,7 @@ def load_operator_credentials(config: Optional[dict] = None) -> tuple[str, str]:
 
     Used to mint custom subscription packages (e.g. constrained client quotas).
     Defaults to the integration sandbox-WL operator that owns the directory
-    auto_tester provisions accounts on.
+    autotester provisions accounts on.
     """
     email = os.environ.get("VCITA_OPERATOR_EMAIL")
     password = os.environ.get("VCITA_OPERATOR_PASSWORD")

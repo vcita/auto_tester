@@ -10,7 +10,7 @@ test bodies via the ``tips_checkout_bo`` / ``tips_checkout_pos`` /
 
 Translation notes:
 - Legacy "user set tips settings via API" did ``PUT /v2/settings`` with top-level
-  ``tips`` + ``enable_tips_for_bo``/``enable_tips_for_cp``. auto_tester proved a flat
+  ``tips`` + ``enable_tips_for_bo``/``enable_tips_for_cp``. autotester proved a flat
   ``PUT /v2/settings`` returns 200 but drops ``tips`` (see tips_settings/tips_account),
   so we use the POV Save route ``POST /platform/v1/payment/settings`` with
   ``payment_settings: {tips, enable_tips_for_bo, enable_tips_for_cp}`` and confirm

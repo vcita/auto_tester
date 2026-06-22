@@ -34,7 +34,7 @@ def test_business_info_display(page: Page, context: dict) -> None:
 
     Migrates automation-js `business_info_page.feature` scenario
     `Update email in business info page`. The account's actual business name/email
-    (read from the API) are asserted, since auto_tester names accounts dynamically.
+    (read from the API) are asserted, since autotester names accounts dynamically.
     """
     info = get_business(context)
     expected_name = info["business"]["name"]

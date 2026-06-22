@@ -3,7 +3,7 @@
 ## 2026-06-08 — Initial migration (VCITA2-13993)
 
 Migrated `automation-js/features/tempo/ServiceSetups/categories-and-services.feature`
-(1 scenario) into auto_tester as the isolated subcategory
+(1 scenario) into autotester as the isolated subcategory
 `scheduling/services_categories`.
 
 - **Setup (UI):** log in to a fresh isolated account, open `/app/settings/services`,

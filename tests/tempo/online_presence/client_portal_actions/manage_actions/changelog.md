@@ -9,7 +9,7 @@
   `.layout.quick-action` labels (legacy `ClientPortalDashboard.getActionListFromCP`).
 
 ### Stability notes
-- The editor works on the auto_tester default directory (970) — no directory/whitelabel
+- The editor works on the autotester default directory (970) — no directory/whitelabel
   dependency. Two flakes were fixed:
   1. **Edit portal actions click**: triggers an Angular -> Vue iframe reload; a single
      click can land before the handler attaches or before the inner canvas renders.

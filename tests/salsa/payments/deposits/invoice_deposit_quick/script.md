@@ -3,7 +3,7 @@
 Phase 2 (HOW). Flows live in `deposits_invoice_ui.py` and `deposits_api.py`; this test
 orchestrates them. Selectors confirmed against the legacy page objects
 (`oldPaymentsDialogs.js`, `invoiceAndEstimateDialogs.js`, `assignDepositDialog.js`,
-`invoice.js`) and the auto_tester Quick-Actions/picker pattern (scheduled_payments_ui).
+`invoice.js`) and the autotester Quick-Actions/picker pattern (scheduled_payments_ui).
 
 ## Step 1 — Deny point_of_sale, re-login
 ```python

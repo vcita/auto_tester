@@ -8,7 +8,7 @@
   payment request becomes PAID $100.00, and that Payments Received shows the
   invoice payment.
 - Deviation (documented): legacy used a "display a fee" service and invoiced
-  from a deep-linked appointment page. In auto_tester the appointment-page
+  from a deep-linked appointment page. In autotester the appointment-page
   "Create invoice" button only mounts the POV invoice wizard
   (`/vue/#/itemizable`) when the appointment is reached via in-app SPA
   navigation; a `page.goto` deep-link loads the appointment app without the

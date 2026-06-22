@@ -3,7 +3,7 @@
 ## 2026-06-08 — Initial migration (VCITA2-13950)
 
 Migrated the "Schedule a multi staff meeting as an admin" scenario of
-`automation-js/features/tempo/multistaff.feature` into auto_tester as part of the isolated
+`automation-js/features/tempo/multistaff.feature` into autotester as part of the isolated
 subcategory `scheduling/appointments/multistaff`.
 
 - **Setup (API, in `_setup`):** enable `multistaff_features`; create `user_staff` (user) +

@@ -2,7 +2,7 @@
 
 Migrated from `automation-js/features/steps/crm-selection-logic.feature` Background.
 
-The legacy Background creates a fresh account and logs in. The closest auto_tester
+The legacy Background creates a fresh account and logs in. The closest autotester
 primitive is an isolated-account subcategory: the runner provisions one fresh account
 for the subcategory run, and this setup logs into it.
 

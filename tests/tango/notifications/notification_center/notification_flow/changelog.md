@@ -102,7 +102,7 @@ Legacy ground truth: `node index features/tango/notification_center.feature inte
     `[data-qa='VcWideTopMenuBar-notifications']`.
 - **Tokens** (verified live): app token = admin POST /platform/v1/apps -> client creds ->
   admin POST /oauth/service/token; directory token default = the integration directory 970
-  (kmy47p5x88kqlv6f) token auto_tester provisions on; core_internal_app token from the
+  (kmy47p5x88kqlv6f) token autotester provisions on; core_internal_app token from the
   integration service creds. All overridable via env (VCITA_DIRECTORY_TOKEN, VCITA_DIRECTORY_UID,
   VCITA_CORE_INTERNAL_SERVICE_ID/SECRET, VCITA_APIGW_URL). Notification metadata + send run on the
   apigw (apigw-integration), derived from the core api base.

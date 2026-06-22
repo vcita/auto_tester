@@ -6,7 +6,7 @@ portal checkout lives inside the vitrage `cp_iframe`. These helpers resolve a
 visible control across the page and all of its frames, and open the POV
 "Online Payments" settings tab that hosts both the ACH and offset-fee controls.
 
-All explicit waits are capped at 5s per the auto_tester wait policy; rely on
+All explicit waits are capped at 5s per the autotester wait policy; rely on
 readiness signals, not longer timeouts.
 """
 

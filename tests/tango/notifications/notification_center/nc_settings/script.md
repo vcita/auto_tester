@@ -4,7 +4,7 @@
 
 ## API preconditions (directory token)
 - `dir_token = directory_token(context)` — env/default `ff333ad7960d32e873d48d5de772f826`
-  (the integration directory 970 auto_tester provisions on).
+  (the integration directory 970 autotester provisions on).
 - `create_notification_template(context, dir_token, code=auto_nc_settings<seq>, type=payments,`
   `channel={pane:true,push:true}, deep_link="app/clients", show_in_settings=false, text={...})`.
 

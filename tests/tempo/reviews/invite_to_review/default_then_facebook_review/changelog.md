@@ -3,7 +3,7 @@
 ## 2026-06-01 — Initial migration (VCITA2-13759)
 
 Migrated `automation-js/features/tempo/reviews.feature` scenario 1
-(*Set review settings and invite client to review*) to auto_tester as the new
+(*Set review settings and invite client to review*) to autotester as the new
 `tests/reviews` category.
 
 - New category `tests/reviews` with isolated subcategory `invite_to_review`.

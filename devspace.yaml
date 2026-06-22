@@ -1,0 +1,11 @@
+version: v2beta1
+name: autotester
+
+imports:
+  - git: git@github.com:vcita/devspace.git
+    branch: master
+    subPath: ./generic_services/
+
+vars:
+    SERVICE_NAME: autotester
+    SERVICE_PORT_DEBUG: 43261

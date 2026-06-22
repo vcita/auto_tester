@@ -5,7 +5,7 @@ Teams mirror the automation-js squad folders, with the legacy ``steps`` squad
 folded into ``tempo``.
 """
 
-# The six teams that own auto_tester tests. Each is also a top-level folder
+# The six teams that own autotester tests. Each is also a top-level folder
 # under tests/ (team-first modularity).
 CANONICAL_TEAMS = (
     "backstage",
@@ -17,7 +17,7 @@ CANONICAL_TEAMS = (
 )
 
 # Maps an automation-js squad folder (the migration provenance) to its
-# auto_tester owning team. ``steps`` has no auto_tester team of its own; its
+# autotester owning team. ``steps`` has no autotester team of its own; its
 # coverage is owned by ``tempo``.
 SQUAD_TO_TEAM = {
     "backstage": "backstage",

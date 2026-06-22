@@ -1,0 +1,227 @@
+# NOTE: the "integration" values below look redundant but are intentionally
+# separate and may legitimately differ:
+#   - environment (here): the SSM path segment -> /<environment>/<release>/<secret>
+#   - TARGET_ENV (per job): which deployed env the tests run AGAINST (env_config resolves URLs)
+#   - ENVIRONMENT (per job): the runner's own logic env (config/log behavior)
+environment: integration
+
+# ---------------------------------------------------------------------------
+# Sharded suite, runs every 2 hours.
+#
+# Each entry in `jobs` renders ONE CronJob -> ONE pod, and the pods run in
+# parallel (the runner is sequential WITHIN a pod: parallel_tests: 1). So we
+# split the ~322-test suite into team/domain shards that each fit comfortably
+# under the 1h activeDeadlineSeconds cap. Heavy areas (salsa/payments=158,
+# tempo/scheduling=69) are sub-split further.
+#
+# Targeting (see main.py cmd_run):
+#   --team <name>        run every domain a team owns, each with a fresh account
+#   --selection <p...>   run an explicit set of categories/subcategories
+#   --category <path>    run a single category
+#
+# Cadence: every 2 hours at even hours (m */2 * * *). The 2h interval > the 1h
+# activeDeadlineSeconds cap, so consecutive runs never overlap (concurrencyPolicy
+# Forbid is a safety net). Shards are staggered by 1 minute within each cycle to
+# soften the burst of account-creation API calls (avoids 429 throttling); the
+# long-running shards still overlap and finish ~in parallel.
+#
+# Account churn note: every-2h => up to 12 cycles/day => ~144 account batches/day
+# (vs ~12 nightly). Ensure cleanup_accounts keeps pace and watch for 429s.
+#
+# Shard sizes are by TEST COUNT (a proxy for time until we have real in-cluster
+# timings). Rebalance after the first scheduled run if any shard nears 1h.
+# ---------------------------------------------------------------------------
+
+# Shared blocks reused via YAML aliases (the template only iterates `.Values.jobs`,
+# so this `shared` key is ignored at render time).
+shared:
+  env: &env
+    - name: TARGET_ENV
+      value: "integration"
+    - name: ENVIRONMENT
+      value: "integration"
+  # SSM JSON at /integration/<release>/autotester-creds with keys
+  # VCITA_ADMIN_TOKEN and VCITA_DIRECTORY_ID, injected as env vars.
+  secrets: &secrets
+    - name: autotester-creds
+      as: env
+  resources: &resources
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  alerting: &alerting
+    runbook_url: "https://myvcita.atlassian.net/wiki/spaces/IT/pages/2170814481/Microservice"
+    failure:
+      priority: P3
+    sequential_failure:
+      priority: P2
+    timeout:
+      priority: P3
+    not_executed:
+      priority: P2
+
+jobs:
+  # === Salsa (158 payments + 18 commerce) ===
+  - name: salsa-payments-core # appointment(16) + product(16) + event(12) = 44
+    squad: salsa
+    schedule: "0 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "salsa/payments/appointment_payments", "salsa/payments/product_payments", "salsa/payments/event_payments"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    # Quoted on purpose: the template guard `if $job.backoffLimit` treats an
+    # integer 0 as falsy and falls through to k8s' default of 6 retries; the
+    # string "0" renders as backoffLimit: 0 (no retries).
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600 # 1h hard cap per shard
+
+  - name: salsa-payments-billing # invoices(19) + payments_emails(12) + tips_checkout(12) = 43
+    squad: salsa
+    schedule: "1 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "salsa/payments/invoices", "salsa/payments/payments_emails", "salsa/payments/tips_checkout"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: salsa-payments-gateways # gateway_setups(10) + deposits(6) + offset_fees(6) + refunds_credits(6) + record_payments(4) + generate_pdfs(4) + coupons_checkout(5) = 41
+    squad: salsa
+    schedule: "2 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "salsa/payments/gateway_setups", "salsa/payments/deposits", "salsa/payments/offset_fees", "salsa/payments/refunds_credits", "salsa/payments/record_payments", "salsa/payments/generate_pdfs", "salsa/payments/coupons_checkout"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: salsa-payments-settings # payment_settings(8) + settings(4) + tips_settings(4) + taxes_settings(2) + card_on_file(2) + coupons(2) + pdf_customization(2) + qr_code_payment(2) + scheduled_payments(2) = 28
+    squad: salsa
+    schedule: "3 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "salsa/payments/payment_settings", "salsa/payments/settings", "salsa/payments/tips_settings", "salsa/payments/taxes_settings", "salsa/payments/card_on_file", "salsa/payments/coupons", "salsa/payments/pdf_customization", "salsa/payments/qr_code_payment", "salsa/payments/scheduled_payments"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: salsa-commerce # products(5) + sales(13) = 18
+    squad: salsa
+    schedule: "4 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "salsa/products", "salsa/sales"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  # === Tempo (125) ===
+  - name: tempo-scheduling-booking # appointments(20) + events(16) + multi_booking(3) = 39
+    squad: tempo
+    schedule: "5 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "tempo/scheduling/appointments", "tempo/scheduling/events", "tempo/scheduling/multi_booking"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: tempo-scheduling-calendar # calendar(10) + calendar_settings(3) + services(6) + services_categories(2) + payment_setups(8) = 29
+    squad: tempo
+    schedule: "6 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "tempo/scheduling/calendar", "tempo/scheduling/calendar_settings", "tempo/scheduling/services", "tempo/scheduling/services_categories", "tempo/scheduling/payment_setups"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: tempo-clients # clients(43)
+    squad: tempo
+    schedule: "7 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "tempo/clients"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: tempo-misc # documents(3) + reviews(6) + online_presence(2) + settings(2) = 13
+    squad: tempo
+    schedule: "8 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--selection", "tempo/documents", "tempo/reviews", "tempo/online_presence", "tempo/settings"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  # === Small teams (one shard each via --team) ===
+  - name: maestro # settings(8)
+    squad: maestro
+    schedule: "9 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--team", "maestro"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: spotlights # dashboard(5) + layout(2) + settings(4) = 11
+    squad: spotlights
+    schedule: "10 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--team", "spotlights"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+
+  - name: tango # online_presence(2)
+    squad: tango
+    schedule: "11 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--team", "tango"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    alerting: *alerting
+    restartPolicy: Never
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600

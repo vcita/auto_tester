@@ -1,4 +1,4 @@
-# CLAUDE.md — vcita Test Agent (auto_tester)
+# CLAUDE.md — vcita Test Agent (autotester)
 
 This is an **AI-driven black-box browser test agent** for vcita. There is no access to
 vcita's source code — the agent explores the app like a real user and generates
@@ -45,8 +45,8 @@ the matching work, and follow them as binding project rules.
 - **generate-subcategory** — scaffolding a new subcategory / "add tests for" / "scaffold tests".
   Creates Phase 1 files only (`_category.yaml` + `steps.md`); Phase 2/3 need MCP exploration.
 - **migrate-automation-js-feature** — migrating legacy `automation-js` Gherkin features into
-  auto_tester. Read the full legacy chain, build `migration_mapping.md` first, no scope loss.
-- **stabilize-auto-tester-e2e** — fixing unstable tests, reducing runtime, health checks.
+  autotester. Read the full legacy chain, build `migration_mapping.md` first, no scope loss.
+- **stabilize-autotester-e2e** — fixing unstable tests, reducing runtime, health checks.
   Includes standing approval to commit+push the fix on its `VCITA2-XXXX` branch and open/update
   the PR once validated.
 - **update-migration-coverage-tracker** — after a migrated test is validated/stabilized; updates

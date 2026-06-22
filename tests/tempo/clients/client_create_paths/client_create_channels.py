@@ -31,7 +31,7 @@ LD_SUBMIT = "xpath=//button[contains(., 'Submit')]"
 
 
 def vitrage_base(context: dict) -> str:
-    """Public Vitrage livesite base, matching the convention used across auto_tester
+    """Public Vitrage livesite base, matching the convention used across autotester
     (`reviews_cp_ui`, `estimates_helpers`): app.meet2know -> live.meet2know,
     app.vcita -> live.vcita, fenv app-<name>... -> vitrage-<name>...."""
     base = app_base(context)

@@ -38,7 +38,7 @@ assert_meeting(page, m3, service_name=service, client_name="rick morty",
 
 ## Verification mapping (legacy `meeting created with details`)
 
-| Legacy column | auto_tester assertion |
+| Legacy column | autotester assertion |
 |---|---|
 | `meeting_name` | `div.summary-header h3` contains `service1` |
 | `client_name` | `[data-qa='display-name']` contains `rick morty` |

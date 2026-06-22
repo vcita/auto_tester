@@ -38,7 +38,7 @@ def setup_cp_multi_booking(page: Page, context: dict) -> None:
     # event scheduling stay deterministic regardless of staff-list ordering. Capture the
     # owner display name too: the CP scheduler summary shows the default providing staff as
     # "With <owner display name>" (the legacy account was literally "Automation test
-    # business"; the auto_tester account name varies per run, so resolve it dynamically).
+    # business"; the autotester account name varies per run, so resolve it dynamically).
     first_staff_uid(context)
     staff_list = account_request(
         context, "GET", f"/platform/v1/businesses/{pivot_uid(context)}/staffs?status=all"

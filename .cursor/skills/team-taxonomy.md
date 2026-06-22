@@ -1,4 +1,4 @@
-# Team Taxonomy & Placement (auto_tester)
+# Team Taxonomy & Placement (autotester)
 
 Shared reference for placing every test under its owning team. Both
 `generate-subcategory` and `migrate-automation-js-feature` follow this.
@@ -61,9 +61,9 @@ How to read it:
 - The old `Steps` squad was dissolved — rows show `~~Steps~~ <NewTeam>`; use the
   new team (its invoicing/estimates work went to **Salsa**, its
   CRM/clients/documents work went to **Tempo**).
-- The page lists `spotlight`-style names as **Spotlights** in auto_tester (always
+- The page lists `spotlight`-style names as **Spotlights** in autotester (always
   plural).
-- Only the six canonical teams own auto_tester tests. If a component maps to a
+- Only the six canonical teams own autotester tests. If a component maps to a
   non-product squad (e.g. `BI`, `Professional Solutions`, `Production`,
   `Jira Security`), it is not a UI-test owner — ask the user.
 
@@ -95,7 +95,7 @@ Calendar / Services / Bookings -> **Tempo**; Staff UI / Upgrade Page / My Accoun
 
 Use only as a starting guess; the Confluence page overrides it.
 
-| automation-js squad | auto_tester team |
+| automation-js squad | autotester team |
 |---|---|
 | `backstage` | `backstage` |
 | `maestro` | `maestro` |

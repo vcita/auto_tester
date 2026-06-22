@@ -61,7 +61,7 @@
 ## 2026-05-24 - Initial Migration
 **Phase**: Steps, script, test
 **Author**: Cursor AI
-**Reason**: Migrated automation-js custom status delete scenario into auto_tester.
+**Reason**: Migrated automation-js custom status delete scenario into autotester.
 **Changes**:
 - Added Phase 1 steps covering in-use delete blocking and unused status deletion.
 - Added Phase 2 script mapping legacy Client Card settings and client detail status behavior.

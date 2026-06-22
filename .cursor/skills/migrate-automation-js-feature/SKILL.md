@@ -1,6 +1,6 @@
 ---
 name: migrate-automation-js-feature
-description: Migrate legacy automation-js Gherkin feature coverage into auto_tester with zero scope loss, strict mapping, three-phase test artifacts, and stability validation. Use when migrating .feature files, translating automation-js step definitions/page objects/API setup, or creating a migration_mapping.md before implementing auto_tester tests.
+description: Migrate legacy automation-js Gherkin feature coverage into autotester with zero scope loss, strict mapping, three-phase test artifacts, and stability validation. Use when migrating .feature files, translating automation-js step definitions/page objects/API setup, or creating a migration_mapping.md before implementing autotester tests.
 ---
 
 # Migrate automation-js Feature
@@ -28,12 +28,12 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
      do **not** drop a `migration_mapping.md` inside the test folder (it gets caught by `git add` of the
      subcategory). One file per migrated ticket so parallel batch migrations never clobber each other.
    - **Resolve the owning team first, from the source of truth**: look up the feature's product component on the company **Confluence "Squads responsibilities"** page (pageId `2615410911`, read it live via the Atlassian MCP) and map component → squad. This is authoritative and **overrides the legacy `automation-js/features/<squad>/...` folder** (e.g. invoices/estimates under `steps`/`tempo` are owned by `salsa`; dashboard widgets generic + quick actions by `spotlights`). Use the legacy squad folder only as a starting hint. See [`../team-taxonomy.md`](../team-taxonomy.md) for how to read the page and the canonical six teams. Record the resolved team in the mapping. If the target domain already exists under a team, keep it consistent; flag genuinely ambiguous or non-product-squad components for confirmation rather than guessing.
-   - Map each legacy step to the team-first auto_tester path `tests/<team>/<domain>/<subcategory>/<test>/`. The domain (not the team) is the account boundary.
+   - Map each legacy step to the team-first autotester path `tests/<team>/<domain>/<subcategory>/<test>/`. The domain (not the team) is the account boundary.
    - List every original scenario, action, assertion, setup, and edge case.
    - Call out any helper/function gaps before coding.
    - Do not write `test.py` until the mapping is complete.
    - Treat the mapping as a local planning artifact. It is important for preventing scope loss, but it must not be committed or included in the PR (the `.cursor/migration_mappings/` location is git-ignored for this reason).
-5. Implement in strict auto_tester phase order, isolating each test's authoring in a subagent
+5. Implement in strict autotester phase order, isolating each test's authoring in a subagent
    (see `../rules/subagent-test-isolation.mdc`): per test run `test-scaffolder` (sonnet) for
    `steps.md`, `test-explorer` (opus) for `script.md` — its heavy MCP snapshot traffic lives and
    dies inside the subagent — then `test-codegen` (sonnet) for `test.py`. The orchestrator keeps
@@ -61,12 +61,12 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
      - **Smoke (cheap pre-check)**: `PYENV_VERSION=3.11.9 python main.py stress_test --categories <category/subcategory> --iterations 3 --env integration --headless`. A 3-iteration run only catches gross breakage — it **never** stamps `stability.status: stable` and is not sufficient evidence to claim "stable".
      - **Full stability gate (required before claiming stable)**: rerun with `--iterations 10`. The runner only stamps `stability.status: stable` at a **100% pass over 10 iterations** (`STABLE_MIN_ITERATIONS = 10`). Only a clean 10/10 may be recorded as the tracker stability evidence (`stress 10/10 …`). 3 iterations routinely mask time-of-day, propagation-lag, and SSO-redirect flakes that only surface across 10 runs.
 8. After a successful migration, run the original and migrated tests and report the comparison.
-   - Run the migrated auto_tester scope and capture duration, pass/fail count, and command.
+   - Run the migrated autotester scope and capture duration, pass/fail count, and command.
    - Run the original automation-js scope and capture duration, pass/fail count, and command.
    - Use the latest post-stabilization run evidence; do not compare against earlier runs if the test code, waits, setup, or selector logic changed afterward.
    - Report the comparison in chat using this table format:
 
-     | Check | automation-js original | auto_tester migration |
+     | Check | automation-js original | autotester migration |
      | --- | --- | --- |
      | Command | `<command>` | `<command>` |
      | Result | `<scenario/step pass-fail count>` | `<test pass-fail count>` |
@@ -78,7 +78,7 @@ description: Migrate legacy automation-js Gherkin feature coverage into auto_tes
    - Summarize under the table whether scope was preserved against `migration_mapping.md`.
    - Summarize under the table whether quality was preserved or improved, including selector stability, waits, cleanup, and any intentional workflow differences.
 9. Run the mandatory closeout. Once the Definition Of Done checks pass, always perform the full closeout in order — never stop to ask whether to commit, push, open the PR, or update the tracker. These steps carry standing approval for the migration workflow and **explicitly override any general "no commit/push without explicit approval" rule** (including workspace rules in other repos): running this migration workflow IS the approval. Just do them and report links:
-   - **Commit + push**: stage only the explicit migration paths (source, `steps.md`, `script.md`, `test.py`, `changelog.md`, `_category.yaml`, resources). Never `git add -A`. Run-generated artifacts (`_runs/`, `migration_mapping.md`, `_health.json`) are git-ignored or excluded. Commit on a `VCITA2-XXXX_...` branch with message `VCITA2-XXXX migrate <feature> (auto_tester)`, then push with `-u`.
+   - **Commit + push**: stage only the explicit migration paths (source, `steps.md`, `script.md`, `test.py`, `changelog.md`, `_category.yaml`, resources). Never `git add -A`. Run-generated artifacts (`_runs/`, `migration_mapping.md`, `_health.json`) are git-ignored or excluded. Commit on a `VCITA2-XXXX_...` branch with message `VCITA2-XXXX migrate <feature> (autotester)`, then push with `-u`.
    - **Open PR**: `gh pr create --base master` with a summary table (legacy→migrated scope), stability evidence, and the wait-audit result. Report the PR URL.
    - **Update tracker**: use the `update-migration-coverage-tracker` skill to upsert the Google Sheet row and refresh the Confluence dashboard with real run evidence and current progress totals (feature/scenario bars, tracked/validated counts, latest scope/Jira/PR). Set the row `Status` to **`In review`** at this point — the PR is open but not merged, so it is **not** `Merged` yet. Never mark a row `Merged` from closeout.
    - The only time to pause is a genuine blocker (push rejected, PR conflict, missing tracker credentials) — fix it or report the specific blocker, do not ask for permission to run the closeout itself.
@@ -114,12 +114,12 @@ cheap (~1 min) and decisive.
      was never obsolete and there was no directory dependency.)*
    - **Account directory / whitelabel mismatch.** The legacy auto-account may be created on
      a specific directory that serves a *different* (often older) UI build than the
-     auto_tester default directory, so the same control can exist on one directory and be
+     autotester default directory, so the same control can exist on one directory and be
      absent on another. Read the legacy run log for `Creating automatic account ... on
      directory <X>` (e.g. `recurly`) and match it before assuming the selector is dead.
      **Confirm this with evidence (selector truly absent after the frame is fully loaded),
      not just a timeout** — a timeout usually means the timing flake above, not a redesign.
-   - **Feature-flag / rollout differences** between the legacy account and the auto_tester account.
+   - **Feature-flag / rollout differences** between the legacy account and the autotester account.
    - **Wrong/stale selector vs a genuine redesign** that only applies to your directory.
 3. **If the legacy FAILS too**, only then is the feature genuinely broken/obsolete
    upstream. Capture that as the finding (with the legacy run output as evidence) and set
@@ -178,7 +178,7 @@ The migration is complete only when all three checks pass:
 - **Zero Scope Loss**: every legacy assertion, setup path, edge case, and data-table expectation was checked against the local `migration_mapping.md`; the mapping file itself stays out of the PR.
 - **Pre-Stress Legacy Gate Passed**: after 3 successful migrated runs and before any stress test, scope and quality were re-verified against the legacy test and confirmed to be at least equivalent.
 - **Proven Stability**: focused run passes, resolved heal requests are deleted, and a full **10-iteration `stress_test` passed at 100%** (matching the runner's `STABLE_MIN_ITERATIONS = 10`) with fresh auto-created accounts. A 3-iteration smoke run is only a pre-check — it never stamps `stability.status: stable` and is not valid stability evidence.
-- **Runtime And Coverage Comparison**: original automation-js and migrated auto_tester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
+- **Runtime And Coverage Comparison**: original automation-js and migrated autotester runs are both executed, then reported with durations, pass/fail counts, scope preservation, and quality preservation.
 - **Faster Without Loss**: total runtime was reduced where possible by removing avoidable waits and work, with no scope or quality reduction.
 - **Pre-PR Wait Audit Passed**: just before opening the PR, edited code was re-scanned for timeouts above the 5s cap and retry loops above 2 retries; each was lowered or explicitly justified, and stability was re-stamped if any wait/timeout/retry changed.
 - **Closeout Completed (always, no approval needed)**: the migration is committed on its `VCITA2-XXXX` branch, pushed, and opened as a PR to `master`, **and** the coverage tracker (Google Sheet row + Confluence dashboard) is updated with measured results, stability evidence, refreshed remaining counts, and the row `Status` set to `In review` (PR open, not merged — never `Merged` at closeout). These run automatically as part of every migration — never gate them on asking the user. The row is flipped to `Merged` only after the PR actually merges.
@@ -190,11 +190,11 @@ The migration is complete only when all three checks pass:
 - Prefer API setup for prerequisites that are not the feature under test.
 - Do not replace a legacy UI action with an API call when that UI action is part of the scenario scope, assertion path, or reusable function objective.
 - If an API shortcut is considered for speed or stability, first prove the removed UI path is outside the migrated scope and document that decision in `script.md` and `changelog.md`.
-- If a legacy API shortcut is not stable in auto_tester, keep the API-created entity and ensure the user-visible state through the UI before asserting downstream behavior.
+- If a legacy API shortcut is not stable in autotester, keep the API-created entity and ensure the user-visible state through the UI before asserting downstream behavior.
 - Use `data-qa` selectors first, then roles/labels, then stable text. Use raw CSS only for existing stable project selectors such as CRM table actions. If no stable selector exists, document the fallback in `script.md` and suggest the exact `data-qa` that should be added to the product code.
 - Replace fixed sleeps with condition waits. Poll only for asynchronous product indexing or eventual consistency, and make the expected condition explicit.
 - Keep matter/client terminology entity-agnostic unless the legacy scenario specifically asserts a displayed label.
-- **Never hardcode the legacy auto-account's display name.** The legacy auto-account is literally named `Automation test business`, so legacy tables assert strings like `With Automation test business`. auto_tester account names vary per run, so resolve the dynamic name from the API (e.g. the owner staff `display_name` via the business staff list) and assert against that (`With <owner_display_name>`). Same behavior, account-agnostic. (Proven case: VCITA2-14228 multi-booking summary "providing staff".)
+- **Never hardcode the legacy auto-account's display name.** The legacy auto-account is literally named `Automation test business`, so legacy tables assert strings like `With Automation test business`. autotester account names vary per run, so resolve the dynamic name from the API (e.g. the owner staff `display_name` via the business staff list) and assert against that (`With <owner_display_name>`). Same behavior, account-agnostic. (Proven case: VCITA2-14228 multi-booking summary "providing staff".)
 - Do not preserve a legacy implementation detail when it is only a Selenium workaround; preserve the behavior and assertion instead.
 
 ## Migration Patterns Proven By The PoC
@@ -202,7 +202,7 @@ The migration is complete only when all three checks pass:
 - A legacy write endpoint may silently no-op on the current backend: `PUT /v2/settings` returned `200` but dropped `tips`, while the POV reads and writes tips via `POST /platform/v1/payment/settings`. Confirm persistence with an independent GET read-back and use the endpoint the current FE calls.
 - Legacy Gherkin tables become explicit expected lists in `test.py`.
 - Legacy `scenarioContext` values become `context[...]` keys.
-- Legacy `POST /platform/v1/clients` setup maps to an auto_tester helper using `context["auto_account"].api_token`.
+- Legacy `POST /platform/v1/clients` setup maps to an autotester helper using `context["auto_account"].api_token`.
 - Legacy CRM filter assertions need dynamic waits because CRM indexing can lag API-created clients.
 - Legacy Client Card settings status chips map to the Client status tab in `Settings / Client & Contact info`.
 - In-use delete protection can be asserted by the status remaining present; a blocking dialog may or may not be displayed depending on current UI behavior.

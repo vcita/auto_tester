@@ -581,6 +581,7 @@ class TestRunner:
                 channel='chrome',  # Use real Chrome instead of Chromium
                 args=[
                     '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox',  # required when running as non-root in container
                     get_browser_window_size_arg(self.config),
                 ]
             )

@@ -54,7 +54,7 @@ wait_for_client_email_texts(context, ["Estimated arrival time:", "4:00 pm - 4:30
 
 ## Verification mapping (legacy `meeting created with details` + `client gets an email`)
 
-| Legacy column | auto_tester assertion |
+| Legacy column | autotester assertion |
 |---|---|
 | `arrival_window` | `.arrival-window-time` ("Estimated arrival:") contains the expected window |
 | `client gets an email where text includes` | automation message-content API email contains `Estimated arrival time:` + window |

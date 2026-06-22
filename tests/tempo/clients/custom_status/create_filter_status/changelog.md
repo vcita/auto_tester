@@ -106,7 +106,7 @@
 ## 2026-05-24 - Initial Migration
 **Phase**: Steps, script, test
 **Author**: Cursor AI
-**Reason**: Migrated automation-js custom status create/filter scenario into auto_tester.
+**Reason**: Migrated automation-js custom status create/filter scenario into autotester.
 **Changes**:
 - Added Phase 1 steps covering custom status creation, assignment, and CRM filtering.
 - Added Phase 2 script mapping legacy Selenium page-object behavior to Playwright actions.

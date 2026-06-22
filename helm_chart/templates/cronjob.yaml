@@ -1,0 +1,138 @@
+{{- $root := .Values -}}
+{{- range $job := $root.jobs }}
+{{- $alertRunbookUrl := ($job.alerting).runbook_url -}}
+{{- $alertFailurePriority := (($job.alerting).failure).priority -}}
+{{- $alertSequentialFailurePriority := (($job.alerting).sequential_failure).priority -}}
+{{- $alertNotExecutedPriority := (($job.alerting).not_executed).priority -}}
+{{- $alertTimeoutPriority := (($job.alerting).timeout).priority }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{{ include "autotester.releaseName" $ }}-{{ $job.name }}"
+  labels:
+    {{- include "autotester.labels" $ | nindent 4 }}
+  annotations:
+    vcita.owners/squad: {{ $job.squad }}
+    vcita.alerts/runbook_url: {{ $alertRunbookUrl }}
+    vcita.alerts/failure_priority: {{ $alertFailurePriority }}
+    vcita.alerts/failure_enable: "true"
+    vcita.alerts/sequential_failure_priority: {{ $alertSequentialFailurePriority }}
+    vcita.alerts/sequential_failure_enable: "true"
+    vcita.alerts/timeout_priority: {{ $alertTimeoutPriority }}
+    vcita.alerts/timeout_enable: "true"
+    vcita.alerts/not_executed_priority: {{ $alertNotExecutedPriority }}
+    vcita.alerts/not_executed_enable: "true"
+spec:
+  schedule: {{ $job.schedule | quote }}
+  {{- if $job.concurrencyPolicy }}
+  concurrencyPolicy: {{ $job.concurrencyPolicy }}
+  {{- end }}
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      {{- if $job.backoffLimit }}
+      backoffLimit: {{ $job.backoffLimit }}
+      {{- end }}
+      {{- if $job.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ $job.activeDeadlineSeconds }}
+      {{- end }}
+      ttlSecondsAfterFinished: {{ $job.ttlSecondsAfterFinished | default 172800 }} # 2 days
+      template:
+        metadata:
+          labels:
+            app: {{ include "autotester.releaseName" $ }}
+            cron: {{ $job.name }}
+          {{- with $job.labels }}
+          {{ toYaml . | nindent 10 }}
+          {{- end }}
+        spec:
+          {{- if $job.serviceAccount }}
+          serviceAccountName: {{ $job.serviceAccount.name }}
+          {{- end }}
+          {{- with ($job.affinity | default $.Values.global.affinity) }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with ($job.tolerations | default $.Values.global.tolerations) }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: {{ $job.name }}
+              image: {{ $root.global.image }}:{{ $root.global.image_tag }}
+              {{- if $job.imagePullPolicy }}
+              imagePullPolicy: {{ $job.imagePullPolicy }}
+              {{- end }}
+
+              {{- with $job.command }}
+              command:
+              {{- range . }}
+                - {{ . | quote }}
+              {{- end }}
+              {{- end }}
+
+              {{- with $job.args }}
+              args:
+                - |
+                  {{- range . }}
+                  {{ . }}
+                  {{- end }}
+              {{- end }}
+
+              {{- if or $job.env $job.envFromSecrets $job.envFromConfigMaps }}
+              env:
+              {{- end }}
+
+              {{- with $job.env }}
+              {{- range . }}
+                - name: {{ .name }}
+                  value: {{ .value | quote }}
+              {{- end }}
+              {{- end }}
+
+              {{- with $job.envFromSecrets }}
+              {{- range . }}
+                - name: {{ .name }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .secretName }}
+                      key: {{ .key }}
+              {{- end }}
+              {{- end }}
+
+              {{- with $job.envFromConfigMaps }}
+              {{- range . }}
+                - name: {{ .name }}
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ .configMapName }}
+                      key: {{ .key }}
+              {{- end }}
+              {{- end }}
+
+              {{- with $job.secrets }}
+                # envFrom for env-based secrets (releaseName must match externalSecret.yaml,
+                # which uses autotester.releaseName, so nameOverride stays consistent on both sides)
+                {{ include "autotester.envFromForSecrets" (dict "secrets" $job.secrets "releaseName" (include "autotester.releaseName" $)) | nindent 14 }}
+
+                # merged volumeMounts: user-defined + file-based secrets
+                {{ include "autotester.mergedVolumeMounts" (dict "secrets" $job.secrets "volumeMounts" $job.volumeMounts) | nindent 14 }}
+              {{- end }}
+
+              {{- with $job.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+
+          # merged volumes: user-defined + file-based secrets (releaseName must match externalSecret.yaml)
+          {{ include "autotester.mergedVolumes" (dict "secrets" $job.secrets "releaseName" (include "autotester.releaseName" $) "volumes" $job.volumes) | nindent 10 }}
+
+          {{- with $job.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+{{- end }}

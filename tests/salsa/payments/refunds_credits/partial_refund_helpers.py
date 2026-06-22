@@ -10,7 +10,7 @@ import time
 from playwright.sync_api import Page, expect
 
 # All explicit element/URL/dialog/loader/polling waits are capped at 5s per the
-# auto_tester 5-second wait policy; rely on readiness signals, not longer timeouts.
+# autotester 5-second wait policy; rely on readiness signals, not longer timeouts.
 FAST_UI_TIMEOUT = 5000
 STATE_TIMEOUT = 5000
 

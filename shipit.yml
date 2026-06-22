@@ -1,0 +1,54 @@
+ci:
+  stack:
+    run:
+      - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_build --no-wait
+    verify:
+      - python3 /usr/src/shipit/scripts/get_job_status.py -j common_build
+    abort:
+      - python3 /usr/src/shipit/scripts/get_job_status.py -j common_build --abort
+  pipeline:
+    run:
+      - echo mock job_name:mocking link:mocking status:RUNNING mock
+    verify:
+      - echo mock job_name:mocking link:mocking status:SUCCESS mock
+    abort:
+      - echo mock job_name:mocking link:mocking status:ABORTED mock
+status:
+  context:
+    - true
+merge:
+  ignore:
+    - continuous-integration/jenkins/branch
+review:
+  checks:
+    - echo "review.checks skipped"
+dependencies:
+  pre:
+    - echo "dependencies.pre skipped"
+  override:
+    - echo "dependencies.override skipped"
+  post:
+    - echo "dependencies.post skipped"
+fetch:
+  - 'curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -H "Authorization:
+    Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/apis/apps/v1/namespaces/$RAILS_ENV/deployments/$PROJECT_NAME/
+    | grep "\"image\":" | rev | cut -d''-'' -f1 | rev | cut -d"\"" -f1 | uniq'
+deploy:
+  pre: []
+  override:
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_deploy -s deploy
+  max_commits: 200
+  interval: 1m
+  retries_on_timeout: 5
+rollback:
+  override:
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_deploy -s deploy
+tasks:
+  fetch_rev:
+    action: Fetch deployed revision
+    description: Get current deployed revision from k8s.
+    steps:
+      'curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+      https://kubernetes.default.svc/apis/apps/v1/namespaces/$RAILS_ENV/deployments/$PROJECT_NAME/
+      | grep "\"image\":" | rev | cut -d''-'' -f1 | rev | cut -d"\"" -f1 | uniq'

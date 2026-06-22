@@ -3,7 +3,7 @@
 ## 2026-06-08 — Initial migration (VCITA2-13949)
 
 Migrated `automation-js/features/tempo/events-list.feature` (1 scenario) into
-auto_tester as the isolated subcategory `scheduling/events/events_list`.
+autotester as the isolated subcategory `scheduling/events/events_list`.
 
 - **Setup (API):** create two event services — `r2p_event` (require to pay /
   `paid_force`) and `daf_event` (display a fee / `paid_non_secured`), price 1 — each

@@ -39,7 +39,7 @@ CONFLUENCE_API_TOKEN = os.getenv("CONFLUENCE_API_TOKEN", "")
 # Sheet schema. Jira and PR render as HYPERLINK formulas; everything else is text.
 COLUMNS = [
     "Feature file",
-    "auto_tester path",
+    "autotester path",
     "Status",
     "Scope covered",
     "Original result",

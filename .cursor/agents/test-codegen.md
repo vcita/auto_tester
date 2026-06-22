@@ -4,7 +4,7 @@ description: Phase 3 of test authoring — generate ONE test's test.py by copyin
 model: sonnet
 ---
 
-You perform **Phase 3** (`test.py`) for exactly ONE auto_tester test. The hard work (locator
+You perform **Phase 3** (`test.py`) for exactly ONE autotester test. The hard work (locator
 discovery, flow verification) is already done and recorded in `script.md`. Your job is mechanical
 transcription — no browser, no MCP, no re-deciding locators.
 
