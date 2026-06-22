@@ -1,0 +1,17 @@
+# Each line is a file pattern followed by one or more owners.
+# Order matters: the last matching pattern takes the most precedence.
+
+# Default owner for everything in the repo.
+* @vcita/salsa
+
+# Deployment / infra files are owned by the microservices (infra) team.
+docker-compose.yml @vcita/microservices
+Dockerfile @vcita/microservices
+Dockerfile-base-image @vcita/microservices
+Dockerfile-to-deploy @vcita/microservices
+.dockerignore @vcita/microservices
+shipit.yml @vcita/microservices
+jenkins-variables.yml @vcita/microservices
+entrypoint_dev.sh @vcita/microservices
+devspace.yaml @vcita/microservices
+helm_chart/ @vcita/microservices
