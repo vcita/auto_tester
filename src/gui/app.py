@@ -407,6 +407,17 @@ def create_app(tests_root: Path, snapshots_dir: Path, heal_requests_dir: Path) -
         videos.sort(key=lambda x: x["modified"], reverse=True)
         return {"videos": videos}
     
+    @app.get("/health/check.json")
+    async def health_check():
+        """Liveness/readiness probe endpoint (mirrors vcita/scrum-dashboard)."""
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "healthy",
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
+
     @app.get("/api/status")
     async def get_status():
         """Get current runner status."""
