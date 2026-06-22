@@ -142,7 +142,7 @@ class TestRunner:
         tests_root: Path,
         headless: bool = False,
         snapshots_dir: Optional[Path] = None,
-        record_video: bool = True,
+        record_video: bool = False,
         keep_open: bool = False,
         until_test: Optional[str] = None,
         debug_test: Optional[str] = None,
@@ -167,7 +167,7 @@ class TestRunner:
         self.tests_root = Path(tests_root)
         self.headless = headless
         self.snapshots_dir = snapshots_dir or Path("snapshots")
-        self.record_video = record_video
+        self.record_video = record_video  # off by default; enable with --video
         self.keep_open = keep_open
         self.until_test = until_test
         self.debug_test = debug_test
@@ -585,37 +585,35 @@ class TestRunner:
                 ]
             )
                 
-            # Create context with realistic settings
-            # Video recording is enabled by default for debugging
-            # Videos are recorded to a temp location and moved to run storage after completion
+            # Create context with realistic settings.
+            # Videos are recorded to a temp location and moved to run storage after completion.
+            # Video recording is opt-in (--video flag); off by default to save disk/CPU.
+            bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
+            custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
+            viewport = get_browser_viewport(self.config)
+
             video_dir = None
             if self.record_video:
                 video_dir = Path.cwd() / ".temp_videos"
                 video_dir.mkdir(parents=True, exist_ok=True)
-                
-                # Custom user agent with bypass string to avoid captcha
-                # The bypass string is specific to vcita's captcha allowlist
-                bypass_string = "#vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
-                custom_user_agent = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {bypass_string}"
-                
-                viewport = get_browser_viewport(self.config)
-                browser_context = browser.new_context(
-                    no_viewport=True,
-                    locale='en-US',
-                    timezone_id='America/New_York',
-                    user_agent=custom_user_agent,
-                    record_video_dir=str(video_dir) if video_dir else None,
-                    record_video_size=viewport,
-                )
-                
-                # Minimal stealth - just hide webdriver flag
-                browser_context.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                """)
-                
-                page = browser_context.new_page()
+
+            browser_context = browser.new_context(
+                no_viewport=True,
+                locale='en-US',
+                timezone_id='America/New_York',
+                user_agent=custom_user_agent,
+                record_video_dir=str(video_dir) if video_dir else None,
+                record_video_size=viewport if video_dir else None,
+            )
+
+            # Minimal stealth - just hide webdriver flag
+            browser_context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
+
+            page = browser_context.new_page()
             
             # Track video start time for timestamp logging
             import time as time_module

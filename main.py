@@ -209,18 +209,20 @@ def cmd_run(args):
     # Check for headless mode, keep-open flag, until-test, and debug-test
     headless = args.headless if hasattr(args, 'headless') else False
     keep_open = getattr(args, 'keep_open', False)
+    record_video = getattr(args, 'video', False)
     until_test = getattr(args, 'until_test', None)
     debug_test = getattr(args, 'debug_test', None)
-    
+
     # Resolve env: None when --no-auto-account is set, otherwise use --env value
     no_auto = getattr(args, 'no_auto_account', False)
     env = None if no_auto else getattr(args, 'env', 'integration')
-    
+
     try:
         # Create runner
         runner = TestRunner(
             tests_root,
             headless=headless,
+            record_video=record_video,
             keep_open=keep_open,
             until_test=until_test,
             debug_test=debug_test,
@@ -292,13 +294,6 @@ def cmd_run(args):
         import traceback
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         sys.exit(1)
-
-
-def cmd_explore(args):
-    """Explore and generate test."""
-    console.print(f"[bold blue]Exploring: {args.test_path}[/bold blue]")
-    # TODO: Implement exploration
-    console.print("[yellow]Exploration not yet implemented[/yellow]")
 
 
 def cmd_init(args):
@@ -780,6 +775,11 @@ def main():
         help="Run browser in headless mode"
     )
     run_parser.add_argument(
+        "--video",
+        action="store_true",
+        help="Record video of test execution (saved to _runs/; off by default to save disk/CPU)"
+    )
+    run_parser.add_argument(
         "--keep-open",
         action="store_true",
         help="Keep browser open on failure for debugging"
@@ -816,13 +816,6 @@ def main():
         "--no-auto-account",
         action="store_true",
         help="Skip per-category account creation; use the hardcoded account from config.yaml instead."
-    )
-    
-    # Explore command - explore and generate tests
-    explore_parser = subparsers.add_parser("explore", help="Explore and generate test from steps.md")
-    explore_parser.add_argument(
-        "test_path",
-        help="Path to test folder (e.g., tests/booking/book_consultation)"
     )
     
     # List command - list all tests or functions
@@ -954,7 +947,6 @@ def main():
     
     commands = {
         "run": cmd_run,
-        "explore": cmd_explore,
         "list": cmd_list,
         "status": cmd_status,
         "health": cmd_health,

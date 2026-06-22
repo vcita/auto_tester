@@ -140,14 +140,16 @@ class HealRequestGenerator:
             "",
         ])
         
-        # Screenshot reference
+        # Screenshot reference (secondary — prefer a11y snapshot first)
         if result.screenshot:
             lines.extend([
-                "## Screenshot",
+                "## Screenshot (optional — read only if error + a11y snapshot is insufficient)",
                 "",
                 f"Screenshot saved at: `{result.screenshot}`",
                 "",
-                "**Analyze the screenshot to understand the UI state at failure.**",
+                "Use `browser_snapshot` in MCP as the primary diagnostic (lower token cost).",
+                "Read this screenshot only when the a11y tree is empty (canvas/WebGL page) or",
+                "the error is purely visual and cannot be understood from the DOM.",
                 "",
             ])
         
@@ -180,11 +182,11 @@ class HealRequestGenerator:
             "",
             "## Next Steps",
             "",
-            "1. Review the error message above",
-            "2. Check the screenshot to see the UI state",
+            "1. Read `changelog.md` for previous fixes (mandatory first)",
+            "2. Review the error message above",
             "3. Read the test files at the location above",
-            "4. Review changelog.md for previous fixes",
-            "5. Use Playwright MCP to debug if needed",
+            "4. Use `browser_snapshot` in MCP as the primary diagnostic — read the DOM/a11y tree",
+            "5. Read the screenshot (above) only if the a11y tree is empty or the error is purely visual",
             "",
             "See `.cursor/rules/heal.mdc` for detailed healing process.",
         ])

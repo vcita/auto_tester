@@ -4,11 +4,33 @@ Build a complete test following the **3-phase methodology** (steps → script �
 
 **Rules to follow:**
 - **Build process and checklist:** `.cursor/rules/build.mdc`
+- **Subagent-per-test isolation & context management:** `.cursor/rules/subagent-test-isolation.mdc`
+- **Snapshot-first MCP discipline:** `.cursor/rules/snapshot-first-authoring.mdc`
 - **Cross-cutting principles (no retries, single detection, timeout):** `.cursor/rules/project.mdc` § Cross-Cutting Execution Principles
 - **Real user actions / navigation:** `.cursor/rules/project.mdc` § Real User Actions Rule
 - **Matter entity agnosticism:** `.cursor/rules/project.mdc` § Matter Entity Name Agnosticism
 - **Checking similar tests / function reuse:** `.cursor/rules/project.mdc` § Check Similar Tests When Building or Healing, § Function Reuse Rules
 - **How to write steps/script/code:** `.cursor/rules/phase1_steps.mdc`, `phase2_script.mdc`, `phase3_code.mdc`
+
+---
+
+## Execution model — isolate each test's authoring in a subagent
+
+Per `subagent-test-isolation.mdc`, run each test's authoring through pinned-model subagents so the
+heavy MCP exploration traffic stays out of the orchestrator's context. As the orchestrator you own
+the plan, the run loop (Phase 4), and heal decisions — you do not drive the browser yourself for
+routine authoring.
+
+| Phase | Delegate to subagent | Model |
+|-------|----------------------|-------|
+| 1 — `steps.md` | `test-scaffolder` | sonnet |
+| 2 — `script.md` (live MCP) | `test-explorer` | opus |
+| 3 — `test.py` | `test-codegen` | sonnet |
+
+Each subagent returns only a file path + short summary (never raw snapshots). When building more
+than one test, **`/clear` between independent tests** (all durable state is on disk); `/compact`
+only within a single test if a long loop bloats context. For a trivial single test you may run the
+phases inline, but still apply the snapshot-first discipline.
 
 ---
 
@@ -20,6 +42,8 @@ Use **base_url + "/login"** from config.yaml (target.base_url); never hardcode t
 
 ## PHASE 1: Create steps.md
 
+> Delegate to the **`test-scaffolder`** subagent (sonnet). It returns the `steps.md` path + a short summary.
+
 1. **Check existing functions and similar tests** — Read `tests/_functions/_functions.yaml`; use `Call: function_name` when a function matches. Search for tests that do the same or similar user flow; reuse their flow and patterns. See **project.mdc** § Function Reuse Rules and § Check Similar Tests When Building or Healing.
 2. **Research** the feature (e.g. vcita support / knowledge center). See **build.mdc** § CRITICAL: Research Phase - Knowledge Center.
 3. **Write human-readable steps** (WHAT to do, not HOW). See **phase1_steps.mdc** for content, structure, and examples.
@@ -30,6 +54,8 @@ Use **base_url + "/login"** from config.yaml (target.base_url); never hardcode t
 
 ## PHASE 2: Create script.md via MCP Exploration
 
+> Delegate to the **`test-explorer`** subagent (opus). All `browser_snapshot`/screenshot traffic lives and dies inside it; it returns the `script.md` path + a short summary (chosen locators, success signal, any suspected bug) — never raw snapshots.
+
 1. **Align with similar tests** — Use the same locator and flow patterns as any similar working test from Phase 1; document in script.md when a locator matches test X or function Y. See **project.mdc** § Check Similar Tests When Building or Healing.
 2. **Explore with Playwright MCP** — Validate each step; document LOCATOR DECISION tables and **VERIFIED PLAYWRIGHT CODE** from MCP. See **phase2_script.mdc** and **build.mdc** § Step-by-Step Build Process (Explore with MCP, Generate script.md).
 3. **UI interaction patterns** — Hover before hidden buttons, inspect DOM with MCP, complete full flow in MCP before updating any code. Matter entity: use regex/positional selectors; for "Add &lt;entity&gt;" use `tests._params.ADD_MATTER_TEXT_REGEX`. See **build.mdc** § Key UI Interaction Patterns and **project.mdc** § Matter Entity Name Agnosticism.
@@ -39,6 +65,8 @@ Use **base_url + "/login"** from config.yaml (target.base_url); never hardcode t
 ---
 
 ## PHASE 3: Generate test.py
+
+> Delegate to the **`test-codegen`** subagent (sonnet). No browser — it transcribes the verified code and returns the `test.py` path + a one-line summary.
 
 1. **Copy VERIFIED PLAYWRIGHT CODE exactly from script.md** — Do not modify or improve locators. See **phase3_code.mdc** (copy from script, use verified code only).
 2. **Wait strategy** — Use state-based waits capped at 5 seconds (`timeout=5000`); never use `wait_for_timeout()` alone for action completion. If 5s is not enough, fix the selector/readiness signal/setup instead of raising the timeout. See **phase2_script.mdc** § CRITICAL: Wait Strategy and **phase3_code.mdc** § CRITICAL: Wait Strategy.

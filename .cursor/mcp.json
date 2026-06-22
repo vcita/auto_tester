@@ -1,10 +1,12 @@
 {
+  "_comment_caps": "Playwright MCP runs with --caps=core (no-vision): the accessibility tree + ref= ids drive selection, never screenshot coordinates. This keeps authoring/heal token cost down. Enable --caps=vision ONLY per-session, by hand, for genuine canvas/WebGL pages that expose an empty a11y tree — never commit it here. See .cursor/rules/snapshot-first-authoring.mdc.",
   "mcpServers": {
     "playwright": {
       "command": "npx",
       "args": [
         "-y",
         "@playwright/mcp@latest",
+        "--caps=core",
         "--user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 #vUC5wTG98Hq5=BW+D_1c29744b-38df-4f40-8830-a7558ccbfa6b"
       ]
