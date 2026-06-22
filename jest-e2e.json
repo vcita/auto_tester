@@ -1,0 +1,41 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "roots": [
+    "src",
+    "test"
+  ],
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": [
+    "./test/setup.ts"
+  ],
+  "transform": {
+    "^.+\\.ts$": "ts-jest"
+  },
+  "collectCoverageFrom": [
+    "**/*.(t|j)s",
+    "!**/*.spec.(t|j)s",
+    "!src/main.(t|j)s",
+    "!src/jobs/job.main.(t|j)s",
+    "!dist/migration/**",
+    "!**/*.external.(t|j)s"
+  ],
+  "coverageDirectory": "./reports/e2e-coverage",
+  "collectCoverage": true,
+  "coverageReporters": [
+    "text",
+    "cobertura"
+  ],
+  "coverageThreshold": {
+    "global": {
+      "branches": 80,
+      "functions": 80,
+      "lines": 80,
+      "statements": 80
+    }
+  }
+}

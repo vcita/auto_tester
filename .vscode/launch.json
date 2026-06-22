@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "remoteDebug",
+            "type": "node",
+            "request": "attach",
+            "port": <service_port_debug>,
+            "address": "localhost",
+            "localRoot": "${workspaceFolder}",
+            "remoteRoot": "/home/vcita/app",
+            "restart" : true
+          }
+    ]
+}

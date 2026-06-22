@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:experimental
+# Using experimentail allow us to COPY with --chown
+ARG APP_BASE_IMAGE
+FROM $APP_BASE_IMAGE
+
+# Making installation and building faster by dumping devDependencies
+ENV NODE_ENV="production"
+
+WORKDIR /home/vcita/app
+COPY --chown=vcita:vcita . .
+
+RUN npm run build
+
+ENTRYPOINT ["npm","run", "start:prod"]

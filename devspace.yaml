@@ -1,0 +1,11 @@
+version: v2beta1
+name: <service_name>
+
+imports:
+  - git: git@github.com:vcita/devspace.git
+    branch: master
+    subPath: ./generic_services/
+
+vars:
+    SERVICE_NAME: <service_name>
+    SERVICE_PORT_DEBUG: <service_port_debug>

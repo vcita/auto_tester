@@ -1,0 +1,44 @@
+# base image
+ARG NODE_IMAGE=node:16.7.0-slim
+FROM $NODE_IMAGE
+
+ENV PORT 8989
+EXPOSE 8989
+ENV PATH=/home/node_modules/.bin:$PATH
+
+ARG APP_ENV
+
+RUN printf "deb http://archive.debian.org/debian buster main\ndeb http://archive.debian.org/debian buster-updates main\ndeb http://archive.debian.org/debian-security buster/updates main" > /etc/apt/sources.list \
+    && apt-get update; \
+    apt-get install --no-install-recommends --no-install-suggests -q -y \
+        procps python3-pip build-essential \
+        ; \
+    apt-get autoremove -y; \
+    apt-get clean; \
+    rm -rf \
+        /var/cache/apt/archives \
+        /var/cache/ldconfig/* \
+        /var/lib/apt/lists/* \
+        /var/log/alternatives.log \
+        /var/log/apt/* \
+        /var/log/dpkg.log
+
+# Add user/group vcita
+# Delete dedault node user and set id to 1000
+RUN userdel -r node
+RUN groupadd -r -g 1000 vcita && useradd -m -s /bin/bash -r -u 1000 -g vcita vcita
+RUN chown vcita:vcita /home
+USER vcita
+RUN mkdir -p /home/vcita/app
+
+WORKDIR /home/
+
+# install "server" dependencies
+COPY --chown=vcita:vcita package*.json ./
+RUN test -f "package-lock.json" && npm ci || npm install
+
+# Save migration count
+RUN echo $(ls /home/vcita/app 2>/dev/null | wc -l) > migration_count.txt
+
+WORKDIR /home/vcita/app
+ENTRYPOINT ["tail", "-f", "/dev/null"]
