@@ -1,0 +1,242 @@
+ci:
+  stack:
+    run:
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_test -c "npm run test"
+      -s unit_test --no-wait
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_test -c "npm run test:e2e"
+      -s e2e_test --no-wait
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_test -c "npm run lint"
+      -s static_code --no-wait
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_test -s triggerTransifexLabelFileGeneration
+      --no-wait
+    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_build --no-wait
+    #  The following command validates proper swagger format.
+    #  It is needed when pushing swagger to API-GW.
+    #  Uncomment the lines after the 'A1' comment mark to activate properly
+    #  A1
+    #    - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_test -s swagger_validation --no-wait
+    verify:
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      test" -s unit_test
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      test:e2e" -s e2e_test
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      lint" -s static_code
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -s triggerTransifexLabelFileGeneration
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_build
+
+    #  A1
+    #    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -s swagger_validation
+    abort:
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      test" -s unit_test --abort
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      test:e2e" -s e2e_test --abort
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -c "npm run
+      lint" -s static_code --abort
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -s triggerTransifexLabelFileGeneration
+      --abort
+    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_build --abort
+  #  A1
+  #    - python3 /usr/src/shipit/scripts/get_job_status.py -j common_test -s swagger_validation --abort
+  pipeline:
+    run:
+    - echo mock job_name:mock link:mock status:RUNNING mock
+    verify:
+    - echo mock job_name:mock link:mock status:SUCCESS mock
+    abort:
+    - echo mock job_name:mock link:mock status:ABORTED mock
+status:
+  context:
+  - true
+merge:
+  ignore:
+  - continuous-integration/jenkins/branch
+review:
+  checks:
+  - echo "review.checks skipped"
+dependencies:
+  pre:
+  - echo "dependencies.pre skipped"
+  override:
+  - echo "dependencies.override skipped"
+  post:
+  - echo "dependencies.post skipped"
+fetch:
+- 'curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -H "Authorization:
+  Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/apis/apps/v1/namespaces/$RAILS_ENV/deployments/$PROJECT_NAME/
+  | grep "\"image\":" | rev | cut -d''-'' -f1 | rev | cut -d"\"" -f1 | uniq'
+deploy:
+  override:
+  - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_deploy -s deploy
+  max_commits: 200
+  retries_on_timeout: 5
+  pre:
+  - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_pre_deploy -c "bash
+    -c 'NODE_ENV=$ENVIRONMENT npm run build && NODE_ENV=$ENVIRONMENT npm run typeorm
+    -- migration:run'" -s db_migrate
+  - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_pre_deploy -s startTransifexPushKeysProcess
+#  This step is used to upload the swagger to the API-GW and expose it to the world
+#  Hint: this might be needed only for internal services.
+#  Uncomment the following line to do so
+#  - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_pre_deploy -s sync_api_gateway
+rollback:
+  override:
+  - /usr/src/shipit/scripts/jenkins_call_trigger.sh -j common_deploy -s deploy
+tasks:
+  fetch_rev:
+    action: Fetch deployed revision
+    description: Get current deployed revision from k8s.
+    steps: 'curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+      https://kubernetes.default.svc/apis/apps/v1/namespaces/$RAILS_ENV/deployments/$PROJECT_NAME/
+      | grep "\"image\":" | rev | cut -d''-'' -f1 | rev | cut -d"\"" -f1 | uniq'
+api_gateway:
+  # TODO: Check what attributes are possible here and what is the meaning of them
+  enabled: true
+  swaggerize_command: npm run swaggerize
+  command_version: 2
+  contexts: []
+helm_values:
+  default:
+    # The following section is used to cron jobs - uncomment and fill in the details if needed
+#    jobs:
+#      - name: cancel-all-notes
+#        schedule: "* * * * *"
+#        command: '["npm", "run", "job:exec", "--", "cancel-all-notes"]'
+    alerting:
+      # the squad to be alerted
+      squad: salsa
+    default_application:
+      enabled: true
+      # Section specifying the microservice dependencies
+      # Info: Infra bot will automatically add the microservice's 'oauth-app' dependency if needed
+      dependencies:
+        mysql:
+          enabled: true
+        oauth-app:
+          enabled: true
+          app_layer: cores
+          app_type:
+          - internal
+          scopes: []
+          demand_scopes: []
+      port: 8989
+      ingress:
+        # To have public access to your microsevice, uncomment the following object
+        # Hint: should be made to all application (external to vCita's ecosystem), but very rarely to internal services
+        # TODO: enable by default if "flavor" is application and commented out otherwise
+        public:
+          enabled: true
+      deployment:
+        containers:
+        - enabled: true
+          ports:
+          - containerPort: 8989
+    # To debug a faulty service on deployment, uncomment the following objects: (custom_entrypoint, default_container)
+    #          custom_entrypoint:
+    #            enabled: true
+    #            command: '["/bin/sh"]'
+    #            args: '["-c", "tail -f /dev/null"]'
+    #          default_container:
+    #            livenessProbe:
+    #            readinessProbe:
+
+    global:
+      deployment:
+        env:
+          APP_NAME: autotester
+          PROTOCOL: https
+          DATABASE_TYPE: mysql
+          REDIS_HOST: redis-{{ $.Release.Namespace }}-master.{{ $.Release.Namespace
+            }}.svc.cluster.local
+          REDIS_PORT: "6379"
+          CUSTOM_ENTITIES: '["/home/node_modules/@vcita/oauth-client-nestjs/dist/oauth/**/*.entity.js"]'
+          REDIS_QUEUES: notes
+          SCOPE: "[]"
+          DEMAND_SCOPE: "[]"
+          APP_LAYER: cores
+          APP_TYPE: "['internal']"
+          # TODO: Remove this when secrets infra is operational
+          AUTH_INTERNAL_RSA_PUBLIC: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyMEeVmNSwJmZ5eDXO+pP\n2yZzZjBsgrPE3hKXD35yAZ9hpFzN1JC/1VL71AJzr/4MSYVFtWnOvNMQi4JTV6sw\ntI7l5najDIy5M7yM7ILsBpNaqli8vkPbsqoT8o0zjsrQHCQpJ0Y9O85XNe519LDI\n6imA8v49ma5raFeeffRzvkqVC6ChpJGEfh/Kv66Ehc/19iyxv+HjRuZWRu8u4uko\nxujeN4gw4MZ3tuad6Y6AknSDbfAdRdCO9Rv1iwj/7eJtF6xjZ1zDqnw6NwOtiOMC\np8uJGFPTAdzWcD15vnLTCEgc1kuHjYwDkfiKlJCFU3NBDqezSb+WPfPrKZ/ps4m7\nOwIDAQAB\n-----END
+            PUBLIC KEY-----'
+        secrets:
+        - mysql
+        - oauth-app
+  integration:
+    grafana_dashboard:
+      # create the dashboards in the monitoring folder
+      enabled: true
+      # filename pattern under the monitoring folder
+      pattern: "*.json"
+    alerting:
+      # create the rules in the monitoring folder
+      enabled: true
+      # filename pattern under the monitoring folder
+      pattern: "*-integration.yml"
+    global:
+      deployment:
+        env:
+          REDIS_HOST: int-redis.vchost.co
+          #  Comment out the next line if custom OAUTH_SERVER is needed
+          #  Hint: This is only needed for Application (not internal services)
+          OAUTH_SERVER: https://app.meet2know.com/app/oauth/authorize
+          LOG_LEVEL: debug
+          LOG_FORMAT: json
+  production:
+    grafana_dashboard:
+      # create the dashboards in the monitoring folder
+      enabled: true
+      # filename pattern under the monitoring folder
+      pattern: "*.json"
+    alerting:
+      # create the rules in the monitoring folder
+      enabled: true
+      # filename pattern under the monitoring folder
+      pattern: "*-production.yml"
+    global:
+      deployment:
+        env:
+          REDIS_HOST: prod-redis.vchost.co
+          #  Comment out the next line if custom OAUTH_SERVER is needed
+          #  Hint: This is only needed for Application (not internal services)
+          OAUTH_SERVER: https://app.vcita.com/app/oauth/authorize
+          LOG_LEVEL: warn
+          LOG_FORMAT: json
+  feature_env:
+    global:
+      deployment:
+        env:
+          DATABASE_HOST: mysql-{{ $.Release.Namespace }}.{{ $.Release.Namespace }}.svc.cluster.local
+          DATABASE_NAME: autotester
+          DATABASE_USER: root
+          DATABASE_PASSWORD: "123456"
+          DATABASE_PORT: "3306"
+          OAUTH_SERVER: https://frontage-{{ $.Release.Namespace }}.external.int-eks.vchost.co/app/oauth/authorize
+          LOG_LEVEL: debug
+          LOG_FORMAT: human_readable
+jenkins-variables:
+  production:
+    BASE_IMAGE_FILES: Dockerfile-base-image,package.json,package-lock.json
+    WSO_API_HOSTS: "api.vcita.biz,api.thryv.com,apigw.myclients.io"
+  production-eu:
+    BASE_IMAGE_FILES: Dockerfile-base-image,package.json,package-lock.json
+  integration:
+    BASE_IMAGE_FILES: Dockerfile-base-image,package.json,package-lock.json
+    WSO_API_HOSTS: "api-int.vchost.co"
+  feature_env:
+    BASE_IMAGE_FILES: Dockerfile-base-image,package.json,package-lock.json
+
+# Infra bot configurations
+infra-bot:
+  flavor: backend
+
+# Project specific section
+  template: nestjs-service-template@master
+  squad-owner: salsa
+project:
+  meta:
+    name: autotester
+  development:
+    env:
+      port: 48475

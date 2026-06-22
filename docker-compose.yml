@@ -1,0 +1,21 @@
+version: "3.4"
+
+services:
+  autotester:
+    build:
+      context: ./
+      dockerfile: Dockerfile-base-image
+    ports:
+      - "48475:8989"
+      - "43261:9229" # Debugging port
+    restart: on-failure
+    entrypoint:
+      - ./entrypoint_dev.sh
+    environment:
+      - "ENVIRONMENT=development"
+      - "PORT=8989"
+    env_file:
+      - .env.development
+    volumes:
+      - ./:/home/vcita/app:cached
+      - /home/vcita/app/node_modules/
