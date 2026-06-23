@@ -28,8 +28,21 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --progress-bar off -r requirements.txt
 
 # The runner launches the real Google Chrome channel (channel='chrome' in
-# src/runner/runner.py), which is NOT bundled in the base image (it ships
-# Chromium). Install Chrome + its OS deps here.
-RUN python -m playwright install --with-deps chrome
+# src/runner/runner.py and main.py), which is NOT bundled in the base image (it
+# ships Chromium). Playwright's channel='chrome' only needs the system
+# google-chrome binary on PATH, so we install it straight from Google's apt repo
+# instead of `playwright install --with-deps chrome`. The Node-based installer
+# spins up a V8/libuv thread pool that aborts (uv_thread_create, exit 134) under
+# the Jenkins build host's low nproc limit; apt/dpkg don't, so this sidesteps it.
+# Browser system libraries are already provided by the Playwright base image.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget gnupg ca-certificates \
+    && wget -qO- https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
 
 USER vcita
