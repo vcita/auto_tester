@@ -3,8 +3,12 @@
 # and the version matches playwright==1.40.0 in requirements.txt.
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-# Create non-root vcita user (uid/gid 1000) matching vcita's container security standard.
-RUN groupadd -r -g 1000 vcita && useradd -m -s /bin/bash -r -u 1000 -g vcita vcita
+# Create non-root vcita user matching vcita's container security standard.
+# The Playwright base image already ships a "pwuser" owning uid/gid 1000, so we
+# pin vcita to 1001 instead of the org-default 1000 to avoid the collision
+# (groupadd would otherwise fail with "GID '1000' already exists"). Nothing
+# downstream references the numeric id — only the "vcita" name — so 1001 is safe.
+RUN groupadd -r -g 1001 vcita && useradd -m -s /bin/bash -r -u 1001 -g vcita vcita
 
 WORKDIR /autotester
 RUN chown vcita:vcita /autotester
