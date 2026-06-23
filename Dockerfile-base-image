@@ -14,12 +14,18 @@ WORKDIR /autotester
 RUN chown vcita:vcita /autotester
 
 # Keep Python from writing .pyc files and turn off output buffering for cleaner container logs.
+# PIP_NO_INPUT + PIP_PROGRESS_BAR=off prevent pip from spawning a background refresh
+# thread for its Rich progress bar — that thread creation fails under Jenkins build
+# containers with a low pids.max/nproc limit ("can't start new thread", exit code 2).
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_INPUT=1 \
+    PIP_PROGRESS_BAR=off
 
 # Install Python dependencies first to leverage Docker layer caching.
 COPY --chown=vcita:vcita requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --progress-bar off -r requirements.txt
 
 # The runner launches the real Google Chrome channel (channel='chrome' in
 # src/runner/runner.py), which is NOT bundled in the base image (it ships
