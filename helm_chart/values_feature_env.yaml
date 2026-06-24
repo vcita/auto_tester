@@ -1,0 +1,20 @@
+# Feature-env values for the autotester CronJob chart.
+#
+# Feature envs are ephemeral, per-developer namespaces. We deliberately deploy
+# the chart with NO scheduled jobs here: the every-2h sharded suite defined in
+# values_integration.yaml is meant for the shared integration cluster, not for
+# each fenv (it would create accounts and run the full suite on a 2h cadence
+# inside every developer's namespace).
+#
+# With jobs: [] the chart renders zero CronJobs, so `helm upgrade --install
+# --wait` succeeds cleanly and the Feature Env Deployment pipeline no longer
+# fails on a missing values file. This mirrors values_production.yaml.
+#
+# To actually exercise autotester inside a specific fenv, add job entries here
+# (same schema as values_integration.yaml) on a dedicated branch.
+
+# SSM path segment: /<environment>/<release>/<secret>. fenv runs on the
+# integration cluster, so secrets resolve under /integration/...
+environment: integration
+
+jobs: []
