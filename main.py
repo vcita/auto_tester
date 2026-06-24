@@ -274,7 +274,7 @@ def cmd_run(args):
         # Print final summary
         from src.runner.models import RunResult
         if isinstance(result, RunResult):
-            reporter.print_summary(result)
+            run_result = result
         else:
             # Single category result - wrap in RunResult for summary
             from datetime import datetime
@@ -283,8 +283,14 @@ def cmd_run(args):
                 completed_at=datetime.now(),
                 category_results=[result],
             )
-            reporter.print_summary(run_result)
-        
+        reporter.print_summary(run_result)
+
+        # Post a summary to Slack when SLACK_WEBHOOK_URL is set (no-op otherwise).
+        # Headless CronJob runs in feature envs have no terminal, so this is how
+        # the outcome reaches the team.
+        from src.runner.slack_reporter import SlackReporter
+        SlackReporter().post_summary(run_result, env=env)
+
         # Exit with appropriate code
         if result.total_failed > 0 if hasattr(result, 'total_failed') else result.failed > 0:
             sys.exit(1)

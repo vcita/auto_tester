@@ -88,7 +88,15 @@ spec:
               {{- with $job.env }}
               {{- range . }}
                 - name: {{ .name }}
+                  {{- if .fieldRef }}
+                  # Downward API: inject a pod field (e.g. metadata.namespace) at
+                  # runtime. Used so a job can target the feature env it runs in.
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: {{ .fieldRef }}
+                  {{- else }}
                   value: {{ .value | quote }}
+                  {{- end }}
               {{- end }}
               {{- end }}
 

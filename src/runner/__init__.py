@@ -7,6 +7,7 @@ from .executor import TestExecutor
 from .heal import HealRequestGenerator
 from .runner import TestRunner
 from .cli_reporter import CLIReporter
+from .slack_reporter import SlackReporter
 from .stress_test import StressTestRunner
 from . import account_factory, env_config
 
@@ -28,5 +29,6 @@ __all__ = [
     # Main
     "TestRunner",
     "CLIReporter",
+    "SlackReporter",
     "StressTestRunner",
 ]
