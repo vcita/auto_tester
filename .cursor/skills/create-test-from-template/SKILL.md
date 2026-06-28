@@ -68,6 +68,37 @@ Write `steps.md` to the test folder. Do not create `script.md` or `test.py` yet.
 
 ---
 
+## Phase 1.5 — Choose Target Environment and Create Exploration Account
+
+**Actively ask the user before starting exploration:**
+
+> "Which fenv should I run the Phase 2 browser exploration on?
+> **Recommended: `integration`** (`https://app.meet2know.com`).
+> Or enter a personal fenv name (e.g. `aviv` → `https://app-aviv.external.int-eks.vchost.co`).
+> Type the fenv name or press Enter to use `integration`."
+
+Wait for the user's answer. Do not proceed to Phase 2 until you have a confirmed fenv name.
+
+**Resolve the `app_base_url`** from the fenv name (mirrors `src/runner/env_config.py`):
+
+| Fenv | App URL |
+|---|---|
+| `integration` | `https://app.meet2know.com` |
+| `production` | `https://app.vcita.com` |
+| `<name>` (personal fenv) | `https://app-<name>.external.int-eks.vchost.co` |
+
+**Create an exploration account** on the target fenv using the runner's auto-account pattern (`auto.<category>.<timestamp>@vcita.com`, password `vcita123`):
+
+```bash
+python main.py run --category <team>/<domain>/<subcategory>/<test_name> --env <fenv>
+```
+
+This creates a fresh account on the target fenv. The account credentials are written to `.context/<Team>_context.json` under `auto_account`. Read that file after the runner exits and pass the `email`, `password`, and `app_base_url` as the login context for the test-explorer.
+
+> **Note:** `run` will fail at test execution (test.py does not exist yet) — that is expected. The account is already created before tests run. Ignore the test failure; use the account from the context file.
+
+---
+
 ## Phase 2 — Explore the UI and Write script.md
 
 Delegate to the **test-explorer** subagent (`.cursor/agents/test-explorer.md`).
@@ -75,9 +106,10 @@ Delegate to the **test-explorer** subagent (`.cursor/agents/test-explorer.md`).
 Pass to the subagent:
 1. The path to the newly written `steps.md`.
 2. Any similar working test in the same subcategory or domain (grep for an existing `script.md` nearby that covers the same entry page — pass its path so the explorer reuses committed locators).
-3. The flow entry point (starting URL or navigation path, derived from Section 3 "Where does the flow happen?").
-4. **Screenshots from the template** (if any were found in Phase 0): list the steps that have screenshots and describe what each screenshot shows. The explorer must use these as primary visual references when locating UI elements at those steps instead of exploring blindly.
-5. Data context from Section 4: what records already exist (created via API/setup) and what their names/IDs are in the live test account.
+3. The `app_base_url` resolved in Phase 1.5 (e.g. `https://app.meet2know.com`) — use this as `base_url` for all navigation. Do **not** use the default from `config.yaml`.
+4. The exploration account credentials from `.context/<Team>_context.json` (`auto_account.email` and `auto_account.password`).
+5. **Screenshots from the template** (if any were found in Phase 0): list the steps that have screenshots and describe what each screenshot shows. The explorer must use these as primary visual references when locating UI elements at those steps instead of exploring blindly.
+6. Data context from Section 4: what records already exist (created via API/setup) and what their names/IDs are in the live test account.
 
 The test-explorer returns: `script.md` path + a short summary of discovered locators and any blockers. It must complete the full flow (including the confirmation/result screen) before returning.
 
@@ -101,10 +133,10 @@ After it returns:
 
 ## Phase 4 — Focused Run
 
-Run the test without headless so the flow is visually verifiable:
+Run the test without headless so the flow is visually verifiable. Use the same fenv chosen in Phase 1.5:
 
 ```bash
-python main.py run --category <team>/<domain>/<subcategory>/<test_name>
+python main.py run --category <team>/<domain>/<subcategory>/<test_name> --env <fenv>
 ```
 
 **On pass:** proceed to Phase 5.
@@ -126,10 +158,10 @@ For each failure cycle:
 
 ## Phase 5 — Visual E2E Verification
 
-Run the test without headless and observe the browser:
+Run the test without headless and observe the browser (same fenv as Phase 1.5):
 
 ```bash
-python main.py run --category <team>/<domain>/<subcategory>/<test_name>
+python main.py run --category <team>/<domain>/<subcategory>/<test_name> --env <fenv>
 ```
 
 Confirm that:
@@ -144,7 +176,7 @@ If the visible flow diverges from the template design, update `steps.md` and pro
 ## Phase 6 — Stress Test
 
 ```bash
-python main.py stress_test --categories <team>/<domain>/<subcategory>/<test_name> --iterations 10
+python main.py stress_test --categories <team>/<domain>/<subcategory>/<test_name> --iterations 10 --env <fenv>
 ```
 
 **Passing criteria:** result says `STABLE` or `stable` with 10/10 runs.
