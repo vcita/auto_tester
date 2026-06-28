@@ -1,0 +1,30 @@
+name: New Notes (POV)
+team: tempo
+description: New POV notes UI flows (create/edit) with rollout.clients.new_notes ON
+  and note_summary OFF
+account_profile:
+  type: isolated
+  slug: new_notes
+  cleanup: always
+execution_order:
+- create_edit_note_no_summary
+tests:
+- id: create_edit_note_no_summary
+  name: Create and Edit Note (No Summary)
+  status: active
+  priority: high
+  description: New POV notes flow — create then edit a note with new_notes flag ON
+    and note_summary OFF (VCITA2-13033)
+status: active
+priority: high
+tags:
+- notes
+- new_notes
+- matters
+owner: QA Team
+created_at: 2026-06-28
+stability:
+  status: stable
+  last_stress_test: '2026-06-28'
+  pass_rate: 100.0%
+  iterations: 10

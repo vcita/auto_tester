@@ -21,6 +21,9 @@ tests:
     name: Delete Note
     status: active
     priority: high
+# Note: the new-POV notes flow (create_edit_note_no_summary, VCITA2-13033) lives in the
+# sibling isolated subcategory tests/tempo/clients/new_notes/ — it needs rollout.clients.new_notes
+# ON before app load, which would break these legacy-UI tests if enabled on the shared account.
 
 # Category metadata
 status: active

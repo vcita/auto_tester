@@ -11,6 +11,7 @@ execution_order:
   - edit_matter
   - edit_contact
   - notes
+  - new_notes
   - recently_active
   - reassign_primary_staff
   - collaborators
