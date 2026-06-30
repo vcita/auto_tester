@@ -53,6 +53,10 @@ the matching work, and follow them as binding project rules.
   the Confluence/Sheet tracker via the committed tool (never hand-edit).
 - **team-taxonomy** (`.cursor/skills/team-taxonomy.md`) — how to resolve a test's owning team from
   the Confluence "Squads responsibilities" page (pageId `2615410911`, source of truth).
+- **create-test-from-template** — end-to-end: reads a filled Confluence design template and
+  delivers a stable, stress-tested test with no manual steps. Use when the user says "build the
+  test", "create test from template", or provides a Confluence template URL. Covers Phase 1→3,
+  focused run, heal loop, stress test, and Confluence Section 7 update.
 
 ## Subagents (`.cursor/agents/`) — isolate each test's authoring (pinned model tiers)
 
