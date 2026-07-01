@@ -29,8 +29,13 @@ environment: integration
 #   name:                  unique job name (suffixed onto the release name)
 #   schedule:              cron expression
 #   command: []            container command (fully overrides image ENTRYPOINT)
-#   env: [{name,value}]    plain env vars
-#   secrets:               SSM-backed secrets, e.g. {name, as: env|file}
+#   env: [{name,value}]    plain env vars; use {name, fieldRef: metadata.namespace}
+#                          to inject a pod field at runtime (so a job targets the
+#                          feature env it runs in)
+#   secrets:               SSM-backed secrets, e.g. {name, as: env|file}. Add
+#                          `ssmRelease: <segment>` (or `ssmKey: <full path>`) to
+#                          source from a SHARED SSM param instead of the default
+#                          per-release path /<environment>/<releaseName>/<name>
 #   restartPolicy:         Never | OnFailure (default OnFailure)
 #   backoffLimit:          retries
 #   activeDeadlineSeconds: hard timeout

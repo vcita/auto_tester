@@ -65,6 +65,63 @@ def test_build_auto_email_sanitizes_category_segment():
     assert account_factory.AUTO_EMAIL_PATTERN.match(email)
 
 
+class _FakeOkResponse:
+    ok = True
+    status_code = 200
+    text = ""
+
+    def __init__(self, body):
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+def test_discover_directory_id_returns_numeric_id(monkeypatch):
+    captured = {}
+
+    def fake_get(url, params, headers, timeout):
+        captured["url"] = url
+        captured["params"] = params
+        captured["headers"] = headers
+        return _FakeOkResponse(
+            {"success": True, "data": [{"directory_id": 15, "directory_uid": "4umu6pzkmmiwgdr7"}]}
+        )
+
+    monkeypatch.setattr(account_factory.requests, "get", fake_get)
+
+    result = account_factory.discover_directory_id(
+        "https://core-x.example/", "admin-token", "test1+auto.wl@vmeetme.com"
+    )
+
+    assert result == "15"
+    assert captured["url"] == "https://core-x.example/directories/v1/search"
+    assert captured["params"] == {"email": "test1+auto.wl@vmeetme.com"}
+    assert captured["headers"] == {"Authorization": "Admin admin-token"}
+
+
+def test_discover_directory_id_returns_none_when_empty(monkeypatch):
+    monkeypatch.setattr(
+        account_factory.requests,
+        "get",
+        lambda url, params, headers, timeout: _FakeOkResponse({"success": True, "data": []}),
+    )
+
+    assert (
+        account_factory.discover_directory_id("https://core-x.example", "t", "nobody@x.com")
+        is None
+    )
+
+
+def test_discover_directory_id_swallows_request_errors(monkeypatch):
+    def boom(url, params, headers, timeout):
+        raise account_factory.requests.RequestException("connection reset")
+
+    monkeypatch.setattr(account_factory.requests, "get", boom)
+
+    assert account_factory.discover_directory_id("https://core-x.example", "t", "e@x.com") is None
+
+
 def test_create_account_posts_admin_payload_for_platinum(monkeypatch):
     posted = {}
     recorded_emails = []

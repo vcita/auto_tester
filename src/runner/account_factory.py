@@ -85,6 +85,46 @@ def load_directory_id(config: Optional[dict] = None) -> Optional[str]:
     return None
 
 
+DIRECTORY_SEARCH_PATH = "/directories/v1/search"
+
+
+def discover_directory_id(
+    api_base_url: str, admin_token: str, email: str
+) -> Optional[str]:
+    """Resolve a directory's numeric id by a member email via the admin API.
+
+    Used on feature envs, where the numeric directory_id is a per-DB autoincrement
+    seed (the directory *uid* is stable across snapshots, the id is not) and so
+    differs from the integration directory (970). Returns the id as a string, or
+    None if the lookup found nothing or failed -- callers fall back to the known
+    seed default so a transient lookup error never aborts the run.
+    """
+    url = f"{api_base_url.rstrip('/')}{DIRECTORY_SEARCH_PATH}"
+    headers = {"Authorization": f"Admin {admin_token}"}
+    try:
+        resp = requests.get(
+            url, params={"email": email}, headers=headers, timeout=REQUEST_TIMEOUT
+        )
+    except requests.RequestException as exc:
+        logger.warning("Directory discovery request failed for %s: %s", email, exc)
+        return None
+    if not resp.ok:
+        logger.warning(
+            "Directory discovery for %s returned HTTP %s: %s",
+            email,
+            resp.status_code,
+            resp.text[:200],
+        )
+        return None
+    records = (resp.json() or {}).get("data") or []
+    if not records:
+        logger.warning("Directory discovery for %s returned no records", email)
+        return None
+    record = records[0]
+    directory_id = record.get("directory_id") or record.get("id")
+    return str(directory_id) if directory_id is not None else None
+
+
 def load_operator_credentials(config: Optional[dict] = None) -> tuple[str, str]:
     """Resolve operator-portal credentials (env override, then config, then default).
 
