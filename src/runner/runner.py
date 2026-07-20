@@ -181,7 +181,7 @@ class TestRunner:
             self.api_base_url = urls["api_base_url"]
             self.app_base_url = urls["app_base_url"]
             self.admin_token = account_factory.load_admin_token(config)
-            self.directory_id = account_factory.load_directory_id(config) or urls.get("directory_id")
+            self.directory_id = self._resolve_directory_id(config, urls)
         else:
             self.api_base_url = None
             self.app_base_url = None
@@ -195,7 +195,34 @@ class TestRunner:
         self.context_manager = ContextManager()
         self.heal_generator = HealRequestGenerator()
         self.storage = RunStorage(self.tests_root)
-    
+
+    def _resolve_directory_id(self, config: Optional[dict], urls: dict) -> Optional[str]:
+        """Resolve the directory new accounts are provisioned on for ``self.env``.
+
+        Known envs (integration/production): an explicit override (env var /
+        config) wins, otherwise the env's pinned directory.
+
+        Feature envs: the integration directory id (970) is inherited from the
+        shared autotester-creds secret but does NOT exist in a fenv's own DB, so
+        we ignore that env var here. An explicit config override still wins;
+        otherwise we resolve the fenv's sandbox-WL directory by member email at
+        runtime (its numeric id is a per-DB seed), falling back to the known seed
+        default from env_config.
+        """
+        if not env_config.is_feature_env(self.env):
+            return account_factory.load_directory_id(config) or urls.get("directory_id")
+
+        explicit = (config or {}).get("target", {}).get("directory_id") if config else None
+        if explicit:
+            return explicit
+        if self.admin_token:
+            discovered = account_factory.discover_directory_id(
+                self.api_base_url, self.admin_token, env_config.FEATURE_ENV_DIRECTORY_EMAIL
+            )
+            if discovered:
+                return discovered
+        return urls.get("directory_id")
+
     def get_categories(self) -> List[Category]:
         """
         Get all available categories.

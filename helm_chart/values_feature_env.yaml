@@ -1,20 +1,66 @@
 # Feature-env values for the autotester CronJob chart.
 #
-# Feature envs are ephemeral, per-developer namespaces. We deliberately deploy
-# the chart with NO scheduled jobs here: the every-2h sharded suite defined in
-# values_integration.yaml is meant for the shared integration cluster, not for
-# each fenv (it would create accounts and run the full suite on a 2h cadence
-# inside every developer's namespace).
+# Feature envs are ephemeral, per-developer namespaces that run on the
+# integration cluster. Unlike the shared integration suite (values_integration.
+# yaml), a fenv should exercise ITSELF -- the env name is not hard-coded, it is
+# derived at runtime from the pod's namespace (== the fenv name).
 #
-# With jobs: [] the chart renders zero CronJobs, so `helm upgrade --install
-# --wait` succeeds cleanly and the Feature Env Deployment pipeline no longer
-# fails on a missing values file. This mirrors values_production.yaml.
+# How "generic" targeting works:
+#   - TARGET_ENV is injected via the downward API (fieldRef: metadata.namespace),
+#     so namespace `automation-aviv` -> `--env automation-aviv`.
+#   - env_config.resolve_urls() then maps that to the fenv hosts
+#     (core-<name>... / frontage-<name>...).
+#   - The directory id is resolved at runtime (the integration directory 970 does
+#     not exist in a fenv's own DB); see runner._resolve_directory_id.
+#   - The admin token is the global static token, sourced from ONE shared SSM
+#     param (ssmRelease below) rather than a per-fenv secret.
 #
-# To actually exercise autotester inside a specific fenv, add job entries here
-# (same schema as values_integration.yaml) on a dedicated branch.
+# Scope: a single small SMOKE shard (not the full 12-shard suite) -- fenvs are
+# ephemeral dev environments, so this just proves the end-to-end chain (env
+# resolution -> account creation -> login -> a real UI flow -> teardown -> Slack
+# summary) works on the fenv. Add more jobs (same schema as values_integration.
+# yaml) on a dedicated branch if a fenv needs broader coverage.
 
 # SSM path segment: /<environment>/<release>/<secret>. fenv runs on the
 # integration cluster, so secrets resolve under /integration/...
 environment: integration
 
-jobs: []
+shared:
+  # TARGET_ENV/ENVIRONMENT are derived from the namespace at runtime -- the same
+  # rendered job works unchanged in every fenv.
+  env: &env
+    - name: TARGET_ENV
+      fieldRef: metadata.namespace
+    - name: ENVIRONMENT
+      fieldRef: metadata.namespace
+  # The autotester admin token is a global static value (environment-independent),
+  # so every fenv reads ONE shared SSM param instead of provisioning an identical
+  # secret per fenv. The k8s Secret it syncs into is still per-namespace.
+  #   SSM JSON at /integration/autotester-fenv/autotester-creds with key
+  #   VCITA_ADMIN_TOKEN, injected as an env var.
+  secrets: &secrets
+    - name: autotester-creds
+      as: env
+      ssmRelease: autotester-fenv
+  resources: &resources
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+jobs:
+  - name: smoke # maestro/settings (8) -- small, fast, exercises the full chain
+    squad: maestro
+    schedule: "0 */2 * * *"
+    command: ["python3", "main.py", "run", "--headless", "--env", "$(TARGET_ENV)", "--team", "maestro"]
+    env: *env
+    secrets: *secrets
+    resources: *resources
+    restartPolicy: Never
+    # Quoted "0" so the template renders backoffLimit: 0 (no retries); an integer
+    # 0 is treated as unset and falls through to k8s' default of 6.
+    backoffLimit: "0"
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 1800 # 30m hard cap (a smoke shard is small)
